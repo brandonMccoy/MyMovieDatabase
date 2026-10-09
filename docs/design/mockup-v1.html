@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shelf — Mockup v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Design tokens (candidate for MMDb.UI) ---------- */
+  :root {
+    --bg: #0e1115;
+    --surface: #151a20;
+    --surface-2: #1c222a;
+    --surface-3: #242b35;
+    --line: #2a313b;
+    --line-soft: #20262e;
+    --text: #e9edf2;
+    --text-2: #b4bdc8;
+    --muted: #7f8a98;
+    --faint: #56606c;
+    --accent: #e8b04b;        /* projector amber */
+    --accent-ink: #1a1305;
+    --accent-soft: rgba(232,176,75,.12);
+    --uhd: #e8b04b;
+    --bluray: #4c8dff;
+    --dvd: #d77cc0;
+    --digital: #5cc489;
+    /* chart steps of the same format hues, validated for the dark surface */
+    --c-uhd: #bf8a2c;
+    --c-br: #3a78e0;
+    --c-dvd: #c05aa8;
+    --c-digital: #3fa36b;
+    --danger: #ef5b5b;
+    --ok: #3fbf7f;
+    --radius: 6px;
+    --radius-sm: 4px;
+    --font: "Instrument Sans", system-ui, sans-serif;
+    --serif: "Instrument Serif", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #090b0e;
+    color: var(--text);
+    font: 14px/1.45 var(--font);
+    -webkit-font-smoothing: antialiased;
+    padding: 32px 16px 80px;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  a { color: inherit; }
+
+  /* ---------- Page chrome (mockup only) ---------- */
+  .page { max-width: 1320px; margin: 0 auto; }
+  .page-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .page-head h1 { font: 400 34px/1 var(--serif); margin: 0; letter-spacing: -.01em; }
+  .page-head p { color: var(--muted); margin: 0; }
+  .switch { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .switch button {
+    background: none; border: 0; padding: 10px 14px; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 500;
+  }
+  .switch button[aria-selected="true"] { color: var(--text); border-color: var(--accent); }
+  .screen { display: none; }
+  .screen.on { display: block; }
+  .note { color: var(--muted); font-size: 13px; margin: 14px 2px 0; max-width: 820px; }
+
+  /* ---------- Desktop window ---------- */
+  .window {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.45);
+    display: grid; grid-template-columns: 220px 1fr; min-height: 760px;
+  }
+  .side { background: var(--surface); border-right: 1px solid var(--line-soft); padding: 18px 12px; display: flex; flex-direction: column; gap: 22px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+  .brand-mark { width: 26px; height: 26px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); }
+  .brand-name { font: 400 22px/1 var(--serif); }
+  .nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); padding: 0 10px 6px; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm);
+    text-decoration: none; color: var(--text-2); font-weight: 500;
+  }
+  .nav a:hover { background: var(--surface-2); }
+  .nav a.active { background: var(--surface-3); color: var(--text); }
+  .nav a .count { margin-left: auto; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .nav svg { width: 16px; height: 16px; flex: none; opacity: .85; }
+  .side-foot { margin-top: auto; border-top: 1px solid var(--line-soft); padding: 14px 10px 0; font-size: 12px; color: var(--muted); display: grid; gap: 8px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; box-shadow: 0 0 0 3px rgba(63,191,127,.15); }
+
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid var(--line-soft); }
+  .search {
+    flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; color: var(--muted);
+  }
+  .search svg { width: 15px; height: 15px; }
+  .search kbd { margin-left: auto; font: 11px var(--mono); color: var(--faint); border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; }
+  .spacer { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; border-radius: var(--radius);
+    padding: 8px 14px; font-weight: 500; border: 1px solid var(--line); background: var(--surface-2); text-decoration: none; white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface-3); }
+  .btn svg { width: 15px; height: 15px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; }
+
+  .content { padding: 26px 28px 36px; }
+  .section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+  .section-head h2 { font: 400 32px/1 var(--serif); margin: 0; }
+  .section-head .sub { color: var(--muted); }
+
+  .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .chip {
+    border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 12px;
+    color: var(--text-2); font-size: 13px;
+  }
+  .chip.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .chip .n { color: var(--faint); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .chip.on .n { color: #5a6270; }
+  .select { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; padding: 5px 4px; }
+  .select b { color: var(--text-2); font-weight: 500; }
+  .view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+  .view-toggle span { padding: 5px 8px; display: grid; place-items: center; color: var(--muted); }
+  .view-toggle span.on { background: var(--surface-3); color: var(--text); }
+  .view-toggle svg { width: 14px; height: 14px; }
+
+  /* ---------- Posters ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 26px 18px; }
+  .card { min-width: 0; }
+  .poster {
+    position: relative; aspect-ratio: 2/3; border-radius: var(--radius-sm); overflow: hidden;
+    background: linear-gradient(165deg, var(--p1), var(--p2));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 6px 18px rgba(0,0,0,.35);
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 12px;
+  }
+  .poster::before { /* faint film grain / vignette */
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.10), transparent 60%), linear-gradient(transparent 55%, rgba(0,0,0,.45));
+  }
+  .poster .pt { position: relative; font: 400 19px/1.02 var(--serif); color: rgba(255,255,255,.92); text-wrap: balance; }
+  .poster .pd { position: relative; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-top: 6px; }
+  .poster .hover {
+    position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8,10,13,.55);
+    opacity: 0; transition: opacity .15s ease;
+  }
+  .card:hover .poster .hover { opacity: 1; }
+  .play {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 7px 11px;
+    background: rgba(255,255,255,.95); color: #111; border-radius: 999px; text-decoration: none;
+  }
+  .play svg { width: 11px; height: 11px; }
+  .card .t { margin-top: 9px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .m { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .fmt {
+    font: 600 9.5px/1 var(--font); letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 5px; border-radius: 3px; border: 1px solid currentColor;
+  }
+  .fmt.uhd { color: var(--uhd); }
+  .fmt.br { color: var(--bluray); }
+  .fmt.dvd { color: var(--dvd); }
+  .fmt.dig { color: var(--digital); }
+
+  /* ---------- Detail ---------- */
+  .hero { position: relative; padding: 0; }
+  .backdrop {
+    height: 300px; background:
+      linear-gradient(90deg, var(--bg) 0%, rgba(14,17,21,.55) 45%, rgba(14,17,21,.2) 100%),
+      linear-gradient(0deg, var(--bg) 0%, transparent 55%),
+      linear-gradient(120deg, #1d3550 0%, #0f2133 40%, #33465a 75%, #8a7a5c 100%);
+  }
+  .detail { display: grid; grid-template-columns: 220px 1fr 280px; gap: 34px; padding: 0 28px 36px; margin-top: -190px; position: relative; }
+  .detail .poster { width: 220px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 18px 40px rgba(0,0,0,.6); padding: 18px; }
+  .detail .poster .pt { font-size: 34px; }
+  .eyebrow { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .title-lg { font: 400 58px/1 var(--serif); margin: 6px 0 10px; letter-spacing: -.01em; }
+  .title-lg .yr { color: var(--muted); font-size: 30px; margin-left: 6px; }
+  .byline { color: var(--text-2); font-size: 15px; }
+  .byline b { color: var(--text); font-weight: 500; }
+  .meta-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; color: var(--muted); margin: 14px 0 20px; font-size: 13px; }
+  .meta-row .sep { width: 3px; height: 3px; border-radius: 50%; background: var(--faint); }
+  .rating { border: 1px solid var(--line); border-radius: 3px; padding: 1px 5px; font-size: 11px; color: var(--text-2); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .synopsis { color: var(--text-2); font-size: 15.5px; line-height: 1.6; max-width: 620px; margin: 26px 0 0; }
+  .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin: 30px 0 16px; }
+  .tabs span { padding: 8px 0; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs span.on { color: var(--text); border-color: var(--accent); }
+  .cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 18px; }
+  .person { display: flex; gap: 10px; align-items: center; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-size: 12px; color: var(--muted); flex: none; }
+  .person .n { font-weight: 500; font-size: 13.5px; }
+  .person .r { color: var(--muted); font-size: 12.5px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; }
+  .panel + .panel { margin-top: 14px; }
+  .panel h3 { margin: 0 0 12px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+  .panel h3 a { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--accent); text-decoration: none; font-size: 12px; }
+  .kv { display: grid; grid-template-columns: 92px 1fr; gap: 9px 10px; font-size: 13px; margin: 0; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; color: var(--text); }
+  .mono { font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+  .trailer-thumb {
+    position: relative; aspect-ratio: 16/9; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 10px;
+    background: linear-gradient(120deg, #22384f, #0f1b28 55%, #4b4436);
+    display: grid; place-items: center;
+  }
+  .trailer-thumb .pbtn { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.95); display: grid; place-items: center; color: #111; }
+  .trailer-thumb .pbtn svg { width: 16px; height: 16px; margin-left: 3px; }
+  .trailer-thumb .len { position: absolute; right: 8px; bottom: 8px; font: 11px var(--mono); background: rgba(0,0,0,.7); padding: 2px 5px; border-radius: 3px; }
+  .small { font-size: 12.5px; color: var(--muted); }
+  .fmts { display: flex; gap: 6px; }
+  .owned { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+  .owned:first-of-type { border-top: 0; padding-top: 0; }
+  .vault { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--text-2); }
+  .vault svg { width: 14px; height: 14px; color: #a88bfa; flex: none; }
+
+  /* ---------- Comics ---------- */
+  .series { border-top: 1px solid var(--line-soft); padding: 20px 0 6px; }
+  .series:first-of-type { border-top: 0; padding-top: 0; }
+  .series-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .series-head h3 { margin: 0; font: 400 24px/1.1 var(--serif); }
+  .series-head .pub { color: var(--muted); font-size: 13px; }
+  .series-head .progress { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar { width: 120px; height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .issues { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 16px 14px; }
+  .issue .poster { padding: 9px; aspect-ratio: 2/3.05; }
+  .issue .poster .pt { font-size: 14px; }
+  .issue .num { margin-top: 7px; font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+  .issue .sub2 { color: var(--muted); font-size: 12px; }
+  .key { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--accent-ink); background: var(--accent); padding: 2px 5px; border-radius: 3px; }
+  .issue.missing .poster { background: repeating-linear-gradient(135deg, var(--surface) 0 8px, var(--surface-2) 8px 16px); box-shadow: inset 0 0 0 1px var(--line); }
+  .issue.missing .poster::before { display: none; }
+  .issue.missing .poster .pt { color: var(--faint); font-family: var(--font); font-size: 12px; }
+  .issue.missing .num { color: var(--faint); }
+
+  /* ---------- Phones ---------- */
+  .phones { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; padding: 10px 0; }
+  .phone-wrap { display: grid; gap: 12px; justify-items: center; }
+  .phone-cap { color: var(--muted); font-size: 13px; }
+  .phone {
+    width: 360px; height: 760px; border-radius: 42px; padding: 10px; background: #000;
+    box-shadow: 0 0 0 1px #2b2f36, 0 30px 70px rgba(0,0,0,.55);
+  }
+  .phone-screen { width: 100%; height: 100%; border-radius: 33px; overflow: hidden; background: var(--bg); position: relative; display: flex; flex-direction: column; }
+  .status { display: flex; justify-content: space-between; padding: 12px 24px 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .appbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px 12px; }
+  .appbar .ttl { font-weight: 600; font-size: 16px; }
+  .appbar svg { width: 20px; height: 20px; color: var(--text-2); }
+  .appbar .right { margin-left: auto; }
+
+  .camera {
+    flex: 1; position: relative; margin: 0;
+    background:
+      radial-gradient(60% 40% at 50% 45%, rgba(255,255,255,.06), transparent 70%),
+      linear-gradient(160deg, #1b2027 0%, #0b0d10 100%);
+    display: grid; place-items: center;
+  }
+  .reticle { width: 250px; height: 150px; position: relative; }
+  .reticle i { position: absolute; width: 26px; height: 26px; border-color: var(--accent); border-style: solid; border-width: 0; }
+  .reticle i:nth-child(1) { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 8px; }
+  .reticle i:nth-child(2) { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 8px; }
+  .reticle i:nth-child(3) { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 8px; }
+  .reticle i:nth-child(4) { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 8px; }
+  .barcode { position: absolute; inset: 34px 40px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.75) 0 2px, transparent 2px 4px, rgba(255,255,255,.75) 4px 5px, transparent 5px 8px, rgba(255,255,255,.75) 8px 11px, transparent 11px 13px); opacity: .55; border-radius: 2px; }
+  .scanline { position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .cam-hint { position: absolute; bottom: 150px; left: 0; right: 0; text-align: center; color: var(--text-2); font-size: 13px; }
+  .type-switch { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 3px; }
+  .type-switch span { padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--text-2); }
+  .type-switch span.on { background: var(--text); color: var(--bg); }
+  .cam-bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 20px 26px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(transparent, rgba(0,0,0,.6)); }
+  .round { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.08); display: grid; place-items: center; color: var(--text); }
+  .round svg { width: 18px; height: 18px; }
+  .queue { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); background: rgba(255,255,255,.08); padding: 8px 12px; border-radius: 999px; }
+  .queue b { color: var(--accent); }
+
+  .scroll { flex: 1; overflow: hidden; padding: 0 16px; }
+  .code-chip { display: inline-flex; gap: 8px; align-items: center; font: 11.5px var(--mono); color: var(--muted); background: var(--surface); border: 1px solid var(--line-soft); padding: 5px 9px; border-radius: 999px; }
+  .code-chip svg { width: 13px; height: 13px; }
+  .match { display: flex; gap: 12px; margin: 14px 0 6px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .match .poster { width: 74px; flex: none; padding: 7px; }
+  .match .poster .pt { font-size: 13px; }
+  .match .src { font-size: 11px; color: var(--ok); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .match .mt { font: 400 24px/1.05 var(--serif); margin: 3px 0 4px; }
+  .match .mm { color: var(--muted); font-size: 12.5px; }
+  .match .trl { display: inline-flex; gap: 5px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-2); text-decoration: none; }
+  .match .trl svg { width: 12px; height: 12px; color: var(--danger); }
+  .alts { font-size: 12.5px; color: var(--accent); margin: 0 0 14px 2px; }
+  .owned-note { display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: var(--text-2); background: var(--accent-soft); border: 1px solid rgba(232,176,75,.25); border-radius: var(--radius-sm); padding: 9px 11px; margin-bottom: 14px; }
+  .owned-note b { color: var(--accent); font-weight: 600; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  .input { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 11px; font-size: 14px; color: var(--text); }
+  .input.edited { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toast { position: absolute; top: 60px; left: 14px; right: 14px; display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border: 1px solid rgba(232,176,75,.4); border-radius: 10px; padding: 10px 12px; font-size: 13px; box-shadow: 0 10px 24px rgba(0,0,0,.5); }
+  .toast svg, .wish-hit svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 1px; fill: var(--accent); }
+  .toast .ts, .wish-hit .ts { color: var(--muted); font-size: 12px; margin-top: 1px; }
+  .wish-hit { display: flex; gap: 10px; align-items: flex-start; background: var(--accent-soft); border: 1px solid rgba(232,176,75,.45); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+  .wish-hit b { color: var(--accent); }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px; gap: 3px; }
+  .seg span { text-align: center; padding: 7px 0; font-size: 13px; color: var(--muted); border-radius: 3px; font-weight: 500; }
+  .seg span.on { background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .sticky { padding: 12px 16px 22px; border-top: 1px solid var(--line-soft); background: var(--bg); display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+  .sticky .btn { justify-content: center; padding: 11px 14px; }
+
+  /* ---------- Wishlist ---------- */
+  .subtabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .subtabs button { background: none; border: 0; padding: 8px 0; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .subtabs button.on { color: var(--text); border-color: var(--accent); }
+  .subtabs .n { color: var(--faint); margin-left: 5px; font-variant-numeric: tabular-nums; }
+  .wl { display: none; }
+  .wl.on { display: block; }
+  .wl-row { display: grid; grid-template-columns: 46px minmax(0,1fr) 150px 110px auto; gap: 16px; align-items: center; padding: 12px 6px; border-bottom: 1px solid var(--line-soft); }
+  .wl-row:hover { background: rgba(255,255,255,.02); }
+  .wl-row .poster { width: 46px; padding: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+  .wl-row .poster::before { display: none; }
+  .wl-title { font-weight: 500; }
+  .wl-title .yr { color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .wl-sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .want { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .fmt.want-b { border-style: dashed; }
+  .tag { font-size: 11px; color: var(--accent); border: 1px solid rgba(232,176,75,.35); border-radius: 3px; padding: 2px 6px; }
+  .tag.dim { color: var(--muted); border-color: var(--line); }
+  .wl-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn.sm { padding: 6px 10px; font-size: 13px; }
+  .btn.icon { padding: 6px 8px; }
+  .btn .yt { color: #ff4e45; }
+
+  /* ---------- Stats ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .tile { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; }
+  .tile .k { font-size: 12px; color: var(--muted); }
+  .tile .v { font: 400 38px/1.1 var(--serif); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .charts { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+  .chart { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px 18px 18px; min-width: 0; }
+  .chart.wide { grid-column: 1 / -1; }
+  .chart h4 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+  .chart .cap { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .stack { display: flex; gap: 2px; height: 14px; }
+  .stack i { display: block; height: 100%; }
+  .stack i:first-child { border-radius: 4px 0 0 4px; }
+  .stack i:last-child { border-radius: 0 4px 4px 0; }
+  .legend { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; }
+  .legend b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .cols { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; align-items: end; height: 150px; border-bottom: 1px solid var(--line); position: relative; }
+  .cols .col { position: relative; height: 100%; display: flex; align-items: flex-end; justify-content: center; cursor: default; }
+  .cols .col i { display: block; width: 100%; max-width: 28px; background: var(--c-uhd); border-radius: 4px 4px 0 0; }
+  .cols .col:hover i { filter: brightness(1.2); }
+  .xlabels { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--muted); text-align: center; }
+  .gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line-soft); font-size: 10.5px; color: var(--faint); }
+  .gridline span { position: absolute; right: 0; top: -15px; }
+  .hbars { display: grid; gap: 9px; }
+  .hbar { display: grid; grid-template-columns: 150px 1fr 34px; gap: 10px; align-items: center; font-size: 13px; cursor: default; }
+  .hbar .lbl { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar .track { height: 10px; }
+  .hbar .track i { display: block; height: 100%; background: var(--c-br); border-radius: 0 4px 4px 0; }
+  .hbar .num { text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .hbar:hover .track i { filter: brightness(1.2); }
+  .tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface-3); border: 1px solid var(--line); border-radius: 5px; padding: 6px 9px; font-size: 12px; color: var(--text); box-shadow: 0 8px 20px rgba(0,0,0,.4); opacity: 0; transition: opacity .08s; white-space: nowrap; }
+  .tip b { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Settings ---------- */
+  .settings { max-width: 860px; display: grid; gap: 16px; }
+  .set { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 18px 20px; }
+  .set h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .set .desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .pair { display: grid; grid-template-columns: 148px 1fr; gap: 22px; align-items: start; }
+  .qr { width: 148px; height: 148px; border-radius: 6px; background: #fff; padding: 10px; display: grid; grid-template-columns: repeat(21, 1fr); }
+  .qr i { display: block; }
+  .qr i.b { background: #111; }
+  .code { font: 22px var(--mono); letter-spacing: .2em; color: var(--text); margin: 4px 0 8px; }
+  .devices { margin-top: 14px; border-top: 1px solid var(--line-soft); }
+  .device { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+  .device .muted { color: var(--muted); }
+  .device .btn { margin-left: auto; }
+  .setrow { display: grid; grid-template-columns: 170px 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+  .setrow:first-of-type { border-top: 0; }
+  .setrow .lbl { color: var(--text-2); }
+  .setrow .input { font-size: 13px; padding: 7px 10px; }
+  .ok { color: var(--ok); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+  .warn { color: var(--accent); font-size: 12.5px; }
+
+  /* ---------- Import ---------- */
+  .switch-ui { width: 34px; height: 20px; border-radius: 999px; background: var(--surface-3); position: relative; }
+  .switch-ui i { position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); }
+  .switch-ui.on { background: var(--accent); }
+  .switch-ui.on i { left: 17px; background: var(--accent-ink); }
+  .import-sum { display: flex; gap: 22px; flex-wrap: wrap; margin: 18px 0 16px; font-size: 13px; color: var(--muted); }
+  .import-sum b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .imp { display: grid; grid-template-columns: 20px minmax(0,1.1fr) 18px minmax(0,1fr) 120px auto; gap: 14px; align-items: center; padding: 11px 6px; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+  .cb { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--line); display: grid; place-items: center; }
+  .cb.on { background: var(--accent); border-color: var(--accent); }
+  .cb.on::after { content: ""; width: 8px; height: 4px; border: 2px solid var(--accent-ink); border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+  .imp .file { font: 12px var(--mono); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .imp .arrow { color: var(--faint); }
+  .imp .hit { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  .imp .hit .poster { width: 30px; padding: 0; flex: none; }
+  .imp .hit .poster::before { display: none; }
+  .imp .hit .ht { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .imp .hit .ht span { color: var(--muted); margin-left: 4px; }
+  .conf { font-size: 11.5px; font-weight: 600; }
+  .conf.exact { color: var(--text-2); }
+  .conf.review { color: var(--accent); }
+  .conf.none { color: var(--danger); }
+  @media (max-width: 1100px) { .imp { grid-template-columns: 20px minmax(0,1fr) auto; } .imp .file, .imp .arrow, .imp .conf { display: none; } }
+
+  /* ---------- Phone browse ---------- */
+  .offline { display: flex; gap: 8px; align-items: center; margin: 0 16px 10px; padding: 8px 11px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line-soft); font-size: 12px; color: var(--text-2); }
+  .offline .od { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+  .offline b { color: var(--accent); font-weight: 600; }
+  .psearch { margin: 0 16px 12px; display: flex; gap: 8px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; color: var(--muted); }
+  .psearch.active { border-color: var(--accent); color: var(--text); }
+  .psearch svg { width: 16px; height: 16px; }
+  .pseg { display: flex; gap: 6px; margin: 0 16px 12px; }
+  .pgrid { flex: 1; min-height: 0; overflow: hidden; align-content: start; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; padding: 0 16px; }
+  .pgrid > div { min-width: 0; }
+  .pgrid .poster { padding: 7px; }
+  .pgrid .poster .pt { font-size: 13px; }
+  .pgrid .t { font-size: 12px; margin-top: 6px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pgrid .fmts { margin-top: 4px; gap: 4px; }
+  .pgrid .fmt { font-size: 8.5px; padding: 2px 4px; }
+  .result { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+  .result .poster { width: 44px; padding: 0; flex: none; }
+  .result .poster::before { display: none; }
+  .result .rt { font-weight: 500; font-size: 14px; }
+  .result .rs { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .verdict { margin-left: auto; text-align: right; font-size: 11.5px; font-weight: 600; flex: none; }
+  .verdict.own { color: var(--text); }
+  .verdict.no { color: var(--muted); }
+  .verdict.wish { color: var(--accent); }
+  .verdict .fmts { justify-content: flex-end; margin-top: 4px; }
+  .rgroup { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 12px 16px 4px; }
+  .bnav { margin-top: auto; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line-soft); padding: 8px 6px 18px; background: var(--bg); }
+  .bnav span { display: grid; justify-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); }
+  .bnav span.on { color: var(--text); }
+  .bnav svg { width: 20px; height: 20px; }
+  .bnav .scanbtn { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; margin-top: -18px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+
+  @media (max-width: 1100px) {
+    .charts { grid-template-columns: 1fr; }
+    .wl-row { grid-template-columns: 46px minmax(0,1fr) auto; }
+    .wl-row .want, .wl-row .wl-added { display: none; }
+  }
+  @media (max-width: 600px) {
+    .pair { grid-template-columns: 1fr; }
+    .setrow { grid-template-columns: 1fr; gap: 6px; }
+    .hbar { grid-template-columns: 100px 1fr 30px; }
+  }
+  @media (max-width: 1100px) {
+    .window { grid-template-columns: 1fr; }
+    .side { display: none; }
+    .detail { grid-template-columns: 1fr; margin-top: -120px; }
+    .title-lg { font-size: 42px; }
+  }
+  @media (max-width: 600px) {
+    .topbar { flex-wrap: wrap; padding: 12px 16px; }
+    .content, .detail { padding-left: 16px; padding-right: 16px; }
+    .phone { width: 100%; max-width: 360px; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v16H5.5A1.5 1.5 0 0 0 4 20.5z"/><path d="M4 20.5A1.5 1.5 0 0 0 5.5 22H19v-3"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12.6 12 20l-7.5-7.4A4.9 4.9 0 0 1 12 6.2a4.9 4.9 0 0 1 7.5 6.4z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-yt" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .5-4.8 31 31 0 0 0-.5-4.8zM9.75 15.02V8.98L15.5 12z"/></symbol>
+  <symbol id="i-obsidian" viewBox="0 0 24 24" fill="currentColor"><path d="M8.4 2.2 4.6 9.1a2 2 0 0 0 .1 2.1l3.8 5.5 6.4 5a1.5 1.5 0 0 0 2.2-.5l2.6-5.3a2 2 0 0 0-.1-1.9l-3.4-5.4-5.5-6.7a1.4 1.4 0 0 0-2.3.3z"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+</svg>
+
+<div class="page">
+  <div class="page-head">
+    <h1>Shelf</h1>
+    <p>Mockup v1 · dark media-library direction · placeholder covers (real ones come from TMDB / Metron)</p>
+  </div>
+
+  <div class="switch" role="tablist">
+    <button role="tab" aria-selected="true" data-s="lib">PC · Movie library</button>
+    <button role="tab" aria-selected="false" data-s="detail">PC · Movie detail</button>
+    <button role="tab" aria-selected="false" data-s="comics">PC · Comics</button>
+    <button role="tab" aria-selected="false" data-s="wish">PC · Wishlist</button>
+    <button role="tab" aria-selected="false" data-s="stats">PC · Stats</button>
+    <button role="tab" aria-selected="false" data-s="import">PC · Import digital</button>
+    <button role="tab" aria-selected="false" data-s="settings">PC · Settings</button>
+    <button role="tab" aria-selected="false" data-s="phone">Phone · Scan &amp; review</button>
+    <button role="tab" aria-selected="false" data-s="browse">Phone · Browse offline</button>
+  </div>
+
+  <!-- ================= LIBRARY ================= -->
+  <section class="screen on" id="lib">
+    <div class="window">
+      <aside class="side" id="sidebar">
+        <div class="brand"><div class="brand-mark"><svg width="14" height="14"><use href="#i-film"/></svg></div><span class="brand-name">Shelf</span></div>
+        <div>
+          <div class="nav-label">Collection</div>
+          <nav class="nav">
+            <a href="#" class="active"><svg><use href="#i-film"/></svg>Movies<span class="count">412</span></a>
+            <a href="#"><svg><use href="#i-book"/></svg>Comics<span class="count">1,086</span></a>
+          </nav>
+        </div>
+        <div>
+          <div class="nav-label">Lists</div>
+          <nav class="nav">
+            <a href="#"><svg><use href="#i-heart"/></svg>Wishlist<span class="count">37</span></a>
+            <a href="#"><svg><use href="#i-chart"/></svg>Stats</a>
+          </nav>
+        </div>
+        <div class="side-foot">
+          <div><span class="dot"></span>Pixel 8 connected</div>
+          <div><svg width="12" height="12" style="color:#a88bfa;vertical-align:-1px;margin-right:6px"><use href="#i-obsidian"/></svg>Vault synced · just now</div>
+          <a href="#" class="nav" style="padding:0"><span style="display:flex;gap:8px;align-items:center;color:var(--muted)"><svg width="14" height="14"><use href="#i-gear"/></svg>Settings</span></a>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="search"><svg><use href="#i-search"/></svg>Search titles, directors, cast…<kbd>Ctrl K</kbd></div>
+          <div class="spacer"></div>
+          <a class="btn ghost" href="#"><svg><use href="#i-scan"/></svg>Scan with phone</a>
+          <a class="btn primary" href="#"><svg><use href="#i-plus"/></svg>Add movie</a>
+        </div>
+        <div class="content">
+          <div class="section-head"><h2>Movies</h2><span class="sub">412 films · 486 discs</span></div>
+          <div class="filters">
+            <button class="chip on">All<span class="n">412</span></button>
+            <button class="chip">4K UHD<span class="n">58</span></button>
+            <button class="chip">Blu-ray<span class="n">231</span></button>
+            <button class="chip">DVD<span class="n">123</span></button>
+            <button class="chip">Digital<span class="n">214</span></button>
+            <span class="select">Genre <b>Any</b></span>
+            <span class="select">Decade <b>Any</b></span>
+            <div class="spacer"></div>
+            <span class="select">Sort <b>Recently added</b></span>
+            <span class="view-toggle"><span class="on"><svg><use href="#i-grid"/></svg></span><span><svg><use href="#i-list"/></svg></span></span>
+          </div>
+          <div class="grid" id="movie-grid"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Hover a cover to get a quick <b>Trailer</b> button (opens YouTube). Each film appears once, with a badge for every format you own (e.g. Heat: 4K + DVD). The sidebar footer shows that the phone is connected and the vault is synced.</p>
+  </section>
+
+  <!-- ================= DETAIL ================= -->
+  <section class="screen" id="detail">
+    <div class="window">
+      <aside class="side" data-clone="sidebar"></aside>
+      <div class="main">
+        <div class="topbar">
+          <a class="btn ghost" href="#" style="padding-left:8px"><svg><use href="#i-back"/></svg>Movies</a>
+          <div class="search" style="margin-left:8px"><svg><use href="#i-search"/></svg>Search titles, directors, cast…<kbd>Ctrl K</kbd></div>
+        </div>
+        <div class="hero"><div class="backdrop"></div></div>
+        <div class="detail">
+          <div>
+            <div class="poster" style="--p1:#1f4e79;--p2:#0b1824"><span class="pt">Heat</span><span class="pd">Michael Mann</span></div>
+          </div>
+          <div>
+            <div class="fmts"><span class="fmt uhd">4K UHD</span><span class="fmt dvd">DVD</span><span class="fmt dig">Digital</span></div>
+            <h2 class="title-lg">Heat<span class="yr">1995</span></h2>
+            <div class="byline">Directed by <b>Michael Mann</b></div>
+            <div class="meta-row"><span class="rating">R</span><span>170 min</span><span class="sep"></span><span>Crime</span><span class="sep"></span><span>Drama</span><span class="sep"></span><span>Thriller</span></div>
+            <div class="actions">
+              <a class="btn primary" href="https://www.youtube.com/results?search_query=Heat+1995+trailer" target="_blank" rel="noopener"><svg><use href="#i-play"/></svg>Watch trailer</a>
+              <a class="btn" href="#"><svg><use href="#i-edit"/></svg>Edit</a>
+              <a class="btn ghost" href="#" aria-label="More"><svg><use href="#i-dots"/></svg></a>
+            </div>
+            <p class="synopsis">A driven LAPD detective and a disciplined career thief circle each other across Los Angeles, each recognizing himself in the other, as one last score pulls them toward a collision.</p>
+            <div class="tabs"><span class="on">Cast</span><span>Crew</span><span>Details</span></div>
+            <div class="cast">
+              <div class="person"><div class="avatar">AP</div><div><div class="n">Al Pacino</div><div class="r">Vincent Hanna</div></div></div>
+              <div class="person"><div class="avatar">RD</div><div><div class="n">Robert De Niro</div><div class="r">Neil McCauley</div></div></div>
+              <div class="person"><div class="avatar">VK</div><div><div class="n">Val Kilmer</div><div class="r">Chris Shiherlis</div></div></div>
+              <div class="person"><div class="avatar">JV</div><div><div class="n">Jon Voight</div><div class="r">Nate</div></div></div>
+              <div class="person"><div class="avatar">TS</div><div><div class="n">Tom Sizemore</div><div class="r">Michael Cheritto</div></div></div>
+              <div class="person"><div class="avatar">AB</div><div><div class="n">Amy Brenneman</div><div class="r">Eady</div></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="panel">
+              <h3>Formats owned <a href="#">+ Add format</a></h3>
+              <div class="owned"><span class="fmt uhd">4K UHD</span><span class="small">Added Mar 2025</span></div>
+              <div class="owned"><span class="fmt dvd">DVD</span><span class="small">Added Jan 2019</span></div>
+              <div class="owned"><span class="fmt dig">Digital</span><a class="btn sm" href="#"><svg><use href="#i-play"/></svg>Play file</a></div>
+              <div class="mono" style="font-size:11px;color:var(--muted);word-break:break-all">D:\Movies\Heat (1995).mkv</div>
+            </div>
+            <div class="panel">
+              <div class="vault"><svg><use href="#i-obsidian"/></svg><span>Movies/Heat (1995).md</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">One film, one page. Every format you own appears as a badge under the title and in <b>Formats owned</b>. A digital copy remembers where the file is on your PC, and <b>Play file</b> opens it in your normal video player (PC only). <b>Watch trailer</b> opens the official trailer on YouTube.</p>
+  </section>
+
+  <!-- ================= COMICS ================= -->
+  <section class="screen" id="comics">
+    <div class="window">
+      <aside class="side" data-clone="sidebar" data-active="1"></aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="search"><svg><use href="#i-search"/></svg>Search series, issues, creators…<kbd>Ctrl K</kbd></div>
+          <div class="spacer"></div>
+          <a class="btn ghost" href="#"><svg><use href="#i-scan"/></svg>Scan with phone</a>
+          <a class="btn primary" href="#"><svg><use href="#i-plus"/></svg>Add comic</a>
+        </div>
+        <div class="content">
+          <div class="section-head"><h2>Comics</h2><span class="sub">1,086 issues · 74 series · 41 trades</span></div>
+          <div class="filters">
+            <button class="chip on">Series</button>
+            <button class="chip">Issues</button>
+            <button class="chip">Trades &amp; HCs</button>
+            <button class="chip">Key issues<span class="n">23</span></button>
+            <span class="select">Publisher <b>Any</b></span>
+            <div class="spacer"></div>
+            <span class="select">Sort <b>Series A–Z</b></span>
+          </div>
+          <div id="series-list"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Comics are grouped by series and show progress toward a complete run. Striped tiles are <b>issues you're missing</b>, and they can be added to the wishlist in one click. Gold <b>KEY</b> tags mark key issues such as first appearances.</p>
+  </section>
+
+  <!-- ================= PHONE ================= -->
+  <section class="screen" id="phone">
+    <div class="phones">
+      <div class="phone-wrap">
+        <div class="phone"><div class="phone-screen">
+          <div class="status"><span>9:41</span><span>Wi-Fi · 82%</span></div>
+          <div class="camera">
+            <div class="type-switch"><span class="on">Movie</span><span>Comic</span><span>Auto</span></div>
+            <div class="toast"><svg><use href="#i-heart"/></svg><div><b>Dune</b> (2021) is on your wishlist<div class="ts">Wanted: 4K UHD · tap to review</div></div></div>
+            <div class="reticle"><i></i><i></i><i></i><i></i><div class="barcode"></div><div class="scanline"></div></div>
+            <div class="cam-hint">Point at the barcode on the back</div>
+            <div class="cam-bar">
+              <div class="round"><svg><use href="#i-x"/></svg></div>
+              <div class="queue"><b>3</b> scanned · review</div>
+              <div class="round"><svg><use href="#i-keyboard"/></svg></div>
+            </div>
+          </div>
+        </div></div>
+        <div class="phone-cap">1 · Scan. Several can be scanned in a row; each joins a review queue.</div>
+      </div>
+
+      <div class="phone-wrap">
+        <div class="phone"><div class="phone-screen">
+          <div class="status"><span>9:41</span><span>Wi-Fi · 82%</span></div>
+          <div class="appbar"><svg><use href="#i-back"/></svg><span class="ttl">Review · 1 of 3</span><svg class="right"><use href="#i-dots"/></svg></div>
+          <div class="scroll">
+            <span class="code-chip"><svg><use href="#i-scan"/></svg>UPC 786936894420</span>
+            <div class="match">
+              <div class="poster" style="--p1:#1f4e79;--p2:#0b1824"><span class="pt">Heat</span></div>
+              <div>
+                <div class="src">Best match · TMDB</div>
+                <div class="mt">Heat</div>
+                <div class="mm">1995 · Michael Mann · 170 min</div>
+                <a class="trl" href="#"><svg><use href="#i-yt"/></svg>Trailer found</a>
+              </div>
+            </div>
+            <div class="alts">Not it? 2 other matches · Search manually</div>
+            <div class="wish-hit"><svg><use href="#i-heart"/></svg><div><b>On your wishlist</b> · wanted 4K UHD<div class="ts">Saving removes it from your wishlist.</div></div></div>
+            <div class="owned-note"><span class="fmt dvd">DVD</span><span>You already own this film. Saving adds <b>4K UHD</b> to it.</span></div>
+            <div class="field"><label>Title</label><div class="input">Heat</div></div>
+            <div class="row2">
+              <div class="field"><label>Year</label><div class="input">1995</div></div>
+              <div class="field"><label>Director · edited</label><div class="input edited">Michael Mann</div></div>
+            </div>
+            <div class="field"><label>Format</label><div class="seg"><span>DVD</span><span>Blu-ray</span><span class="on">4K UHD</span><span>Digital</span></div></div>
+          </div>
+          <div class="sticky">
+            <a class="btn" href="#"><svg><use href="#i-heart"/></svg></a>
+            <a class="btn primary" href="#">Add 4K UHD format</a>
+          </div>
+        </div></div>
+        <div class="phone-cap">2 · Review. Every field can be edited before saving. The heart button sends it to the wishlist instead.</div>
+      </div>
+    </div>
+    <p class="note">The keyboard button on the camera screen opens <b>manual entry</b> with the same review form. Format is auto-detected from the barcode database's product name ("…[4K UHD]") but can be changed with one tap. Fields you edit get an amber outline so you can see what you changed from the online data. Scanning a film you already own on another format adds that format to the existing film instead of creating a duplicate. <b>Wishlist alert:</b> as soon as a scan matches something on your wishlist, an amber banner appears over the camera (left), and the review screen repeats it (right). Saving takes the item off the wishlist.</p>
+  </section>
+
+  <!-- ================= WISHLIST ================= -->
+  <section class="screen" id="wish">
+    <div class="window">
+      <aside class="side" data-clone="sidebar" data-active="2"></aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="search"><svg><use href="#i-search"/></svg>Search wishlist…<kbd>Ctrl K</kbd></div>
+          <div class="spacer"></div>
+          <a class="btn primary" href="#"><svg><use href="#i-plus"/></svg>Add to wishlist</a>
+        </div>
+        <div class="content">
+          <div class="section-head"><h2>Wishlist</h2><span class="sub">37 items</span></div>
+          <div class="subtabs">
+            <button class="on" data-wl="wl-movies">Movies<span class="n">21</span></button>
+            <button data-wl="wl-comics">Comics<span class="n">16</span></button>
+          </div>
+          <div class="wl on" id="wl-movies"></div>
+          <div class="wl" id="wl-comics"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Movies and comics are on <b>separate tabs</b>. Dashed badges are the format you want. <b>Upgrade</b> marks a film you already own on another format. <b>Got it</b> opens the normal review screen and then removes the item from the wishlist. On the Comics tab, issues added from a series' missing tiles show where they came from.</p>
+  </section>
+
+  <!-- ================= STATS ================= -->
+  <section class="screen" id="stats">
+    <div class="window">
+      <aside class="side" data-clone="sidebar" data-active="3"></aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="search"><svg><use href="#i-search"/></svg>Search…<kbd>Ctrl K</kbd></div>
+        </div>
+        <div class="content">
+          <div class="section-head"><h2>Stats</h2><span class="sub">Whole collection</span></div>
+          <div class="tiles">
+            <div class="tile"><div class="k">Films</div><div class="v">412</div><div class="d">+9 this month</div></div>
+            <div class="tile"><div class="k">Discs</div><div class="v">486</div><div class="d">74 films on 2+ formats</div></div>
+            <div class="tile"><div class="k">Digital</div><div class="v">214</div><div class="d">1.9 TB on this PC</div></div>
+            <div class="tile"><div class="k">Comic issues</div><div class="v">1,086</div><div class="d">+22 this month</div></div>
+            <div class="tile"><div class="k">Series</div><div class="v">74</div><div class="d">11 complete runs</div></div>
+            <div class="tile"><div class="k">Wishlist</div><div class="v">37</div><div class="d">21 movies · 16 comics</div></div>
+          </div>
+          <div class="charts">
+            <div class="chart wide">
+              <h4>Copies by format</h4>
+              <div class="cap">700 copies · 486 discs + 214 digital</div>
+              <div class="stack" id="fmt-stack"></div>
+              <div class="legend" id="fmt-legend"></div>
+            </div>
+            <div class="chart wide">
+              <h4>Items added per month</h4>
+              <div class="cap">Movies and comics, last 12 months</div>
+              <div class="cols" id="added-cols"></div>
+              <div class="xlabels" id="added-x"></div>
+            </div>
+            <div class="chart">
+              <h4>Top directors</h4>
+              <div class="cap">Films owned</div>
+              <div class="hbars" id="directors"></div>
+            </div>
+            <div class="chart">
+              <h4>Comics by publisher</h4>
+              <div class="cap">Issues owned</div>
+              <div class="hbars" id="publishers"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Headline numbers on top, then four charts. Hover any bar for its exact value. Colors follow the format badges, adjusted so the three formats stay distinguishable for colorblind viewers on the dark background. Every chart could also offer a plain table view.</p>
+  </section>
+
+  <!-- ================= IMPORT DIGITAL ================= -->
+  <section class="screen" id="import">
+    <div class="window">
+      <aside class="side" data-clone="sidebar" data-active="0"></aside>
+      <div class="main">
+        <div class="topbar">
+          <a class="btn ghost" href="#" style="padding-left:8px"><svg><use href="#i-back"/></svg>Movies</a>
+          <div class="spacer"></div>
+          <a class="btn" href="#">Cancel</a>
+          <a class="btn primary" href="#">Add 214 movies</a>
+        </div>
+        <div class="content">
+          <div class="section-head"><h2>Import digital movies</h2></div>
+          <div class="setrow" style="max-width:860px;border:0"><span class="lbl">Movie folder</span><div class="input">D:\Movies</div><a class="btn sm" href="#">Change</a></div>
+          <div class="setrow" style="max-width:860px"><span class="lbl">Watch for new files</span><span class="small">New files dropped in this folder show up here for review</span><span class="switch-ui on"><i></i></span></div>
+          <div class="import-sum">
+            <span><b>231</b> video files found</span>
+            <span class="s-ok"><b>214</b> matched</span>
+            <span class="s-rev"><b>11</b> need review</span>
+            <span class="s-skip"><b>6</b> already in collection as Digital</span>
+          </div>
+          <div class="filters"><button class="chip on">All</button><button class="chip">Needs review<span class="n">11</span></button><button class="chip">Matched<span class="n">214</span></button></div>
+          <div id="import-rows"></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposal. Point Shelf at the folder where your movie files live. It reads each file name (<span class="mono">Blade.Runner.2049.2017.2160p.mkv</span> → <i>Blade Runner 2049</i>, 2017), finds the film on TMDB, and shows the match. Clear matches are ticked automatically. Unclear ones (like a bare <span class="mono">dune.mkv</span>, which could be three films) wait for you to pick. If you already own the film on disc, the import adds Digital to that film.</p>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="screen" id="settings">
+    <div class="window">
+      <aside class="side" data-clone="sidebar" data-active="4"></aside>
+      <div class="main">
+        <div class="topbar"><div class="search"><svg><use href="#i-search"/></svg>Search…<kbd>Ctrl K</kbd></div></div>
+        <div class="content">
+          <div class="section-head"><h2>Settings</h2></div>
+          <div class="settings">
+            <div class="set">
+              <h3>Phone</h3>
+              <div class="desc">Open Shelf on your phone, tap <b>Pair with PC</b>, and scan this code. Both devices must be on the same Wi-Fi.</div>
+              <div class="pair">
+                <div class="qr" id="qr"></div>
+                <div>
+                  <div class="small">Or enter this code</div>
+                  <div class="code">482 913</div>
+                  <div class="small">Expires in 4:52 · PC address 192.168.1.24:5243</div>
+                  <div class="devices">
+                    <div class="device"><span class="dot"></span><span>Pixel 8</span><span class="muted">Connected · paired Oct 8, 2026</span><a class="btn sm" href="#">Unpair</a></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="set">
+              <h3>Obsidian vault</h3>
+              <div class="desc">Shelf writes one note per film and comic issue here. It only edits notes it created.</div>
+              <div class="setrow"><span class="lbl">Vault folder</span><div class="input">C:\Users\bdm\Documents\Obsidian\Collection</div><a class="btn sm" href="#">Change</a></div>
+              <div class="setrow"><span class="lbl">Last sync</span><span class="ok"><span class="dot"></span>Just now · 1,498 notes</span><a class="btn sm" href="#">Rebuild vault</a></div>
+            </div>
+            <div class="set">
+              <h3>Online databases</h3>
+              <div class="desc">Used to fill in details when you scan or search. Keys are stored only on this PC.</div>
+              <div class="setrow"><span class="lbl">TMDB <span class="small">· movies, trailers</span></span><div class="input">••••••••••••••••3f9a</div><span class="ok">Connected</span></div>
+              <div class="setrow"><span class="lbl">UPCitemdb <span class="small">· movie barcodes</span></span><div class="input">Free tier (no key)</div><span class="ok">Connected</span></div>
+              <div class="setrow"><span class="lbl">Metron <span class="small">· comics</span></span><div class="input">username / password</div><span class="warn">Not set up</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">First draft, for reaction. Pairing is a one-time QR scan: the phone gets the PC's address and a secure key from it. The vault and online-database sections each show their status at a glance.</p>
+  </section>
+
+  <!-- ================= PHONE BROWSE ================= -->
+  <section class="screen" id="browse">
+    <div class="phones">
+      <div class="phone-wrap">
+        <div class="phone"><div class="phone-screen">
+          <div class="status"><span>9:41</span><span>LTE · 64%</span></div>
+          <div class="appbar"><span class="ttl" style="font:400 24px/1 var(--serif)">Movies</span><svg class="right"><use href="#i-dots"/></svg></div>
+          <div class="offline"><span class="od"></span><span>Offline · collection as of today 8:12 AM</span></div>
+          <div class="psearch"><svg><use href="#i-search"/></svg>Do I own…?</div>
+          <div class="pseg"><button class="chip on">All</button><button class="chip">4K</button><button class="chip">Blu-ray</button><button class="chip">DVD</button><button class="chip">Digital</button></div>
+          <div class="pgrid" id="pgrid"></div>
+          <div class="bnav" data-bnav="0"></div>
+        </div></div>
+        <div class="phone-cap">Browse. The whole collection is stored on the phone and works without Wi-Fi.</div>
+      </div>
+      <div class="phone-wrap">
+        <div class="phone"><div class="phone-screen">
+          <div class="status"><span>9:41</span><span>LTE · 64%</span></div>
+          <div class="appbar"><span class="ttl" style="font:400 24px/1 var(--serif)">Search</span></div>
+          <div class="offline"><span class="od"></span><span>Offline · <b>2 scans</b> will sync when you're home</span></div>
+          <div class="psearch active"><svg><use href="#i-search"/></svg>dune</div>
+          <div class="rgroup">Movies</div>
+          <div class="result"><div class="poster" style="--p1:#b8763a;--p2:#2d1608"></div><div><div class="rt">Dune: Part Two</div><div class="rs">2024 · Denis Villeneuve</div></div><div class="verdict own">Owned<div class="fmts"><span class="fmt uhd">4K</span></div></div></div>
+          <div class="result"><div class="poster" style="--p1:#a8743a;--p2:#2a1508"></div><div><div class="rt">Dune</div><div class="rs">2021 · Denis Villeneuve</div></div><div class="verdict wish">On wishlist<div class="fmts"><span class="fmt uhd want-b">4K</span></div></div></div>
+          <div class="result"><div class="poster" style="--p1:#6e5a3a;--p2:#1c140a"></div><div><div class="rt">Dune</div><div class="rs">1984 · David Lynch</div></div><div class="verdict no">Not owned</div></div>
+          <div class="rgroup">Comics</div>
+          <div class="result"><div class="poster" style="--p1:#8a6a3a;--p2:#20160a"></div><div><div class="rt">Dune: House Atreides</div><div class="rs">BOOM! · 2020 · issues #1–4</div></div><div class="verdict own">4 of 12</div></div>
+          <div class="bnav" data-bnav="0"></div>
+        </div></div>
+        <div class="phone-cap">In a store. Search answers "do I own this?" offline, including the wishlist.</div>
+      </div>
+    </div>
+    <p class="note">The phone keeps its own copy of the collection and wishlist, refreshed whenever it's on home Wi-Fi with the PC. Away from home it's read-only, except that scans queue up and sync later. Bottom bar: Movies, Comics, <b>Scan</b>, Wishlist, Stats.</p>
+  </section>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+  // --- data (placeholder covers) ---
+  const movies = [
+    ["Heat",1995,"Michael Mann","uhd dvd dig","#1f4e79","#0b1824"],
+    ["Blade Runner 2049",2017,"Denis Villeneuve","uhd dig","#c4621d","#2a0f05"],
+    ["The Thing",1982,"John Carpenter","br dvd","#2f5d73","#060d12"],
+    ["Arrival",2016,"Denis Villeneuve","dig","#6b7280","#1a1d22"],
+    ["Alien",1979,"Ridley Scott","uhd br","#1f2a1f","#030503"],
+    ["Mad Max: Fury Road",2015,"George Miller","uhd","#d97a1f","#3a1404"],
+    ["Parasite",2019,"Bong Joon-ho","dig","#3f5e3a","#101a0e"],
+    ["No Country for Old Men",2007,"Joel & Ethan Coen","br","#a8834f","#2b1e0e"],
+    ["The Dark Knight",2008,"Christopher Nolan","br","#24313f","#05080c"],
+    ["Dune: Part Two",2024,"Denis Villeneuve","uhd","#b8763a","#2d1608"],
+    ["Spirited Away",2001,"Hayao Miyazaki","br","#3d7a8c","#10262d"],
+    ["Jaws",1975,"Steven Spielberg","dvd","#1d5f8a","#071a28"],
+    ["Collateral",2004,"Michael Mann","dvd","#3b4f63","#0c1219"],
+    ["Sicario",2015,"Denis Villeneuve","br","#8a5a3a","#1e1008"],
+    ["Prisoners",2013,"Denis Villeneuve","dvd","#4a5560","#101418"],
+    ["Oppenheimer",2023,"Christopher Nolan","uhd","#a2471f","#1c0904"],
+    ["Everything Everywhere All at Once",2022,"Daniels","dig","#7a3d8c","#1c0d24"],
+    ["The Godfather",1972,"Francis Ford Coppola","dvd","#3a2a1d","#0a0705"],
+  ];
+  const fmtLabel = { uhd: "4K", br: "Blu-ray", dvd: "DVD", dig: "Digital" };
+  const q = s => encodeURIComponent(s);
+  document.getElementById("movie-grid").innerHTML = movies.map(([t,y,d,f,p1,p2]) => `
+    <div class="card">
+      <div class="poster" style="--p1:${p1};--p2:${p2}">
+        <span class="pt">${t}</span><span class="pd">${d}</span>
+        <div class="hover"><a class="play" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${q(t+" "+y+" trailer")}"><svg><use href="#i-play"/></svg>Trailer</a></div>
+      </div>
+      <div class="t">${t}</div>
+      <div class="m">${y}${f.split(" ").map(x => `<span class="fmt ${x}">${fmtLabel[x]}</span>`).join("")}</div>
+    </div>`).join("");
+
+  const series = [
+    { name: "Saga", vol: "2012", pub: "Image", total: 72, owned: 66, issues: [
+      [1,"#3c6e71","#0f2224","KEY"],[2,"#8c4a3a","#22100c"],[3,"#4f5d75","#121620"],[4,"#7a6a3a","#1f1a0c"],[5,"#5b3a6e","#170e1c"],[6,"#2f6e5a","#0b1d18"],[7,null],[8,"#6e3a3a","#1c0d0d"],[9,"#3a5a6e","#0d161c"] ]},
+    { name: "Absolute Batman", vol: "2024", pub: "DC", total: 14, owned: 12, issues: [
+      [1,"#2a2a2a","#050505","KEY"],[2,"#5a1e1e","#120505"],[3,"#2e3a4a","#080b10"],[4,"#3a3a3a","#0a0a0a"],[5,null],[6,"#4a2a2a","#100808"],[7,"#2a3a2a","#080c08"] ]},
+    { name: "Daredevil", vol: "1964", pub: "Marvel", total: 380, owned: 41, issues: [
+      [158,"#8c1f1f","#200606"],[168,"#a12a2a","#240707","KEY"],[181,"#6e1a1a","#1a0505","KEY"],[182,null],[183,"#7a2424","#1c0808"],[184,"#5c1c1c","#160606"] ]},
+  ];
+  document.getElementById("series-list").innerHTML = series.map(s => `
+    <div class="series">
+      <div class="series-head">
+        <h3>${s.name} <span style="color:var(--muted);font-size:18px">(${s.vol})</span></h3>
+        <span class="pub">${s.pub}</span>
+        <span class="progress">${s.owned} of ${s.total}<span class="bar"><i style="width:${Math.round(s.owned/s.total*100)}%"></i></span></span>
+      </div>
+      <div class="issues">${s.issues.map(([n,p1,p2,key]) => p1 ? `
+        <div class="issue"><div class="poster" style="--p1:${p1};--p2:${p2}"><span class="pt">${s.name}</span><span class="pd">#${n}</span></div>
+          <div class="num">#${n}${key ? '<span class="key">KEY</span>' : ''}</div><div class="sub2">${key && n===168 ? '1st Elektra' : key && n===181 ? 'Death of Elektra' : key ? 'First issue' : 'Cover A'}</div></div>` : `
+        <div class="issue missing"><div class="poster"><span class="pt">Missing</span></div>
+          <div class="num">#${n}</div><div class="sub2" style="color:var(--accent)">+ Wishlist</div></div>`).join("")}
+      </div>
+    </div>`).join("");
+
+  // clone sidebar into other screens
+  const side = document.getElementById("sidebar");
+  document.querySelectorAll("[data-clone]").forEach(el => {
+    el.innerHTML = side.innerHTML;
+    if (el.dataset.active) {
+      const links = el.querySelectorAll(".nav a");
+      links.forEach(l => l.classList.remove("active"));
+      links[+el.dataset.active]?.classList.add("active");
+    }
+  });
+
+  // ---- wishlist ----
+  const yt = `<svg class="yt" width="15" height="15"><use href="#i-yt"/></svg>`;
+  const wlMovies = [
+    ["Dune",2021,"Denis Villeneuve",["uhd"],"#a8743a","#2a1508",null,"Added Sep 2026"],
+    ["Jaws",1975,"Steven Spielberg",["uhd"],"#1d5f8a","#071a28","Upgrade · own DVD","Added Aug 2026"],
+    ["Thief",1981,"Michael Mann",["uhd","br"],"#2a4a5e","#0a141a",null,"Added Aug 2026"],
+    ["The Holdovers",2023,"Alexander Payne",["br"],"#7a5a3a","#1e150c",null,"Added Jul 2026"],
+    ["Nosferatu",2024,"Robert Eggers",["uhd"],"#3a3a44","#0a0a0e",null,"Added Jun 2026"],
+    ["Ran",1985,"Akira Kurosawa",["uhd"],"#8c2f1f","#200a06",null,"Added May 2026"],
+    ["Past Lives",2023,"Celine Song",["br"],"#4a6a7a","#101a20",null,"Added Apr 2026"],
+  ];
+  document.getElementById("wl-movies").innerHTML = wlMovies.map(([t,y,d,fs,p1,p2,tag,added]) => `
+    <div class="wl-row">
+      <div class="poster" style="--p1:${p1};--p2:${p2}"></div>
+      <div><div class="wl-title">${t}<span class="yr">${y}</span></div><div class="wl-sub">${d}</div></div>
+      <div class="want">${fs.map(f => `<span class="fmt ${f} want-b">${fmtLabel[f]}</span>`).join("")}${tag ? `<span class="tag">${tag}</span>` : ""}</div>
+      <div class="wl-sub wl-added">${added}</div>
+      <div class="wl-actions">
+        <a class="btn sm icon" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${q(t+" "+y+" trailer")}" aria-label="Trailer">${yt}</a>
+        <a class="btn sm" href="#">Got it</a>
+      </div>
+    </div>`).join("");
+  const wlComics = [
+    ["Saga #7","Image · 2012 series","#5b4a3a","#16110c","From missing issues","Added Oct 2026"],
+    ["Absolute Batman #5","DC · 2024 series","#3a2a2a","#0a0606","From missing issues","Added Sep 2026"],
+    ["Daredevil #182","Marvel · 1964 series","#7a2424","#1c0808","From missing issues","Added Sep 2026"],
+    ["Monstress Vol. 1: Awakening","Image · Trade paperback","#6e4a3a","#1c120c",null,"Added Aug 2026"],
+    ["Daredevil #227","Marvel · 1964 series · Born Again","#8c1f1f","#200606","Key issue","Added Jul 2026"],
+  ];
+  document.getElementById("wl-comics").innerHTML = wlComics.map(([t,s,p1,p2,tag,added]) => `
+    <div class="wl-row">
+      <div class="poster" style="--p1:${p1};--p2:${p2}"></div>
+      <div><div class="wl-title">${t}</div><div class="wl-sub">${s}</div></div>
+      <div class="want">${tag ? `<span class="tag ${tag.startsWith("From") ? "dim" : ""}">${tag}</span>` : ""}</div>
+      <div class="wl-sub wl-added">${added}</div>
+      <div class="wl-actions"><a class="btn sm" href="#">Got it</a></div>
+    </div>`).join("");
+  document.querySelectorAll(".subtabs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".subtabs button").forEach(x => x.classList.toggle("on", x === b));
+    document.querySelectorAll(".wl").forEach(w => w.classList.toggle("on", w.id === b.dataset.wl));
+  }));
+
+  // ---- stats ----
+  const fmts = [["4K UHD", 92, "--c-uhd"], ["Blu-ray", 248, "--c-br"], ["DVD", 146, "--c-dvd"], ["Digital", 214, "--c-digital"]];
+  const totalDiscs = fmts.reduce((a, f) => a + f[1], 0);
+  document.getElementById("fmt-stack").innerHTML = fmts.map(([n,v,c]) =>
+    `<i style="flex:${v};background:var(${c})" data-tip="<b>${n}</b> · ${v} discs (${Math.round(v/totalDiscs*100)}%)"></i>`).join("");
+  document.getElementById("fmt-legend").innerHTML = fmts.map(([n,v,c]) =>
+    `<span><i style="background:var(${c})"></i>${n} <b>${v}</b></span>`).join("");
+  const months = ["Nov","Dec","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"];
+  const added = [14, 38, 9, 12, 21, 17, 8, 26, 19, 31, 24, 31];
+  const maxAdded = 40;
+  document.getElementById("added-cols").innerHTML =
+    [20, 40].map(g => `<div class="gridline" style="bottom:${g/maxAdded*100}%"><span>${g}</span></div>`).join("") +
+    added.map((v,i) => `<div class="col" data-tip="<b>${months[i]}</b> · ${v} items added"><i style="height:${v/maxAdded*100}%"></i></div>`).join("");
+  document.getElementById("added-x").innerHTML = months.map(m => `<span>${m}</span>`).join("");
+  const hbars = (id, rows) => {
+    const max = Math.max(...rows.map(r => r[1]));
+    document.getElementById(id).innerHTML = rows.map(([n,v]) => `
+      <div class="hbar" data-tip="<b>${n}</b> · ${v}"><span class="lbl">${n}</span><span class="track"><i style="width:${v/max*100}%"></i></span><span class="num">${v}</span></div>`).join("");
+  };
+  hbars("directors", [["Denis Villeneuve",9],["Christopher Nolan",8],["Michael Mann",6],["Ridley Scott",6],["John Carpenter",5],["Steven Spielberg",5]]);
+  hbars("publishers", [["Marvel",412],["DC",298],["Image",187],["Dark Horse",64],["BOOM!",48],["Other",77]]);
+
+  // tooltip
+  const tip = document.getElementById("tip");
+  document.addEventListener("mousemove", e => {
+    const el = e.target.closest("[data-tip]");
+    if (!el) { tip.style.opacity = 0; return; }
+    tip.innerHTML = el.dataset.tip;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+    tip.style.top = (e.clientY + 14) + "px";
+    tip.style.opacity = 1;
+  });
+
+  // ---- import digital ----
+  const imports = [
+    ["dune.mkv", "Dune", "3 possible matches", "#a8743a", "#2a1508", "review", "Pick match"],
+    ["The Thing 1982 Remastered.mkv", "The Thing", "1982 · you own Blu-ray, DVD", "#2f5d73", "#060d12", "review", "Change"],
+    ["movie_final_v2.mp4", null, null, null, null, "none", "Search…"],
+    ["Blade.Runner.2049.2017.2160p.UHD.mkv", "Blade Runner 2049", "2017", "#c4621d", "#2a0f05", "exact", "Change"],
+    ["arrival_2016.mp4", "Arrival", "2016", "#6b7280", "#1a1d22", "exact", "Change"],
+    ["Parasite.2019.KOREAN.1080p.WEB-DL.mkv", "Parasite", "2019", "#3f5e3a", "#101a0e", "exact", "Change"],
+    ["Spirited Away (2001).mkv", "Spirited Away", "2001 · adds Digital to your Blu-ray", "#3d7a8c", "#10262d", "exact", "Change"],
+  ];
+  const confLabel = { exact: "Matched", review: "Check this", none: "No match" };
+  document.getElementById("import-rows").innerHTML = imports.map(([f,t,s,p1,p2,c,act]) => `
+    <div class="imp">
+      <span class="cb ${c === "exact" ? "on" : ""}"></span>
+      <span class="file" title="${f}">${f}</span>
+      <span class="arrow">→</span>
+      <span class="hit">${t ? `<span class="poster" style="--p1:${p1};--p2:${p2}"></span><span class="ht">${t}<span>${s}</span></span>` : `<span class="small">No film found for this file name</span>`}</span>
+      <span class="conf ${c}">${confLabel[c]}</span>
+      <a class="btn sm" href="#">${act}</a>
+    </div>`).join("");
+
+  // ---- settings: fake QR ----
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const finder = (r, c) => [[0,0],[0,14],[14,0]].some(([y,x]) => {
+    const dy = r - y, dx = c - x;
+    if (dy < 0 || dy > 6 || dx < 0 || dx > 6) return false;
+    return dy === 0 || dy === 6 || dx === 0 || dx === 6 || (dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4);
+  });
+  const inFinderZone = (r, c) => [[0,0],[0,13],[13,0]].some(([y,x]) => r >= y && r <= y + 7 && c >= x && c <= x + 7);
+  let qrCells = "";
+  for (let r = 0; r < 21; r++) for (let c = 0; c < 21; c++)
+    qrCells += `<i class="${inFinderZone(r,c) ? (finder(r,c) ? "b" : "") : (rnd() > .5 ? "b" : "")}"></i>`;
+  document.getElementById("qr").innerHTML = qrCells;
+
+  // ---- phone browse ----
+  document.getElementById("pgrid").innerHTML = movies.slice(0, 9).map(([t,y,d,f,p1,p2]) => `
+    <div><div class="poster" style="--p1:${p1};--p2:${p2}"><span class="pt">${t}</span></div>
+    <div class="t">${t}</div><div class="fmts">${f.split(" ").map(x => `<span class="fmt ${x}">${fmtLabel[x]}</span>`).join("")}</div></div>`).join("");
+  const navItems = [["i-film","Movies"],["i-book","Comics"],["scan","Scan"],["i-heart","Wishlist"],["i-chart","Stats"]];
+  document.querySelectorAll("[data-bnav]").forEach(n => {
+    n.innerHTML = navItems.map(([ic,l],i) => ic === "scan"
+      ? `<span><span class="scanbtn"><svg><use href="#i-scan"/></svg></span></span>`
+      : `<span class="${i === +n.dataset.bnav ? "on" : ""}"><svg><use href="#${ic}"/></svg>${l}</span>`).join("");
+  });
+
+  // tabs
+  document.querySelectorAll(".switch button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".switch button").forEach(x => x.setAttribute("aria-selected", x === b));
+    document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === b.dataset.s));
+  }));
+</script>
+</body>
+</html>
