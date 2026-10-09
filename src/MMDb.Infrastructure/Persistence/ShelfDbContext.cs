@@ -8,6 +8,8 @@ public sealed class ShelfDbContext(DbContextOptions<ShelfDbContext> options) : D
 {
     public DbSet<Movie> Movies => Set<Movie>();
 
+    internal DbSet<LookupCacheEntry> LookupCache => Set<LookupCacheEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ShelfDbContext).Assembly);
 }

@@ -32,6 +32,12 @@ public sealed record Upc
     public static Upc Parse(string input) =>
         TryParse(input, out var upc) ? upc : throw new FormatException($"'{input}' is not a valid UPC-A or EAN-13 barcode.");
 
+    /// <summary>
+    /// The same barcode written the other way: a UPC-A is the EAN-13 with a leading 0, so <c>024543617907</c>
+    /// and <c>0024543617907</c> are one product. <see langword="null"/> for EAN-13s not starting with 0.
+    /// </summary>
+    public string? AlternateForm => Value.Length == 12 ? "0" + Value : Value[0] == '0' ? Value[1..] : null;
+
     public override string ToString() => Value;
 
     // GS1: weight the digits left of the check digit 3,1,3,1… starting from the right.

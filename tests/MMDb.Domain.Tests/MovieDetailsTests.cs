@@ -104,4 +104,29 @@ public sealed class MovieDetailsTests
 
         details.Cast.ShouldBe([new("Al Pacino", "Vincent Hanna"), new("Robert De Niro")]);
     }
+
+    [Theory]
+    [InlineData("/rrBuGu0Pjq7Y2BWSI6teGfZzviY.jpg")]
+    [InlineData("/a-b_C9.png")]
+    public void A_tmdb_poster_path_is_accepted(string path)
+    {
+        new MovieDetails { Title = "Heat", PosterPath = path }.Validate().ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("rrBuGu0Pjq7Y2BWSI6teGfZzviY.jpg")]
+    [InlineData("/../../secrets.jpg")]
+    [InlineData("/a/b.jpg")]
+    [InlineData("/poster.exe")]
+    [InlineData("https://example.com/poster.jpg")]
+    public void Anything_else_as_a_poster_path_is_rejected(string path)
+    {
+        new MovieDetails { Title = "Heat", PosterPath = path }.Validate().ShouldHaveSingleError(MovieFields.PosterPath);
+    }
+
+    [Fact]
+    public void A_blank_poster_path_means_no_poster()
+    {
+        new MovieDetails { Title = "Heat", PosterPath = " " }.Normalized().PosterPath.ShouldBeNull();
+    }
 }

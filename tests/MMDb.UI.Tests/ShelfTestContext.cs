@@ -10,7 +10,10 @@ using MMDb.Testing;
 
 namespace MMDb.UI.Tests;
 
-/// <summary>bUnit context with the PC's real collection (in-memory SQLite) behind <see cref="ICollectionApi"/>.</summary>
+/// <summary>
+/// bUnit context with the PC's real collection (in-memory SQLite) behind <see cref="ICollectionApi"/>,
+/// and fakes for the online databases and the cover folder.
+/// </summary>
 public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 {
     protected static readonly DateTimeOffset Start = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
@@ -19,12 +22,17 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 
     protected ShelfTestContext()
     {
-        Services.AddShelf(_sqlite.ConnectionString);
+        Services.AddShelf(FakeOnline.Settings(_sqlite), CoverBase);
         Services.AddSingleton<TimeProvider>(Clock);
         Services.AddShelfUi();
+        Online.ReplaceIn(Services);
     }
 
+    protected static readonly Uri CoverBase = new("https://covers.test/");
+
     protected FakeTimeProvider Clock { get; } = new(Start);
+
+    private protected FakeOnline Online { get; } = new();
 
     protected ICollectionApi Api => Services.GetRequiredService<ICollectionApi>();
 

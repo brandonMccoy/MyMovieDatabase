@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using MMDb.Application.Metadata;
 using MMDb.Contracts;
 using MMDb.Contracts.Movies;
 using MMDb.Domain;
@@ -14,6 +15,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
 
     private readonly InMemorySqlite _sqlite = new();
     private readonly FakeTimeProvider _clock = new(Start);
+    private readonly FakeOnline _online = new();
     private ServiceProvider _services = null!;
 
     private ICollectionApi Api => _services.GetRequiredService<ICollectionApi>();
@@ -35,10 +37,10 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        _services = new ServiceCollection()
-            .AddShelf(_sqlite.ConnectionString)
-            .AddSingleton<TimeProvider>(_clock)
-            .BuildServiceProvider();
+        var services = new ServiceCollection()
+            .AddShelf(FakeOnline.Settings(_sqlite), new Uri("https://covers.test/"))
+            .AddSingleton<TimeProvider>(_clock);
+        _services = _online.ReplaceIn(services).BuildServiceProvider();
         await _services.MigrateShelfDatabaseAsync(Ct);
     }
 
@@ -194,5 +196,109 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
     public void Contract_sort_orders_cover_every_domain_sort()
     {
         Enum.GetNames<MovieSortOrder>().ShouldBe(Enum.GetNames<Application.Movies.MovieSort>());
+    }
+
+    [Fact]
+    public async Task A_lookup_returns_candidates_ready_for_the_add_screen()
+    {
+        _online.Tmdb.Add(TestMovies.HeatOnTmdb).Add(TestMovies.HeatAndDustOnTmdb);
+
+        var response = await Api.LookupMovieAsync("heat", Ct);
+
+        response.Status.ShouldBe(LookupStatus.Found);
+        response.Candidates.Select(c => c.Title).ShouldBe(["Heat", "Heat and Dust"]);
+        var heat = response.Candidates[0];
+        heat.TmdbId.ShouldBe(949);
+        heat.Year.ShouldBe(1995);
+        heat.Directors.ShouldBe(["Michael Mann"]);
+        heat.Cast[0].ShouldBe(new CastMemberDto("Al Pacino", "Vincent Hanna"));
+        heat.PosterPath.ShouldBe("/heat.jpg");
+        heat.PosterUrl.ShouldBe(new Uri("https://image.tmdb.org/t/p/w342/heat.jpg"));
+        heat.ThumbnailUrl.ShouldBe(new Uri("https://image.tmdb.org/t/p/w92/heat.jpg"));
+        response.Candidates[1].PosterUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_barcode_lookup_reports_the_product_and_its_format()
+    {
+        _online.Tmdb.Add(TestMovies.HeatOnTmdb);
+        _online.Barcodes.Add("786936894424", "Heat [Blu-ray]");
+
+        var response = await Api.LookupMovieAsync("786936894424", Ct);
+
+        response.Upc.ShouldBe("786936894424");
+        response.ProductName.ShouldBe("Heat [Blu-ray]");
+        response.Format.ShouldBe(MovieFormatKind.BluRay);
+        response.Candidates.ShouldHaveSingleItem().Owned.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_lookup_points_to_films_already_owned()
+    {
+        _online.Tmdb.Add(TestMovies.HeatOnTmdb);
+        var owned = await Api.AddMovieAsync(Heat with { TmdbId = 949, Formats = [new(MovieFormatKind.Dvd, Upc: "786936894424")] }, Ct);
+
+        var byTitle = await Api.LookupMovieAsync("heat", Ct);
+        var byBarcode = await Api.LookupMovieAsync("786936894424", Ct);
+
+        byTitle.Candidates.ShouldHaveSingleItem().Owned.ShouldNotBeNull().ShouldSatisfyAllConditions(
+            o => o.Id.ShouldBe(owned.Movie!.Id),
+            o => o.Formats.ShouldBe([MovieFormatKind.Dvd]));
+        byBarcode.Status.ShouldBe(LookupStatus.BarcodeOwned);
+        byBarcode.OwnedByBarcode.ShouldNotBeNull().Id.ShouldBe(owned.Movie!.Id);
+    }
+
+    [Theory]
+    [InlineData(MetadataProblem.NotConfigured, LookupStatus.NotConfigured)]
+    [InlineData(MetadataProblem.KeyRejected, LookupStatus.KeyRejected)]
+    [InlineData(MetadataProblem.Busy, LookupStatus.Busy)]
+    [InlineData(MetadataProblem.Unavailable, LookupStatus.Unavailable)]
+    public async Task Lookup_problems_are_reported_with_the_service(MetadataProblem problem, LookupStatus status)
+    {
+        _online.Tmdb.FailWith = problem;
+
+        var response = await Api.LookupMovieAsync("heat", Ct);
+
+        response.Status.ShouldBe(status);
+        response.FailedService.ShouldBe("TMDB");
+    }
+
+    [Fact]
+    public async Task A_film_saved_from_a_lookup_has_its_cover()
+    {
+        var response = await Api.AddMovieAsync(Heat with { TmdbId = 949, PosterPath = "/heat.jpg" }, Ct);
+
+        var movie = response.Movie!;
+        movie.PosterPath.ShouldBe("/heat.jpg");
+        movie.CoverUrl.ShouldBe(new Uri($"https://covers.test/{movie.Id:N}-heat.jpg"));
+        (await Api.ListMoviesAsync(new(), Ct)).Movies.ShouldHaveSingleItem().CoverUrl.ShouldBe(movie.CoverUrl);
+    }
+
+    [Fact]
+    public async Task A_film_without_a_cover_has_no_cover_url()
+    {
+        var response = await Api.AddMovieAsync(Heat, Ct);
+
+        response.Movie!.CoverUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Adding_a_film_already_owned_on_that_format_says_so()
+    {
+        var owned = await Api.AddMovieAsync(Heat with { TmdbId = 949 }, Ct);
+
+        var again = await Api.AddMovieAsync(Heat with { TmdbId = 949, Formats = [new(MovieFormatKind.Uhd4K)] }, Ct);
+
+        again.Status.ShouldBe(SaveStatus.AlreadyOwned);
+        again.Movie!.Id.ShouldBe(owned.Movie!.Id);
+    }
+
+    [Fact]
+    public async Task A_bad_poster_path_is_rejected_as_a_field_error()
+    {
+        var response = await Api.AddMovieAsync(Heat with { PosterPath = "../../evil.jpg" }, Ct);
+
+        response.Status.ShouldBe(SaveStatus.Invalid);
+        response.Errors.ShouldHaveSingleItem().Field.ShouldBe("PosterPath");
     }
 }

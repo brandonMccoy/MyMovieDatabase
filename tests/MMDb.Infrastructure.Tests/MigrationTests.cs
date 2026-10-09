@@ -30,7 +30,7 @@ public sealed class MigrationTests
     {
         using var sqlite = new InMemorySqlite();
         using var services = new ServiceCollection()
-            .AddShelfInfrastructure(sqlite.ConnectionString)
+            .AddShelfInfrastructure(FakeOnline.Settings(sqlite))
             .BuildServiceProvider();
 
         await services.MigrateShelfDatabaseAsync(TestContext.Current.CancellationToken);

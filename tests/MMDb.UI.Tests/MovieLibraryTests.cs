@@ -156,4 +156,17 @@ public sealed class MovieLibraryTests : ShelfTestContext
         page.WaitForAssertion(() => page.Find(".empty h2").TextContent.ShouldBe("No films match"));
         page.Find(".empty a").GetAttribute("href").ShouldBe("");
     }
+
+    [Fact]
+    public async Task Films_with_a_cover_show_it_and_the_rest_keep_the_placeholder()
+    {
+        var heat = await SeedAsync(Heat with { TmdbId = 949, PosterPath = "/heat.jpg" });
+        await SeedAsync(Film("Home Movie"));
+
+        var page = Render<MovieLibrary>();
+
+        page.WaitForElement(".card");
+        page.FindAll(".card .poster img").Select(i => i.GetAttribute("src")).ShouldBe([heat.CoverUrl!.AbsoluteUri]);
+        page.FindAll(".card .poster:not(.has-image) .pt").Select(t => t.TextContent).ShouldBe(["Home Movie"]);
+    }
 }

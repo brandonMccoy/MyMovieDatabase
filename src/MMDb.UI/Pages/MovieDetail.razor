@@ -25,7 +25,7 @@ else if (_movie is not null)
     <div class="hero"><div class="backdrop" style="@PosterColors.Style(_movie.Title)"></div></div>
     <div class="detail">
         <div>
-            <Poster Title="@_movie.Title" Subtitle="@Directors(" & ")" />
+            <Poster Title="@_movie.Title" Subtitle="@Directors(" & ")" ImageUrl="_movie.CoverUrl" />
         </div>
 
         <div>

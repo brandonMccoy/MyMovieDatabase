@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\InMemorySqlite.cs" LinkBase="Shared" />
+    <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

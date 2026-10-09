@@ -28,4 +28,12 @@ public static class Formats
     };
 
     public static bool IsDisc(MovieFormatKind format) => format != MovieFormatKind.Digital;
+
+    /// <summary>"4K UHD", "4K UHD and DVD", "4K UHD, Blu-ray and DVD".</summary>
+    public static string Join(IReadOnlyList<MovieFormatKind> formats) => formats.Count switch
+    {
+        0 => "",
+        1 => Name(formats[0]),
+        _ => string.Join(", ", formats.Take(formats.Count - 1).Select(Name)) + " and " + Name(formats[^1]),
+    };
 }

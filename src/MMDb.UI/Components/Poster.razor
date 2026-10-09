@@ -1,9 +1,14 @@
-@* Placeholder cover until real ones arrive with TMDB (milestone 2): a gradient picked from the title. *@
-<div class="poster @Class" style="@PosterColors.Style(Title)">
+@* The cover if there is one; otherwise (and while it loads) a gradient placeholder picked from the title. *@
+<div class="poster @Class @(ImageUrl is null ? "" : "has-image")" style="@PosterColors.Style(Title)">
     <span class="pt">@Title</span>
     @if (!string.IsNullOrEmpty(Subtitle))
     {
         <span class="pd">@Subtitle</span>
+    }
+    @if (ImageUrl is not null)
+    {
+        @* A broken image hides itself so the placeholder shows through. *@
+        <img src="@ImageUrl.AbsoluteUri" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'" />
     }
     @ChildContent
 </div>
@@ -13,6 +18,9 @@
 
     /// <summary>Small caps line under the title, usually the director.</summary>
     [Parameter] public string? Subtitle { get; set; }
+
+    /// <summary>The cover image; the placeholder shows if this is null or fails to load.</summary>
+    [Parameter] public Uri? ImageUrl { get; set; }
 
     [Parameter] public string? Class { get; set; }
 

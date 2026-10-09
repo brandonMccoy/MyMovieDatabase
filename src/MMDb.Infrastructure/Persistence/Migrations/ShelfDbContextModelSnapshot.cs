@@ -43,6 +43,10 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.Property<string>("Overview")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PosterPath")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Rating")
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");
@@ -76,6 +80,26 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.HasIndex("TmdbId");
 
                     b.ToTable("Movies", (string)null);
+                });
+
+            modelBuilder.Entity("MMDb.Infrastructure.Persistence.LookupCacheEntry", b =>
+                {
+                    b.Property<string>("Provider")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Provider", "Key");
+
+                    b.ToTable("LookupCache", (string)null);
                 });
 
             modelBuilder.Entity("MMDb.Domain.Movies.Movie", b =>

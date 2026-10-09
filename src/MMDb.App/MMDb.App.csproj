@@ -20,6 +20,9 @@
     <!-- Unpackaged: runs straight from the build output on the PC. -->
     <WindowsPackageType>None</WindowsPackageType>
 
+    <!-- Holds the TMDB key on this PC only (Tmdb:ApiKey); see docs/ARCHITECTURE.md. -->
+    <UserSecretsId>shelf-mmdb-app</UserSecretsId>
+
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
@@ -45,6 +48,7 @@
   <!-- The PC owns the collection: the database and use cases run in-process. The phone gets MMDb.Client in milestone 5. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <ProjectReference Include="..\MMDb.Server\MMDb.Server.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
   </ItemGroup>
 
 </Project>

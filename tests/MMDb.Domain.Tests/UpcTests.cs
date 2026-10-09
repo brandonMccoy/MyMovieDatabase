@@ -47,4 +47,13 @@ public sealed class UpcTests
     {
         Upc.Parse("0 36000 29145 2").ShouldBe(Upc.Parse("036000291452"));
     }
+
+    [Theory]
+    [InlineData("024543617907", "0024543617907")]
+    [InlineData("0024543617907", "024543617907")]
+    [InlineData("4006381333931", null)]
+    public void A_upc_a_and_its_ean_13_with_a_leading_zero_are_alternate_forms(string code, string? alternate)
+    {
+        Upc.Parse(code).AlternateForm.ShouldBe(alternate);
+    }
 }

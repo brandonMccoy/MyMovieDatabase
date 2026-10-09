@@ -1,0 +1,160 @@
+@* Looking a film up on TMDB by title or UPC; picking a match hands it to the page. *@
+@inject ICollectionApi Api
+
+<div class="lookup">
+    <form class="lookup-bar" @onsubmit="SearchAsync">
+        <div class="search">
+            <Icon Name="search" />
+            <input type="search" data-search aria-label="Title or UPC" placeholder="Title or UPC…" autocomplete="off" autofocus
+                   @bind="State.Query" @bind:event="oninput" />
+        </div>
+        <button type="submit" class="btn primary" disabled="@(_searching || string.IsNullOrWhiteSpace(State.Query))">Search</button>
+    </form>
+    <p class="small hint">Type a title, adding the year to narrow it down, or a UPC. A USB barcode scanner works too.</p>
+
+    @if (_searching)
+    {
+        <p class="small" role="status">Searching…</p>
+    }
+    else if (State.Response is { } response)
+    {
+        @if (response.Upc is not null)
+        {
+            <span class="code-chip"><Icon Name="scan" />UPC @response.Upc@if (response.ProductName is not null) {<span> · @response.ProductName</span>}</span>
+        }
+
+        @switch (response.Status)
+        {
+            case LookupStatus.NoMatches:
+                <p class="notice" role="status">
+                    No films found on TMDB for “@(response.ProductName ?? State.SearchedFor)”.
+                    @if (response.Upc is not null)
+                    {
+                        <span>Try the title instead; the UPC is kept for the format you pick.</span>
+                    }
+                </p>
+                break;
+            case LookupStatus.UnknownBarcode:
+                <p class="notice" role="status">This barcode isn't in UPCitemdb. Search for the title instead; the UPC is kept for the format you pick.</p>
+                break;
+            case LookupStatus.BarcodeOwned when response.OwnedByBarcode is { } owned:
+                <p class="notice owned-barcode" role="status">
+                    You already own this:
+                    <a href="movies/@owned.Id">@owned.Title</a>
+                    @foreach (var format in owned.Formats)
+                    {
+                        <FormatBadge Format="format" />
+                    }
+                </p>
+                break;
+            case LookupStatus.NotConfigured:
+                <p class="notice" role="alert">
+                    TMDB isn't set up on this PC yet. Add your TMDB key with
+                    <code class="mono">dotnet user-secrets set Tmdb:ApiKey &lt;key&gt; --project src/MMDb.App</code>
+                    and restart Shelf.
+                </p>
+                break;
+            case LookupStatus.KeyRejected:
+                <p class="notice" role="alert">@response.FailedService turned down the key on this PC. Check it in user secrets (Tmdb:ApiKey).</p>
+                break;
+            case LookupStatus.Busy:
+                <p class="notice" role="alert">
+                    @response.FailedService is busy right now.
+                    @if (response.FailedService == "UPCitemdb")
+                    {
+                        <span>Its free tier allows 6 lookups a minute and 100 a day. Wait a moment, or search by title.</span>
+                    }
+                    else
+                    {
+                        <span>Wait a moment and search again.</span>
+                    }
+                </p>
+                break;
+            case LookupStatus.Unavailable:
+                <p class="notice" role="alert">Couldn't reach @(response.FailedService ?? "the online database"). Check the internet connection and try again.</p>
+                break;
+        }
+
+        @if (response.Candidates.Count > 0)
+        {
+            <ul class="matches">
+                @foreach (var candidate in response.Candidates)
+                {
+                    <li @key="candidate.TmdbId">
+                        <button type="button" class="match" @onclick="() => OnPick.InvokeAsync(candidate)">
+                            <Poster Title="@candidate.Title" ImageUrl="candidate.ThumbnailUrl" />
+                            <span class="match-text">
+                                <span class="mt">@candidate.Title</span>
+                                <span class="mm">@Meta(candidate)</span>
+                                @if (candidate.Owned is { } owned)
+                                {
+                                    <span class="mo">In your collection
+                                        @foreach (var format in owned.Formats)
+                                        {
+                                            <FormatBadge Format="format" Short />
+                                        }
+                                    </span>
+                                }
+                            </span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    }
+
+    @if (Footer is not null)
+    {
+        <div class="lookup-foot">@Footer</div>
+    }
+</div>
+
+@code {
+    private bool _searching;
+
+    /// <summary>Kept by the page, so the matches are still there when coming back from the editor.</summary>
+    [Parameter, EditorRequired] public MovieSearchState State { get; set; } = null!;
+
+    [Parameter, EditorRequired] public EventCallback<MovieCandidateDto> OnPick { get; set; }
+
+    /// <summary>Under the results: "Enter manually", "Back to editing".</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>Search for <see cref="MovieSearchState.Query"/> straight away (when it has not been searched yet).</summary>
+    [Parameter] public bool SearchOnOpen { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SearchOnOpen && State.Response is null && !string.IsNullOrWhiteSpace(State.Query))
+        {
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        var query = State.Query.Trim();
+        if (query.Length == 0 || _searching)
+        {
+            return;
+        }
+
+        _searching = true;
+        try
+        {
+            State.Response = await Api.LookupMovieAsync(query);
+            State.SearchedFor = query;
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    private static string Meta(MovieCandidateDto candidate) => string.Join(" · ", new[]
+    {
+        candidate.Year?.ToString(CultureInfo.InvariantCulture),
+        candidate.Directors.Count > 0 ? string.Join(" & ", candidate.Directors) : null,
+        candidate.RuntimeMinutes is { } minutes ? $"{minutes} min" : null,
+    }.OfType<string>());
+}

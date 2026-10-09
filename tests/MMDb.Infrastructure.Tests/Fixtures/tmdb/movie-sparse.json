@@ -1,0 +1,21 @@
+{
+  "adult": false,
+  "id": 1,
+  "title": "Untitled Short",
+  "original_title": "Untitled Short",
+  "release_date": "",
+  "runtime": 0,
+  "overview": "",
+  "poster_path": null,
+  "genres": [],
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "videos": {
+    "results": []
+  },
+  "release_dates": {
+    "results": []
+  }
+}

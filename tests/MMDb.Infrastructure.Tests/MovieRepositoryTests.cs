@@ -164,6 +164,63 @@ public sealed class MovieRepositoryTests
         (await FindAsync(database, movie.Id))!.Title.ShouldBe("Heat (first)");
     }
 
+    [Fact]
+    public async Task The_poster_and_cover_are_saved()
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        var movie = Movie.Create(TestMovies.HeatOnTmdb, TestMovies.On(MediaFormat.Dvd), Jan2019);
+        movie.UseCover("abc-heat.jpg");
+        await SaveAsync(database, movie);
+
+        var loaded = await FindAsync(database, movie.Id);
+
+        loaded!.PosterPath.ShouldBe("/heat.jpg");
+        loaded.CoverImage.ShouldBe("abc-heat.jpg");
+    }
+
+    [Theory]
+    [InlineData("786936894424")]
+    [InlineData("0786936894424")]
+    public async Task A_film_is_found_by_its_barcode_in_either_form(string barcode)
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        var heat = Movie.Create(TestMovies.Heat, [new(MediaFormat.Dvd), new(MediaFormat.Uhd4K, Upc: "786936894424")], Jan2019);
+        await SaveAsync(database, Movie.Create(TestMovies.Titled("Alien"), [new(MediaFormat.BluRay, Upc: "036000291452")], Jan2019));
+        await SaveAsync(database, heat);
+
+        await using var db = database.NewContext();
+        var found = await new EfMovieRepository(db).FindByUpcAsync(Upc.Parse(barcode), Ct);
+
+        found.ShouldNotBeNull().Id.ShouldBe(heat.Id);
+    }
+
+    [Fact]
+    public async Task An_unknown_barcode_finds_nothing()
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        await SaveAsync(database, Movie.Create(TestMovies.Heat, [new(MediaFormat.Dvd, Upc: "786936894424")], Jan2019));
+
+        await using var db = database.NewContext();
+        (await new EfMovieRepository(db).FindByUpcAsync(Upc.Parse("036000291452"), Ct)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Films_are_found_by_tmdb_id()
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        var heat = Movie.Create(TestMovies.HeatOnTmdb, TestMovies.On(MediaFormat.Dvd), Jan2019);
+        var alien = Movie.Create(TestMovies.Titled("Alien") with { TmdbId = 348 }, TestMovies.On(MediaFormat.Dvd), Jan2019);
+        await SaveAsync(database, heat);
+        await SaveAsync(database, alien);
+        await SaveAsync(database, Movie.Create(TestMovies.Titled("Jaws"), TestMovies.On(MediaFormat.Dvd), Jan2019));
+
+        await using var db = database.NewContext();
+        var repository = new EfMovieRepository(db);
+        (await repository.FindByTmdbIdAsync(949, Ct)).ShouldNotBeNull().Id.ShouldBe(heat.Id);
+        (await repository.FindByTmdbIdAsync(1, Ct)).ShouldBeNull();
+        (await repository.ListByTmdbIdsAsync([949, 348, 1], Ct)).Select(m => m.Title).Order().ShouldBe(["Alien", "Heat"]);
+    }
+
     private static async Task SaveAsync(TestDatabase database, Movie movie)
     {
         await using var db = database.NewContext();

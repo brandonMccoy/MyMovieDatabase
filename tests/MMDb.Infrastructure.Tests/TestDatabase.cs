@@ -21,8 +21,11 @@ internal sealed class TestDatabase : IDisposable
         return database;
     }
 
-    public ShelfDbContext NewContext() =>
-        new(new DbContextOptionsBuilder<ShelfDbContext>().UseSqlite(_sqlite.ConnectionString).Options);
+    public string ConnectionString => _sqlite.ConnectionString;
+
+    public DbContextOptions<ShelfDbContext> Options => new DbContextOptionsBuilder<ShelfDbContext>().UseSqlite(_sqlite.ConnectionString).Options;
+
+    public ShelfDbContext NewContext() => new(Options);
 
     public void Dispose() => _sqlite.Dispose();
 }

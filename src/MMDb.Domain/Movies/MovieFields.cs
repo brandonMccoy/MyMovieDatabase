@@ -9,6 +9,7 @@ public static class MovieFields
     public const string Rating = nameof(Rating);
     public const string Cast = nameof(Cast);
     public const string Formats = nameof(Formats);
+    public const string PosterPath = nameof(PosterPath);
 
     /// <summary>e.g. <c>BluRay.Upc</c>.</summary>
     public static string Upc(MediaFormat format) => $"{format}.Upc";

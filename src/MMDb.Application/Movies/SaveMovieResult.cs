@@ -16,6 +16,9 @@ public abstract record SaveMovieResult
 
     public sealed record NotFound : SaveMovieResult;
 
+    /// <summary>A film with the same TMDB id is already owned on every format being added.</summary>
+    public sealed record AlreadyOwned(Movie Movie) : SaveMovieResult;
+
     /// <summary>Someone else changed the movie since the caller loaded it.</summary>
     public sealed record Conflict : SaveMovieResult;
 }

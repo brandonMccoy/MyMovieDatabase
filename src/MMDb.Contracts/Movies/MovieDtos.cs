@@ -48,6 +48,12 @@ public sealed record MovieDto
 
     public string? TrailerYouTubeKey { get; init; }
 
+    /// <summary>TMDB's poster; send it back unchanged with an update.</summary>
+    public string? PosterPath { get; init; }
+
+    /// <summary>The cover kept on the PC, or <see langword="null"/> for a placeholder.</summary>
+    public Uri? CoverUrl { get; init; }
+
     /// <summary>The trailer on YouTube, or a YouTube search for it.</summary>
     public required Uri TrailerUrl { get; init; }
 
@@ -65,7 +71,8 @@ public sealed record MovieSummaryDto(
     int? Year,
     IReadOnlyList<string> Directors,
     IReadOnlyList<MovieFormatKind> Formats,
-    Uri TrailerUrl);
+    Uri TrailerUrl,
+    Uri? CoverUrl = null);
 
 /// <summary>Search, filters and sort for the library.</summary>
 public sealed record MovieListRequest
@@ -121,6 +128,9 @@ public sealed record SaveMovieRequest
 
     public string? TrailerYouTubeKey { get; init; }
 
+    /// <summary>TMDB's poster (from a lookup); the PC downloads it when saving.</summary>
+    public string? PosterPath { get; init; }
+
     /// <summary>Every format owned, at least one. Formats left out of an update are removed.</summary>
     public IReadOnlyList<FormatRequest> Formats { get; init; } = [];
 }
@@ -135,11 +145,14 @@ public enum SaveStatus
 
     /// <summary>The film was changed elsewhere since it was loaded.</summary>
     Conflict,
+
+    /// <summary>Adding a film already owned (same TMDB id) on every format given; <see cref="SaveMovieResponse.Movie"/> is that film.</summary>
+    AlreadyOwned,
 }
 
 /// <param name="Field">
 /// Which input is wrong: <c>Title</c>, <c>Year</c>, <c>RuntimeMinutes</c>, <c>Rating</c>, <c>Cast</c>, <c>Formats</c>,
-/// or per format <c>{MovieFormatKind}.Upc</c> / <c>{MovieFormatKind}.FilePath</c>.
+/// <c>PosterPath</c>, or per format <c>{MovieFormatKind}.Upc</c> / <c>{MovieFormatKind}.FilePath</c>.
 /// </param>
 public sealed record FieldError(string Field, string Message);
 

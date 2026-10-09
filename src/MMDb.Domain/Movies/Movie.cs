@@ -31,6 +31,8 @@ public sealed class Movie : ProductBase
 
     public string? TrailerYouTubeKey { get; private set; }
 
+    public string? PosterPath { get; private set; }
+
     /// <summary>Owned formats in display order (4K UHD, Blu-ray, DVD, Digital).</summary>
     public IReadOnlyList<MovieFormat> Formats => [.. _formats.OrderBy(f => f.Format)];
 
@@ -49,6 +51,7 @@ public sealed class Movie : ProductBase
         Overview = Overview,
         TmdbId = TmdbId,
         TrailerYouTubeKey = TrailerYouTubeKey,
+        PosterPath = PosterPath,
     };
 
     /// <summary>Validation errors for this input; empty when <see cref="Create"/> or <see cref="Update"/> would accept it.</summary>
@@ -95,6 +98,28 @@ public sealed class Movie : ProductBase
         Touch(now);
     }
 
+    /// <summary>Adds the formats not owned yet and leaves the details alone: buying a film again on another format.</summary>
+    /// <returns>The formats added; empty (and nothing changed) if every one was owned already.</returns>
+    /// <exception cref="DomainValidationException">The formats are invalid (see <see cref="FormatDetails.ValidateSet"/>).</exception>
+    public IReadOnlyList<MediaFormat> AddFormats(IReadOnlyCollection<FormatDetails> formats, DateTimeOffset now)
+    {
+        var errors = FormatDetails.ValidateSet(formats);
+        if (errors.Count > 0)
+        {
+            throw new DomainValidationException(errors);
+        }
+
+        var added = formats.Where(f => !Owns(f.Format)).ToList();
+        if (added.Count == 0)
+        {
+            return [];
+        }
+
+        _formats.AddRange(added.Select(f => new MovieFormat(f, now)));
+        Touch(now);
+        return [.. added.Select(f => f.Format).Order()];
+    }
+
     public bool Owns(MediaFormat format) => _formats.Exists(f => f.Format == format);
 
     private void Apply(MovieDetails details)
@@ -109,6 +134,7 @@ public sealed class Movie : ProductBase
         Overview = details.Overview;
         TmdbId = details.TmdbId;
         TrailerYouTubeKey = details.TrailerYouTubeKey;
+        PosterPath = details.PosterPath;
     }
 
     private static void ThrowIfInvalid(MovieDetails details, IReadOnlyCollection<FormatDetails> formats)

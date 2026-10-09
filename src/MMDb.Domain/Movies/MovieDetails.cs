@@ -1,7 +1,9 @@
+using System.Text.RegularExpressions;
+
 namespace MMDb.Domain.Movies;
 
 /// <summary>The descriptive, user-editable fields of a film.</summary>
-public sealed record MovieDetails
+public sealed partial record MovieDetails
 {
     public const int MinYear = 1888;
     public const int MaxYear = 2100;
@@ -30,6 +32,9 @@ public sealed record MovieDetails
 
     public string? TrailerYouTubeKey { get; init; }
 
+    /// <summary>TMDB's name for the poster image, e.g. <c>/rrBuGu0Pjq7Y2BWSI6teGfZzviY.jpg</c>.</summary>
+    public string? PosterPath { get; init; }
+
     /// <summary>Trims text, turns blanks into nulls, drops empty and duplicate list entries.</summary>
     public MovieDetails Normalized() => this with
     {
@@ -42,6 +47,7 @@ public sealed record MovieDetails
         Rating = NullIfBlank(Rating),
         Overview = NullIfBlank(Overview),
         TrailerYouTubeKey = NullIfBlank(TrailerYouTubeKey),
+        PosterPath = NullIfBlank(PosterPath),
     };
 
     /// <summary>Validates the normalized form of these details.</summary>
@@ -79,6 +85,12 @@ public sealed record MovieDetails
             errors.Add(new(MovieFields.Cast, "Every cast member needs a name."));
         }
 
+        // It ends up in a file name and a URL, so only TMDB's own shape is accepted.
+        if (details.PosterPath is { } poster && !PosterPathShape().IsMatch(poster))
+        {
+            errors.Add(new(MovieFields.PosterPath, "Not a TMDB poster path."));
+        }
+
         return errors;
     }
 
@@ -90,4 +102,7 @@ public sealed record MovieDetails
             .OfType<string>()
             .Where(v => v.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)];
+
+    [GeneratedRegex(@"^/[A-Za-z0-9_-]{1,100}\.(?:jpg|jpeg|png|webp)$")]
+    private static partial Regex PosterPathShape();
 }

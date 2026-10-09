@@ -144,4 +144,50 @@ public sealed class MovieTests
 
         ex.Errors.ShouldHaveSingleError(MovieFields.Formats);
     }
+
+    [Fact]
+    public void Adding_formats_to_an_owned_film_keeps_its_details_and_existing_formats()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Dvd)], Jan2019);
+
+        var added = movie.AddFormats([new(MediaFormat.Uhd4K, Upc: "786936894424"), new(MediaFormat.Dvd)], Mar2025);
+
+        added.ShouldBe([MediaFormat.Uhd4K]);
+        movie.Title.ShouldBe("Heat");
+        movie.Formats.Select(f => (f.Format, f.AddedAt)).ShouldBe([(MediaFormat.Uhd4K, Mar2025), (MediaFormat.Dvd, Jan2019)]);
+        movie.Formats[0].Upc.ShouldBe(Upc.Parse("786936894424"));
+        movie.Version.ShouldBe(2);
+        movie.UpdatedAt.ShouldBe(Mar2025);
+    }
+
+    [Fact]
+    public void Adding_only_formats_already_owned_changes_nothing()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Dvd)], Jan2019);
+
+        movie.AddFormats([new(MediaFormat.Dvd, Upc: "786936894424")], Mar2025).ShouldBeEmpty();
+
+        movie.Formats.ShouldHaveSingleItem().Upc.ShouldBeNull();
+        movie.Version.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Adding_invalid_formats_is_rejected()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Dvd)], Jan2019);
+
+        var ex = Should.Throw<DomainValidationException>(() => movie.AddFormats([new(MediaFormat.BluRay, Upc: "123")], Mar2025));
+
+        ex.Errors.ShouldHaveSingleError(MovieFields.Upc(MediaFormat.BluRay));
+        movie.Owns(MediaFormat.BluRay).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_poster_path_is_kept_with_the_details()
+    {
+        var movie = Movie.Create(Heat with { PosterPath = "/heat.jpg" }, [new(MediaFormat.Dvd)], Jan2019);
+
+        movie.PosterPath.ShouldBe("/heat.jpg");
+        movie.Details.PosterPath.ShouldBe("/heat.jpg");
+    }
 }

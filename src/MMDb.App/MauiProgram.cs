@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using MMDb.UI;
 #if WINDOWS
+using Microsoft.Extensions.Configuration;
 using MMDb.Infrastructure;
+using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
 using MMDb.Server;
 #endif
@@ -19,14 +21,25 @@ public static class MauiProgram
         builder.Services.AddShelfUi();
 
 #if WINDOWS
-        // %LOCALAPPDATA%\Shelf\shelf.db, with startup backups beside it. SHELF_DATA_DIR points elsewhere
-        // (a scratch collection for trying things out or for E2E tests).
+        // %LOCALAPPDATA%\Shelf\shelf.db, with startup backups and downloaded covers beside it. SHELF_DATA_DIR
+        // points elsewhere (a scratch collection for trying things out or for E2E tests).
         var dataDirectory = Environment.GetEnvironmentVariable("SHELF_DATA_DIR") is { Length: > 0 } custom
             ? custom
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Shelf");
         Directory.CreateDirectory(dataDirectory);
         var databasePath = Path.Combine(dataDirectory, "shelf.db");
-        builder.Services.AddShelf(InfrastructureServices.SqliteConnectionString(databasePath));
+        CoverFolder.Path = Path.Combine(dataDirectory, "covers");
+
+        // API keys stay on this PC, in user secrets (see docs/ARCHITECTURE.md).
+        builder.Configuration.AddUserSecrets(typeof(MauiProgram).Assembly, optional: true);
+        builder.Services.AddShelf(
+            new ShelfSettings
+            {
+                ConnectionString = InfrastructureServices.SqliteConnectionString(databasePath),
+                CoverDirectory = CoverFolder.Path,
+                Tmdb = new TmdbSettings { ApiKey = builder.Configuration["Tmdb:ApiKey"] },
+            },
+            CoverFolder.BaseUri);
 #endif
 
 #if DEBUG

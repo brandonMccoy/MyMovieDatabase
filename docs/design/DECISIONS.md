@@ -34,5 +34,13 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Library:** grid only for now (list view to be designed later). Sidebar shows only screens that exist; Comics, Wishlist, Stats and the phone/vault status appear in their milestones.
 - **Delete:** from the detail page's "…" menu, with an inline confirmation.
 
+## Milestone 2 (decided 2026-10-09)
+- **Add movie (PC):** opens on a search step: one box takes a title (a trailing year narrows it) or a UPC, typed or from a USB barcode scanner. Matches show poster, title, year, director and runtime, and "In your collection" with the formats owned. "Not listed? Enter manually" opens the empty editor (with the typed title).
+- **Review:** picking a match opens the same editor filled in, with "Best match · TMDB" and "Not it? N other matches" (back to the list; formats switched on are kept). Fields changed from the TMDB data get the amber outline. A scanned UPC switches on the format named in the product, with the UPC; if no format is named, the UPC goes to the first disc switched on.
+- **Already owned:** the match says so; the editor shows the owned formats and "Saving adds 4K UHD to it", and the button reads "Add 4K UHD format". Saving adds the format to the existing film without touching its details. A UPC already in the collection links straight to the film.
+- **Find on TMDB (edit):** a button under the poster searches for the film's title and year; picking a match fills in the details and cover, keeps formats, UPCs and file paths, and outlines what changed from the saved film.
+- **Covers:** downloaded at w500 and kept on the PC; the phone will get small thumbnails (size decided then, ~60 MB for 4,000 at w185). Films without one keep the gradient placeholder.
+- **TMDB key:** user secrets for now; the Settings screen's "Online databases" section comes later. Until a key is set, the search says how to add one and manual entry still works.
+
 ## Open
 - None. Design phase complete (2026-10-08).

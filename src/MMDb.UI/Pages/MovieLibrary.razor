@@ -88,7 +88,7 @@
                     <div class="card" @key="movie.Id">
                         <div class="cover">
                             <a href="movies/@movie.Id" aria-label="@movie.Title">
-                                <Poster Title="@movie.Title" Subtitle="@string.Join(" & ", movie.Directors)" />
+                                <Poster Title="@movie.Title" Subtitle="@string.Join(" & ", movie.Directors)" ImageUrl="movie.CoverUrl" />
                             </a>
                             <div class="hover">
                                 <a class="play" href="@movie.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="play" />Trailer</a>

@@ -56,7 +56,8 @@ src/
                         (Upc, ComicBarcode, Isbn), validation. No dependencies.
   MMDb.Application/     Use cases (LookupBarcode, SearchMetadata, AddMovie,
                         AddComic, UpdateX, Wishlist ops, Query). Defines ports:
-                        IMovieRepository, IComicRepository, IMetadataProvider<T>,
+                        IMovieRepository, IComicRepository, IMovieMetadata,
+                        IBarcodeLookup, IPosterSource,
                         IVaultWriter, ICoverStore. Uses TimeProvider for time.
   MMDb.Infrastructure/  EF Core + SQLite, metadata provider adapters, vault
                         writer, cover store, HTTP resilience (retry, rate limit).
@@ -82,7 +83,7 @@ tests/                      (each added when its layer first has code)
 
 Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Server.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it will be `MMDb.Client`. The same screens therefore run in both places.
 
-**Data on the PC:** `%LOCALAPPDATA%\Shelf\shelf.db`, backed up on startup to `backups\` (SQLite online backup, newest 10 kept), then migrated. Set `SHELF_DATA_DIR` to run against another folder (scratch data, E2E). Schema changes: `dotnet ef migrations add <Name> --project src/MMDb.Infrastructure --output-dir Persistence/Migrations` (local tool, `dotnet tool restore`); a test fails if the model has changes without a migration.
+**Data on the PC:** `%LOCALAPPDATA%\Shelf\shelf.db`, backed up on startup to `backups\` (SQLite online backup, newest 10 kept), then migrated. Downloaded covers live in `covers\` beside it (one file per film and poster, `<movie id>-<TMDB poster file>`); the WebView serves that folder as `https://covers.shelf.example/`. Set `SHELF_DATA_DIR` to run against another folder (scratch data, E2E). Schema changes: `dotnet ef migrations add <Name> --project src/MMDb.Infrastructure --output-dir Persistence/Migrations` (local tool, `dotnet tool restore`); a test fails if the model has changes without a migration.
 
 ## Data model (initial; fields to be finalized in feature planning)
 
@@ -94,7 +95,7 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - **Comic**: `Series`, `Volume`, `IssueNumber`, `Variant`, `Printing`, `Publisher`, `CoverDate`, `Writers`, `Artists`, `Format` (single issue / TPB / HC / omnibus), `Upc`, `UpcSupplement`, `Isbn`, `MetronId`, `IsKeyIssue`, `KeyNote` (e.g. "1st Elektra").
 - **Series** (comics): `Name`, `Volume`, `Publisher`, `MetronId`, `TotalIssues` — powers progress bars and "missing issues".
 - **WishlistItem**: `ProductType`, the same descriptive fields (nullable), `Priority`, `MaxPrice`, `Notes`, `AcquiredAt` (moving an item to the collection links the two).
-- **LookupCache**: provider + key → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble.
+- **LookupCache**: provider + request (API key stripped) → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble. Kept 30 days (TMDB search results: 1 day). Only successful answers are kept; for UPCitemdb that includes "unknown barcode".
 
 ## Adding a product: scan → review → accept
 
@@ -120,7 +121,13 @@ Movies and comics are **separate tables and separate screens**; they share only 
 
 ## Metadata providers
 
-Each provider implements `IMetadataProvider<TCandidate>` with `LookupByCodeAsync` and/or `SearchAsync`. They are run as a chain with fallbacks, and each is cached and rate-limited.
+Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details by id), `IBarcodeLookup` (UPCitemdb: barcode → product names) and `IPosterSource` (TMDB's image server). `MovieLookup` chains them; each HTTP client has the lookup cache and the standard resilience handler (retries, timeouts; UPCitemdb's 429s are not retried). Comics get their own ports in milestone 4.
+
+- **Lookup by text:** a trailing year narrows the search ("heat 1995"); if that finds nothing the whole text is tried, for titles like "Blade Runner 2049". Up to 8 matches are fetched in full (credits, videos and US release dates in one request each).
+- **Lookup by barcode:** a UPC already in the collection is answered from the database without any API call. Otherwise UPCitemdb's product name is cleaned (`RetailTitle`: packaging words, label prefixes like "Mill Creek -", bracketed parts; a bracketed year is kept) and searched on TMDB; the format comes from the name (combo packs count as the best disc).
+- **From TMDB:** directors from the crew, the top 10 billed actors, genres, runtime, US theatrical certification as the rating, overview, trailer (see below) and poster path.
+- **Covers:** saved at TMDB's `w500` (about 60–90 KB, ~300 MB for 4,000 films) when the film is saved; the poster path is kept so the phone can get smaller thumbnails later. A failed download leaves the film without a cover until its next save.
+- **Keys:** the TMDB key is read from the app's user secrets: `dotnet user-secrets set Tmdb:ApiKey <key> --project src/MMDb.App`. Either TMDB's API Read Access Token or the older API Key works. UPCitemdb's free tier needs no key (100 lookups a day, 6 a minute).
 
 | Type | By barcode | By text search | Notes |
 |---|---|---|---|
@@ -179,7 +186,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 - **Time:** `TimeProvider` everywhere (testable).
 - **Logging:** `Microsoft.Extensions.Logging` + rolling file on the PC.
-- **Config:** `appsettings.json` + user secrets for API keys; the vault path and port are set in the app's Settings screen.
+- **Config:** user secrets for API keys (`Tmdb:ApiKey`); the vault path and port are set in the app's Settings screen.
 - **Backups:** the database file is copied on startup, keeping the last N copies.
 - **Static analysis:** nullable enabled, analyzers on, `TreatWarningsAsErrors` in `Directory.Build.props`.
 

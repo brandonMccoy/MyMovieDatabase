@@ -13,4 +13,8 @@
     <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

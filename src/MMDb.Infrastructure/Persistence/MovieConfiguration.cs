@@ -20,6 +20,7 @@ internal sealed class MovieConfiguration : IEntityTypeConfiguration<Movie>
         movie.Property(m => m.Genres).HasConversion(JsonList.Converter<string>(), JsonList.Comparer<string>());
         movie.Property(m => m.Cast).HasConversion(JsonList.Converter<CastMember>(), JsonList.Comparer<CastMember>());
         movie.HasIndex(m => m.TmdbId);
+        movie.Property(m => m.PosterPath).HasMaxLength(128);
 
         movie.Ignore(m => m.Details);
         movie.Ignore(m => m.LastAddedAt);

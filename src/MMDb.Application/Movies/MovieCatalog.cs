@@ -1,16 +1,23 @@
+using MMDb.Application.Metadata;
 using MMDb.Domain.Movies;
 
 namespace MMDb.Application.Movies;
 
 /// <summary>Use cases for the movie collection: browse, add, edit, delete.</summary>
-public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock)
+public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore)
 {
+    private readonly CoverKeeper _covers = new(posters, coverStore);
+
     public Task<Movie?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
         movies.FindAsync(id, cancellationToken);
 
     public async Task<MovieList> ListAsync(MovieQuery query, CancellationToken cancellationToken = default) =>
         MovieFilter.Apply(await movies.ListAsync(cancellationToken), query);
 
+    /// <summary>
+    /// Adds a film, downloading its poster if it has one. A film already owned (same TMDB id) is not added
+    /// twice: the new formats are added to it instead and its details are left as they are.
+    /// </summary>
     public async Task<SaveMovieResult> AddAsync(
         MovieDetails details, IReadOnlyCollection<FormatDetails> formats, CancellationToken cancellationToken = default)
     {
@@ -20,10 +27,19 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock)
             return new SaveMovieResult.Invalid(errors);
         }
 
+        if (details.TmdbId is { } tmdbId && await movies.FindByTmdbIdAsync(tmdbId, cancellationToken) is { } owned)
+        {
+            if (owned.AddFormats(formats, clock.GetUtcNow()).Count == 0)
+            {
+                return new SaveMovieResult.AlreadyOwned(owned);
+            }
+
+            return await SaveAsync(owned, cancellationToken);
+        }
+
         var movie = Movie.Create(details, formats, clock.GetUtcNow());
         movies.Add(movie);
-        await movies.SaveChangesAsync(cancellationToken);
-        return new SaveMovieResult.Saved(movie);
+        return await SaveAsync(movie, cancellationToken);
     }
 
     /// <param name="expectedVersion">The <see cref="Domain.ProductBase.Version"/> the caller edited; a newer one means a conflict.</param>
@@ -52,16 +68,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock)
         }
 
         movie.Update(details, formats, clock.GetUtcNow());
-        try
-        {
-            await movies.SaveChangesAsync(cancellationToken);
-        }
-        catch (ConcurrencyConflictException)
-        {
-            return new SaveMovieResult.Conflict();
-        }
-
-        return new SaveMovieResult.Saved(movie);
+        return await SaveAsync(movie, cancellationToken);
     }
 
     /// <returns><see langword="false"/> if there was no such movie.</returns>
@@ -84,6 +91,21 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock)
             return false;
         }
 
+        _covers.Forget(movie);
         return true;
+    }
+
+    private async Task<SaveMovieResult> SaveAsync(Movie movie, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _covers.SaveAsync(movie, () => movies.SaveChangesAsync(cancellationToken), cancellationToken);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return new SaveMovieResult.Conflict();
+        }
+
+        return new SaveMovieResult.Saved(movie);
     }
 }

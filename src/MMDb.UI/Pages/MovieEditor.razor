@@ -10,14 +10,14 @@
 <div class="topbar">
     <a class="btn ghost back" href="@BackHref"><Icon Name="back" />@BackLabel</a>
     <div class="spacer"></div>
-    @if (_form is not null)
+    @if (_form is not null && _mode == Mode.Edit)
     {
         <a class="btn ghost" href="@BackHref">Cancel</a>
-        <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add movie" : "Save changes")</button>
+        <button type="button" class="btn primary" disabled="@(!CanSave || _saving)" @onclick="SaveAsync">@SaveLabel</button>
     }
 </div>
 
-@if (_loaded && _form is null)
+@if (_loaded && _form is null && !IsNew)
 {
     <div class="content">
         <div class="empty">
@@ -27,11 +27,35 @@
         </div>
     </div>
 }
+else if (_loaded && _mode == Mode.Search)
+{
+    <div class="content">
+        <div class="section-head">
+            <h1>@(IsNew ? "Add movie" : "Find on TMDB")</h1>
+        </div>
+        <MovieSearch State="_search" OnPick="Pick" SearchOnOpen="!IsNew">
+            <Footer>
+                @if (IsNew)
+                {
+                    <span>Not listed?</span> <button type="button" class="link-btn" @onclick="EnterManually">Enter manually</button>
+                }
+                else
+                {
+                    <button type="button" class="link-btn" @onclick="() => _mode = Mode.Edit">Back to editing</button>
+                }
+            </Footer>
+        </MovieSearch>
+    </div>
+}
 else if (_form is not null)
 {
     <div class="detail editing">
         <div>
-            <Poster Title="@(_form.Title.Trim().Length > 0 ? _form.Title : "Untitled")" Subtitle="@string.Join(" & ", _form.DirectorList)" />
+            <Poster Title="@(_form.Title.Trim().Length > 0 ? _form.Title : "Untitled")" Subtitle="@string.Join(" & ", _form.DirectorList)" ImageUrl="PosterImage" />
+            @if (!IsNew)
+            {
+                <button type="button" class="btn sm find" @onclick="FindOnTmdb"><Icon Name="search" />Find on TMDB</button>
+            }
         </div>
 
         <div>
@@ -43,6 +67,42 @@ else if (_form is not null)
                     {
                         <button type="button" class="btn sm" @onclick="ReloadAsync">Load the latest version</button>
                     }
+                    else if (_alreadyOwned is not null)
+                    {
+                        <a class="btn sm" href="movies/@_alreadyOwned.Id">Open @_alreadyOwned.Title</a>
+                    }
+                </div>
+            }
+
+            @if (_candidate is not null)
+            {
+                <div class="review-bar">
+                    <span class="src">@(_candidateIndex == 0 ? "Best match · TMDB" : "From TMDB")</span>
+                    <button type="button" class="link-btn" @onclick="() => _mode = Mode.Search">@NotItLabel</button>
+                </div>
+            }
+
+            @if (IsNew && _candidate?.Owned is { } owned)
+            {
+                var adding = AddingTo(owned);
+                <div class="owned-note">
+                    <span class="fmts">
+                        @foreach (var format in owned.Formats)
+                        {
+                            <FormatBadge Format="format" />
+                        }
+                    </span>
+                    <span>
+                        You already own this film.
+                        @if (adding.Count > 0)
+                        {
+                            <span>Saving adds <b>@Formats.Join(adding)</b> to it.</span>
+                        }
+                        else
+                        {
+                            <span>Switch on a format you don't own yet to add it.</span>
+                        }
+                    </span>
                 </div>
             }
 
@@ -50,36 +110,36 @@ else if (_form is not null)
 
             <div class="field">
                 <label for="title">Title</label>
-                <input id="title" class="input title-input @State("Title", _form.Title.Trim() != _original?.Title)" @bind="_form.Title" @bind:event="oninput" autocomplete="off" />
+                <input id="title" class="input title-input @State("Title", _form.Title.Trim() != _baseline?.Title)" @bind="_form.Title" @bind:event="oninput" autocomplete="off" />
                 <FieldMessage Errors="_errors" Field="Title" />
             </div>
 
             <div class="row3">
                 <div class="field">
                     <label for="year">Year</label>
-                    <input id="year" type="number" class="input @State("Year", _form.Year != _original?.Year)" @bind="_form.Year" />
+                    <input id="year" type="number" class="input @State("Year", _form.Year != _baseline?.Year)" @bind="_form.Year" />
                     <FieldMessage Errors="_errors" Field="Year" />
                 </div>
                 <div class="field">
                     <label for="runtime">Runtime (min)</label>
-                    <input id="runtime" type="number" class="input @State("RuntimeMinutes", _form.RuntimeMinutes != _original?.RuntimeMinutes)" @bind="_form.RuntimeMinutes" />
+                    <input id="runtime" type="number" class="input @State("RuntimeMinutes", _form.RuntimeMinutes != _baseline?.RuntimeMinutes)" @bind="_form.RuntimeMinutes" />
                     <FieldMessage Errors="_errors" Field="RuntimeMinutes" />
                 </div>
                 <div class="field">
                     <label for="rating">Rating</label>
-                    <input id="rating" class="input @State("Rating", Blank(_form.Rating) != _original?.Rating)" @bind="_form.Rating" placeholder="e.g. R, PG-13" />
+                    <input id="rating" class="input @State("Rating", Blank(_form.Rating) != _baseline?.Rating)" @bind="_form.Rating" placeholder="e.g. R, PG-13" />
                     <FieldMessage Errors="_errors" Field="Rating" />
                 </div>
             </div>
 
             <div class="field">
                 <label for="directors">Directors</label>
-                <input id="directors" class="input @State("Directors", !_form.DirectorList.SequenceEqual(_original?.Directors ?? []))" @bind="_form.Directors" placeholder="Separate several with commas" />
+                <input id="directors" class="input @State("Directors", !_form.DirectorList.SequenceEqual(_baseline?.Directors ?? []))" @bind="_form.Directors" placeholder="Separate several with commas" />
             </div>
 
             <div class="field">
                 <label for="genre">Genres</label>
-                <div class="tags @State("Genres", !_form.Genres.SequenceEqual(_original?.Genres ?? []))">
+                <div class="tags @State("Genres", !_form.Genres.SequenceEqual(_baseline?.Genres ?? []))">
                     @foreach (var genre in _form.Genres)
                     {
                         <span class="tag" @key="genre">@genre<button type="button" aria-label="Remove @genre" @onclick="() => _form.Genres.Remove(genre)"><Icon Name="x" /></button></span>
@@ -97,7 +157,7 @@ else if (_form is not null)
 
             <div class="field">
                 <label for="overview">Overview</label>
-                <textarea id="overview" class="input @State("Overview", Blank(_form.Overview) != _original?.Overview)" rows="4" @bind="_form.Overview"></textarea>
+                <textarea id="overview" class="input @State("Overview", Blank(_form.Overview) != _baseline?.Overview)" rows="4" @bind="_form.Overview"></textarea>
             </div>
 
             <div class="field">
@@ -114,6 +174,7 @@ else if (_form is not null)
                 <button type="button" class="link-btn" @onclick="() => _form.Cast.Add(new CastRow())">+ Add cast member</button>
                 <FieldMessage Errors="_errors" Field="Cast" />
             </div>
+            <FieldMessage Errors="_errors" Field="PosterPath" />
         </div>
 
         <div>
@@ -124,7 +185,7 @@ else if (_form is not null)
                     var row = _form.Formats[format];
                     var key = format.ToString();
                     <div class="format-row">
-                        <button type="button" class="fmt-toggle @(row.Owned ? "on" : "")" aria-pressed="@Aria.Bool(row.Owned)" @onclick="() => row.Owned = !row.Owned">
+                        <button type="button" class="fmt-toggle @(row.Owned ? "on" : "")" aria-pressed="@Aria.Bool(row.Owned)" @onclick="() => Toggle(format)">
                             <FormatBadge Format="format" /><span class="small">@(row.Owned ? "Owned" : "Not owned")</span>
                         </button>
                         @if (row.Owned && Formats.IsDisc(format))
@@ -149,11 +210,28 @@ else if (_form is not null)
     private const string ConflictMessage = "This movie was changed somewhere else after you opened it.";
     private const string DeletedMessage = "This movie was deleted while you were editing it.";
 
+    private enum Mode
+    {
+        Search,
+        Edit,
+    }
+
+    private Mode _mode;
     private MovieForm? _form;
     private MovieDto? _original;
+
+    // What the amber "edited" outline compares against: the saved film, or the TMDB match being reviewed.
+    private Baseline? _baseline;
+    private readonly MovieSearchState _search = new();
+    private MovieCandidateDto? _candidate;
+    private int _candidateIndex;
+
+    // A scanned UPC whose format the barcode database didn't say: it goes to the first disc switched on.
+    private string? _pendingUpc;
     private bool _loaded;
     private bool _saving;
     private string? _problem;
+    private MovieDto? _alreadyOwned;
     private string? _newGenre;
     private IReadOnlyList<string> _genreOptions = [];
     private Dictionary<string, string> _errors = [];
@@ -166,6 +244,23 @@ else if (_form is not null)
 
     private string BackLabel => IsNew || _original is null ? "Movies" : _original.Title;
 
+    private bool CanSave => _form!.CanSave && !(IsNew && _candidate?.Owned is { } owned && AddingTo(owned).Count == 0);
+
+    private string SaveLabel => !IsNew ? "Save changes"
+        : _candidate?.Owned is { } owned && AddingTo(owned) is { Count: > 0 } adding
+            ? $"Add {Formats.Join(adding)} format{(adding.Count == 1 ? "" : "s")}"
+            : "Add movie";
+
+    private string NotItLabel => (_search.Response?.Candidates.Count ?? 1) - 1 is var others and > 0
+        ? $"Not it? {others} other match{(others == 1 ? "" : "es")}"
+        : "Not it? Search again";
+
+    private Uri? PosterImage =>
+        _form?.PosterPath is not { } poster ? null
+        : _candidate?.PosterPath == poster ? _candidate.PosterUrl
+        : _original?.PosterPath == poster ? _original.CoverUrl
+        : null;
+
     protected override async Task OnParametersSetAsync()
     {
         _genreOptions = (await Api.ListMoviesAsync(new())).Facets.Genres;
@@ -175,25 +270,115 @@ else if (_form is not null)
     private async Task ReloadAsync()
     {
         _problem = null;
+        _alreadyOwned = null;
         _errors = [];
         if (IsNew)
         {
-            _form = new MovieForm();
+            _mode = Mode.Search;
         }
         else
         {
             _original = await Api.GetMovieAsync(Id!.Value);
             _form = _original is null ? null : MovieForm.From(_original);
+            _baseline = _original is null ? null : Baseline.From(_original);
+            _candidate = null;
+            _mode = Mode.Edit;
         }
 
         _loaded = true;
     }
+
+    private void Pick(MovieCandidateDto candidate)
+    {
+        _candidate = candidate;
+        _candidateIndex = _search.Response?.Candidates.ToList().IndexOf(candidate) ?? 0;
+        if (IsNew)
+        {
+            // Picking another match after a first one keeps the formats already switched on.
+            var previous = _form;
+            _form = MovieForm.From(candidate);
+            if (previous is null)
+            {
+                UseScannedBarcode();
+            }
+            else
+            {
+                foreach (var (format, row) in previous.Formats)
+                {
+                    _form.Formats[format] = row;
+                }
+            }
+
+            _baseline = Baseline.From(candidate);
+        }
+        else
+        {
+            // Edit: the outline keeps comparing with the saved film, so it shows what TMDB changes.
+            _form!.Apply(candidate);
+        }
+
+        _errors = [];
+        _problem = null;
+        _mode = Mode.Edit;
+    }
+
+    private void EnterManually()
+    {
+        _form ??= new MovieForm();
+        if (_search.SearchedFor is { } typed && _search.Response?.Upc is null && _form.Title.Length == 0)
+        {
+            _form.Title = typed;
+        }
+
+        UseScannedBarcode();
+        _candidate = null;
+        _baseline = null;
+        _mode = Mode.Edit;
+    }
+
+    private void UseScannedBarcode()
+    {
+        if (_search.Response is not { Upc: { } upc } response)
+        {
+            return;
+        }
+
+        if (response.Format is { } format)
+        {
+            _form!.Formats[format] = new FormatRow { Owned = true, Upc = Formats.IsDisc(format) ? upc : null };
+        }
+        else
+        {
+            _pendingUpc = upc;
+        }
+    }
+
+    private void Toggle(MovieFormatKind format)
+    {
+        var row = _form!.Formats[format];
+        row.Owned = !row.Owned;
+        if (row.Owned && Formats.IsDisc(format) && string.IsNullOrEmpty(row.Upc) && _pendingUpc is { } upc)
+        {
+            row.Upc = upc;
+            _pendingUpc = null;
+        }
+    }
+
+    private void FindOnTmdb()
+    {
+        _search.Query = $"{_form!.Title.Trim()} {_form.Year}".Trim();
+        _search.Response = null;
+        _mode = Mode.Search;
+    }
+
+    private List<MovieFormatKind> AddingTo(MovieSummaryDto owned) => [.. _form!.OwnedFormats.Except(owned.Formats)];
 
     private async Task SaveAsync()
     {
         AddTypedGenre();
         _saving = true;
         _problem = null;
+        _alreadyOwned = null;
         try
         {
             var request = _form!.ToRequest();
@@ -215,6 +400,10 @@ else if (_form is not null)
                     break;
                 case SaveStatus.NotFound:
                     _problem = DeletedMessage;
+                    break;
+                case SaveStatus.AlreadyOwned:
+                    _alreadyOwned = response.Movie;
+                    _problem = $"You already own {response.Movie!.Title} on {Formats.Join([.. response.Movie.Formats.Select(f => f.Format)])}.";
                     break;
             }
         }
@@ -254,9 +443,19 @@ else if (_form is not null)
         _newGenre = null;
     }
 
-    // "edited" (amber outline) marks a change from the saved film; "invalid" marks a rejected field.
+    // "edited" (amber outline) marks a change from the baseline; "invalid" marks a rejected field.
     private string State(string field, bool changed) =>
-        _errors.ContainsKey(field) ? "invalid" : !IsNew && changed ? "edited" : "";
+        _errors.ContainsKey(field) ? "invalid" : _baseline is not null && changed ? "edited" : "";
 
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed record Baseline(
+        string Title, int? Year, int? RuntimeMinutes, string? Rating, IReadOnlyList<string> Directors, IReadOnlyList<string> Genres, string? Overview)
+    {
+        public static Baseline From(MovieDto movie) =>
+            new(movie.Title, movie.Year, movie.RuntimeMinutes, Blank(movie.Rating), movie.Directors, movie.Genres, Blank(movie.Overview));
+
+        public static Baseline From(MovieCandidateDto candidate) =>
+            new(candidate.Title, candidate.Year, candidate.RuntimeMinutes, Blank(candidate.Rating), candidate.Directors, candidate.Genres, Blank(candidate.Overview));
+    }
 }

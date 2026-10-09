@@ -15,6 +15,9 @@ public abstract class ProductBase
     /// <summary>Path of the cover in the cover store, if one has been saved.</summary>
     public string? CoverImage { get; protected set; }
 
+    /// <summary>Records which stored cover belongs to this product. Saved together with the change that brought it.</summary>
+    public void UseCover(string? coverImage) => CoverImage = coverImage;
+
     protected void Touch(DateTimeOffset now)
     {
         UpdatedAt = now;

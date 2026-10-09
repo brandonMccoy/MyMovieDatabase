@@ -145,4 +145,15 @@ public sealed class MovieDetailTests : ShelfTestContext
         page.FindAll(".confirm").ShouldBeEmpty();
         (await Api.GetMovieAsync(heat.Id, Ct)).ShouldNotBeNull();
     }
+
+    [Fact]
+    public async Task The_cover_is_shown_when_there_is_one()
+    {
+        var heat = await SeedAsync(Heat with { TmdbId = 949, PosterPath = "/heat.jpg" });
+
+        var poster = RenderDetail(heat.Id).Find(".detail .poster");
+
+        poster.QuerySelector("img")!.GetAttribute("src").ShouldBe(new Uri(CoverBase, $"{heat.Id:N}-heat.jpg").AbsoluteUri);
+        poster.QuerySelector("img")!.GetAttribute("alt").ShouldBe("");
+    }
 }

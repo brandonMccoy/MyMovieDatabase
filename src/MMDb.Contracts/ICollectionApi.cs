@@ -20,4 +20,8 @@ public interface ICollectionApi
 
     /// <returns><see langword="false"/> if there was no such film.</returns>
     Task<bool> DeleteMovieAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Looks a film up online (TMDB, and UPCitemdb for a barcode) without saving anything.</summary>
+    /// <param name="query">A title, optionally followed by the year ("heat 1995"), or a UPC/EAN.</param>
+    Task<MovieLookupResponse> LookupMovieAsync(string query, CancellationToken cancellationToken = default);
 }

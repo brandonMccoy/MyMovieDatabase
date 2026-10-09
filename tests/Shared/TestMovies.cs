@@ -18,6 +18,14 @@ internal static class TestMovies
         Overview = "A detective and a thief circle each other across Los Angeles.",
     };
 
+    /// <summary>Heat as TMDB has it.</summary>
+    public static MovieDetails HeatOnTmdb => Heat with { TmdbId = 949, PosterPath = "/heat.jpg", TrailerYouTubeKey = "0xbBLJ1WGwQ" };
+
+    /// <summary>The other "Heat"s TMDB knows.</summary>
+    public static MovieDetails Heat1986OnTmdb => new() { Title = "Heat", Year = 1986, TmdbId = 31939, Directors = ["Dick Richards"], PosterPath = "/heat86.jpg" };
+
+    public static MovieDetails HeatAndDustOnTmdb => new() { Title = "Heat and Dust", Year = 1983, TmdbId = 42113, Directors = ["James Ivory"] };
+
     public static MovieDetails Titled(string title, int? year = null) => new() { Title = title, Year = year };
 
     public static FormatDetails[] On(params MediaFormat[] formats) => [.. formats.Select(f => new FormatDetails(f))];

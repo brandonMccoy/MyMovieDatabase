@@ -6,10 +6,12 @@ namespace MMDb.UI.Tests;
 
 public sealed class MovieEditorTests : ShelfTestContext
 {
+    // Manual entry: "Add movie" opens on the TMDB search; these tests skip it.
     private IRenderedComponent<MovieEditor> RenderNew()
     {
         Navigation.NavigateTo("movies/new");
         var page = Render<MovieEditor>();
+        page.WaitForElement(".lookup-foot button").Click();
         page.WaitForElement("#title");
         return page;
     }
