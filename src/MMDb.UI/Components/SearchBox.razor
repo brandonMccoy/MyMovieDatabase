@@ -1,0 +1,35 @@
+@inject NavigationManager Navigation
+
+@* The topbar search. On the library it filters live; elsewhere, Enter opens the library with the search. *@
+<label class="search">
+    <Icon Name="search" />
+    <input type="search" data-search placeholder="Search titles, directors, cast…" aria-label="Search movies"
+           value="@Value" @oninput="OnInput" @onkeydown="OnKeyDown" />
+    <kbd>Ctrl K</kbd>
+</label>
+
+@code {
+    private string? _typed;
+
+    [Parameter] public string? Value { get; set; }
+
+    /// <summary>Called as the user types. Without it, Enter navigates to the library.</summary>
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _typed = e.Value?.ToString() ?? "";
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(_typed);
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !ValueChanged.HasDelegate && !string.IsNullOrWhiteSpace(_typed))
+        {
+            Navigation.NavigateTo("?q=" + Uri.EscapeDataString(_typed.Trim()));
+        }
+    }
+}

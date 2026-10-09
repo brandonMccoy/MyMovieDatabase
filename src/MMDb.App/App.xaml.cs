@@ -1,6 +1,7 @@
 namespace MMDb.App;
 
-public partial class App : Application
+// Qualified: MMDb.App also sees the MMDb.Application namespace.
+public partial class App : Microsoft.Maui.Controls.Application
 {
     public App()
     {

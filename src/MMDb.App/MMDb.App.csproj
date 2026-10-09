@@ -42,4 +42,9 @@
     <ProjectReference Include="..\MMDb.UI\MMDb.UI.csproj" />
   </ItemGroup>
 
+  <!-- The PC owns the collection: the database and use cases run in-process. The phone gets MMDb.Client in milestone 5. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <ProjectReference Include="..\MMDb.Server\MMDb.Server.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,34 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject ShelfCounts Counts
 
-<main class="shell">
-    @Body
-</main>
+<IconSprite />
+<div class="window">
+    <aside class="side">
+        <div class="brand"><div class="brand-mark"><Icon Name="film" Class="i14" /></div><span class="brand-name">Shelf</span></div>
+        <div>
+            <div class="nav-label">Collection</div>
+            <nav class="nav">
+                @* Every page so far is a movie page, so Movies matches them all. *@
+                <NavLink href="" Match="NavLinkMatch.Prefix">
+                    <Icon Name="film" />Movies<span class="count">@Counts.Movies?.ToString("N0", CultureInfo.InvariantCulture)</span>
+                </NavLink>
+            </nav>
+        </div>
+    </aside>
+    <div class="main">
+        @Body
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Counts.Changed += OnCountsChanged;
+        await Counts.RefreshAsync();
+    }
+
+    private void OnCountsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Counts.Changed -= OnCountsChanged;
+}

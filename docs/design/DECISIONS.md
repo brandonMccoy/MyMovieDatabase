@@ -27,5 +27,12 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Settings:** approved as mocked: phone pairing (QR + code, paired devices), vault folder + rebuild, online-database status. The movie folder for digital import lives here too.
 - **Claude + vault:** Shelf itself uses no AI. The user asks questions by opening Claude Code in the vault (their subscription). The app may later pass questions to the local Claude Code program.
 
+## Milestone 1 (decided 2026-10-09)
+- **Add / edit movie (PC):** the detail page's three columns made editable (poster · fields · formats panel). One page for Add and Edit; Cancel/Save in the top bar. Save stays disabled until there is a title and at least one owned format. Edited fields get the amber outline (edit only); rejected fields a red one with the reason under it.
+- **Formats panel (edit):** a row per format to switch on or off; an owned disc takes an optional UPC, a digital copy an optional file path.
+- **Covers:** placeholder gradient posters (title + director) until TMDB covers arrive in milestone 2.
+- **Library:** grid only for now (list view to be designed later). Sidebar shows only screens that exist; Comics, Wishlist, Stats and the phone/vault status appear in their milestones.
+- **Delete:** from the detail page's "…" menu, with an inline confirmation.
+
 ## Open
 - None. Design phase complete (2026-10-08).

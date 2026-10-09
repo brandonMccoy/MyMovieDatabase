@@ -1,0 +1,223 @@
+@page "/movies/{Id:guid}"
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfCounts Counts
+
+<PageTitle>@(_movie?.Title ?? "Movie") · Shelf</PageTitle>
+
+<div class="topbar">
+    <a class="btn ghost back" href=""><Icon Name="back" />Movies</a>
+    <SearchBox />
+</div>
+
+@if (_loaded && _movie is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Movie not found</h1>
+            <p>It isn't in your collection any more.</p>
+            <a class="btn" href="">Back to movies</a>
+        </div>
+    </div>
+}
+else if (_movie is not null)
+{
+    <div class="hero"><div class="backdrop" style="@PosterColors.Style(_movie.Title)"></div></div>
+    <div class="detail">
+        <div>
+            <Poster Title="@_movie.Title" Subtitle="@Directors(" & ")" />
+        </div>
+
+        <div>
+            <div class="fmts">
+                @foreach (var format in _movie.Formats)
+                {
+                    <FormatBadge Format="format.Format" />
+                }
+            </div>
+            <h1 class="title-lg">@_movie.Title@if (_movie.Year is { } year) {<span class="yr">@year</span>}</h1>
+            @if (_movie.Directors.Count > 0)
+            {
+                <div class="byline">Directed by @for (var i = 0; i < _movie.Directors.Count; i++)
+                    {
+                        @Separator(i, _movie.Directors.Count)<b>@_movie.Directors[i]</b>
+                    }</div>
+            }
+            <div class="meta-row">
+                @if (_movie.Rating is not null)
+                {
+                    <span class="rating">@_movie.Rating</span>
+                }
+                @foreach (var (part, index) in MetaParts().Select((p, i) => (p, i)))
+                {
+                    @if (index > 0)
+                    {
+                        <span class="sep"></span>
+                    }
+                    <span>@part</span>
+                }
+            </div>
+            <div class="actions">
+                <a class="btn primary" href="@_movie.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="play" />Watch trailer</a>
+                <a class="btn" href="movies/@_movie.Id/edit"><Icon Name="edit" />Edit</a>
+                <div class="menu-wrap">
+                    <button type="button" class="btn ghost" aria-label="More" aria-expanded="@Aria.Bool(_menuOpen)" @onclick="() => _menuOpen = !_menuOpen"><Icon Name="dots" /></button>
+                    @if (_menuOpen)
+                    {
+                        <div class="menu" role="menu">
+                            <button type="button" role="menuitem" class="danger" @onclick="AskToDelete">Delete movie…</button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (_confirmingDelete)
+            {
+                <div class="confirm" role="alertdialog" aria-label="Delete movie">
+                    <div><b>Delete @_movie.Title?</b> This removes the film and every format you own it on.</div>
+                    <div class="confirm-actions">
+                        <button type="button" class="btn" @onclick="() => _confirmingDelete = false">Cancel</button>
+                        <button type="button" class="btn danger" @onclick="DeleteAsync">Delete</button>
+                    </div>
+                </div>
+            }
+
+            @if (_movie.Overview is not null)
+            {
+                <p class="synopsis">@_movie.Overview</p>
+            }
+
+            <div class="tabs" role="tablist">
+                @foreach (var tab in Enum.GetValues<Tab>())
+                {
+                    <button type="button" role="tab" class="@(_tab == tab ? "on" : "")" aria-selected="@Aria.Bool(_tab == tab)" @onclick="() => _tab = tab">@tab</button>
+                }
+            </div>
+            @switch (_tab)
+            {
+                case Tab.Cast:
+                    @if (_movie.Cast.Count == 0)
+                    {
+                        <p class="small">No cast added.</p>
+                    }
+                    else
+                    {
+                        <div class="cast">
+                            @foreach (var person in _movie.Cast)
+                            {
+                                <div class="person"><div class="avatar">@Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Character</div></div></div>
+                            }
+                        </div>
+                    }
+                    break;
+                case Tab.Crew:
+                    @if (_movie.Directors.Count == 0)
+                    {
+                        <p class="small">No crew added.</p>
+                    }
+                    else
+                    {
+                        <div class="cast">
+                            @foreach (var director in _movie.Directors)
+                            {
+                                <div class="person"><div class="avatar">@Initials(director)</div><div><div class="n">@director</div><div class="r">Director</div></div></div>
+                            }
+                        </div>
+                    }
+                    break;
+                case Tab.Details:
+                    <dl class="kv">
+                        <dt>Added</dt><dd>@LongDate(_movie.CreatedAt)</dd>
+                        <dt>Last edited</dt><dd>@LongDate(_movie.UpdatedAt)</dd>
+                        @if (_movie.TmdbId is { } tmdb)
+                        {
+                            <dt>TMDB</dt><dd class="mono">@tmdb</dd>
+                        }
+                    </dl>
+                    break;
+            }
+        </div>
+
+        <div>
+            <div class="panel">
+                <h3>Formats owned <a href="movies/@_movie.Id/edit">+ Add format</a></h3>
+                @foreach (var format in _movie.Formats)
+                {
+                    <div class="owned">
+                        <FormatBadge Format="format.Format" />
+                        <span class="small">Added @MonthYear(format.AddedAt)</span>
+                    </div>
+                    @if (format.Upc is not null)
+                    {
+                        <div class="mono owned-code">UPC @format.Upc</div>
+                    }
+                    @if (format.FilePath is not null)
+                    {
+                        <div class="mono owned-code">@format.FilePath</div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private MovieDto? _movie;
+    private bool _loaded;
+    private bool _menuOpen;
+    private bool _confirmingDelete;
+    private Tab _tab = Tab.Cast;
+
+    private enum Tab
+    {
+        Cast,
+        Crew,
+        Details,
+    }
+
+    [Parameter] public Guid Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _movie = await Api.GetMovieAsync(Id);
+        _loaded = true;
+    }
+
+    private void AskToDelete()
+    {
+        _menuOpen = false;
+        _confirmingDelete = true;
+    }
+
+    private async Task DeleteAsync()
+    {
+        await Api.DeleteMovieAsync(Id);
+        await Counts.RefreshAsync();
+        Navigation.NavigateTo("");
+    }
+
+    private IEnumerable<string> MetaParts()
+    {
+        if (_movie!.RuntimeMinutes is { } minutes)
+        {
+            yield return $"{minutes} min";
+        }
+
+        foreach (var genre in _movie.Genres)
+        {
+            yield return genre;
+        }
+    }
+
+    private string Directors(string separator) => string.Join(separator, _movie!.Directors);
+
+    // "A", "A & B", "A, B & C"
+    private static string Separator(int index, int count) => index == 0 ? "" : index == count - 1 ? " & " : ", ";
+
+    private static string Initials(string name) =>
+        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
+
+    private static string MonthYear(DateTimeOffset at) => at.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture);
+
+    private static string LongDate(DateTimeOffset at) => at.ToLocalTime().ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+}

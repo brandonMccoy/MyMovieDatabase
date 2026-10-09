@@ -80,7 +80,9 @@ tests/                      (each added when its layer first has code)
   MMDb.E2E.Tests/             Playwright over WebView2 (few critical journeys)
 ```
 
-Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface. On Windows that interface calls the application layer directly; on Android it calls `MMDb.Client`. The same screens therefore run in both places.
+Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Server.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it will be `MMDb.Client`. The same screens therefore run in both places.
+
+**Data on the PC:** `%LOCALAPPDATA%\Shelf\shelf.db`, backed up on startup to `backups\` (SQLite online backup, newest 10 kept), then migrated. Set `SHELF_DATA_DIR` to run against another folder (scratch data, E2E). Schema changes: `dotnet ef migrations add <Name> --project src/MMDb.Infrastructure --output-dir Persistence/Migrations` (local tool, `dotnet tool restore`); a test fails if the model has changes without a migration.
 
 ## Data model (initial; fields to be finalized in feature planning)
 

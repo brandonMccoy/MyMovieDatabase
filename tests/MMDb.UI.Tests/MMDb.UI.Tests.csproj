@@ -2,10 +2,17 @@
 
   <ItemGroup>
     <PackageReference Include="bunit" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MMDb.UI\MMDb.UI.csproj" />
+    <!-- Screens run against the real in-process API over in-memory SQLite, as on the PC. -->
+    <ProjectReference Include="..\..\src\MMDb.Server\MMDb.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\InMemorySqlite.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>

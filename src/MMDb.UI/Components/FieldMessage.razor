@@ -1,0 +1,10 @@
+@if (Errors.TryGetValue(Field, out var message))
+{
+    <div class="field-error" data-field="@Field">@message</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, string> Errors { get; set; } = new Dictionary<string, string>();
+
+    [Parameter, EditorRequired] public string Field { get; set; } = "";
+}

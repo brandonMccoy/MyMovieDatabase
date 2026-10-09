@@ -1,0 +1,168 @@
+@page "/"
+@page "/movies"
+@implements IDisposable
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+
+<PageTitle>Movies · Shelf</PageTitle>
+
+<div class="topbar">
+    <SearchBox Value="@Q" ValueChanged="Search" />
+    <div class="spacer"></div>
+    <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+</div>
+
+<div class="content">
+    <div class="section-head">
+        <h1>Movies</h1>
+        @if (_list is not null)
+        {
+            <span class="sub">@Plural(_list.Facets.FilmCount, "film") · @Plural(_list.Facets.DiscCount, "disc")</span>
+        }
+    </div>
+
+    @if (_list is null)
+    {
+        @* Loading: in-process this is a blink, so no spinner. *@
+    }
+    else if (_list.Facets.FilmCount == 0)
+    {
+        <div class="empty">
+            <h2>Your shelf is empty</h2>
+            <p>Add the first movie you own. You can fill in as much or as little as you like.</p>
+            <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+        </div>
+    }
+    else
+    {
+        <div class="filters">
+            <button type="button" class="chip @On(SelectedFormat is null)" aria-pressed="@Aria.Bool(SelectedFormat is null)"
+                    @onclick='() => SetQuery("format", null)'>All<span class="n">@Count(_list.Facets.MatchingCount)</span></button>
+            @foreach (var format in Formats.All)
+            {
+                <button type="button" class="chip @On(SelectedFormat == format)" aria-pressed="@Aria.Bool(SelectedFormat == format)"
+                        @onclick='() => SetQuery("format", format.ToString())'>@Formats.Name(format)<span class="n">@Count(_list.Facets.FormatCounts.GetValueOrDefault(format))</span></button>
+            }
+
+            <label class="select">Genre
+                <select value="@(Genre ?? "")" @onchange='e => SetQuery("genre", e.Value as string)'>
+                    <option value="">Any</option>
+                    @foreach (var genre in _list.Facets.Genres)
+                    {
+                        <option value="@genre">@genre</option>
+                    }
+                </select>
+            </label>
+            <label class="select">Decade
+                <select value="@(Decade?.ToString(CultureInfo.InvariantCulture) ?? "")" @onchange='e => SetQuery("decade", e.Value as string)'>
+                    <option value="">Any</option>
+                    @foreach (var decade in _list.Facets.Decades)
+                    {
+                        <option value="@decade">@(decade)s</option>
+                    }
+                </select>
+            </label>
+            <div class="spacer"></div>
+            <label class="select">Sort
+                <select value="@SelectedSort" @onchange='e => SetQuery("sort", e.Value as string == nameof(MovieSortOrder.RecentlyAdded) ? null : e.Value as string)'>
+                    <option value="@MovieSortOrder.RecentlyAdded">Recently added</option>
+                    <option value="@MovieSortOrder.Title">Title</option>
+                    <option value="@MovieSortOrder.Year">Year</option>
+                </select>
+            </label>
+        </div>
+
+        @if (_list.Movies.Count == 0)
+        {
+            <div class="empty">
+                <h2>No films match</h2>
+                <p>Nothing in your collection matches this search and these filters.</p>
+                <a class="btn" href="">Clear search and filters</a>
+            </div>
+        }
+        else
+        {
+            <div class="grid">
+                @foreach (var movie in _list.Movies)
+                {
+                    <div class="card" @key="movie.Id">
+                        <div class="cover">
+                            <a href="movies/@movie.Id" aria-label="@movie.Title">
+                                <Poster Title="@movie.Title" Subtitle="@string.Join(" & ", movie.Directors)" />
+                            </a>
+                            <div class="hover">
+                                <a class="play" href="@movie.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="play" />Trailer</a>
+                            </div>
+                        </div>
+                        <a class="t" href="movies/@movie.Id">@movie.Title</a>
+                        <div class="m">
+                            @movie.Year
+                            @foreach (var format in movie.Formats)
+                            {
+                                <FormatBadge Format="format" Short />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private MovieListResponse? _list;
+    private CancellationTokenSource? _loading;
+
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    [SupplyParameterFromQuery(Name = "format")] public string? Format { get; set; }
+
+    [SupplyParameterFromQuery(Name = "genre")] public string? Genre { get; set; }
+
+    [SupplyParameterFromQuery(Name = "decade")] public int? Decade { get; set; }
+
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+
+    private MovieFormatKind? SelectedFormat => Enum.TryParse<MovieFormatKind>(Format, ignoreCase: true, out var f) && Enum.IsDefined(f) ? f : null;
+
+    private MovieSortOrder SelectedSort => Enum.TryParse<MovieSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : MovieSortOrder.RecentlyAdded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Typing fires a load per keystroke; only the newest one may update the page.
+        _loading?.Cancel();
+        _loading?.Dispose();
+        _loading = new CancellationTokenSource();
+        var token = _loading.Token;
+
+        var request = new MovieListRequest { Search = Q, Format = SelectedFormat, Genre = Genre, Decade = Decade, Sort = SelectedSort };
+        try
+        {
+            var list = await Api.ListMoviesAsync(request, token);
+            if (!token.IsCancellationRequested)
+            {
+                _list = list;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void Search(string text) => SetQuery("q", text, replace: true);
+
+    private void SetQuery(string name, string? value, bool replace = false) =>
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter(name, string.IsNullOrWhiteSpace(value) ? null : value), replace: replace);
+
+    private static string On(bool on) => on ? "on" : "";
+
+    private static string Count(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Plural(int n, string noun) => $"{Count(n)} {noun}{(n == 1 ? "" : "s")}";
+
+    public void Dispose()
+    {
+        _loading?.Cancel();
+        _loading?.Dispose();
+    }
+}

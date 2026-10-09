@@ -1,0 +1,20 @@
+@* Placeholder cover until real ones arrive with TMDB (milestone 2): a gradient picked from the title. *@
+<div class="poster @Class" style="@PosterColors.Style(Title)">
+    <span class="pt">@Title</span>
+    @if (!string.IsNullOrEmpty(Subtitle))
+    {
+        <span class="pd">@Subtitle</span>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+
+    /// <summary>Small caps line under the title, usually the director.</summary>
+    [Parameter] public string? Subtitle { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

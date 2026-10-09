@@ -1,0 +1,8 @@
+<svg class="@Class" aria-hidden="true"><use href="#i-@Name" /></svg>
+
+@code {
+    /// <summary>Symbol name in <see cref="IconSprite"/>, e.g. "film".</summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    [Parameter] public string? Class { get; set; }
+}

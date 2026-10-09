@@ -14,3 +14,7 @@ indent_size = 2
 csharp_style_namespace_declarations = file_scoped:warning
 dotnet_style_qualification_for_field = false:warning
 csharp_prefer_braces = true:warning
+
+# EF Core migrations are generated; don't hold them to the hand-written style rules.
+[src/MMDb.Infrastructure/Persistence/Migrations/*.cs]
+generated_code = true

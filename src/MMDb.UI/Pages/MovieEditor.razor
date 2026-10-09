@@ -1,0 +1,262 @@
+@page "/movies/new"
+@page "/movies/{Id:guid}/edit"
+@using MMDb.UI.Movies
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfCounts Counts
+
+<PageTitle>@(IsNew ? "Add movie" : "Edit movie") · Shelf</PageTitle>
+
+<div class="topbar">
+    <a class="btn ghost back" href="@BackHref"><Icon Name="back" />@BackLabel</a>
+    <div class="spacer"></div>
+    @if (_form is not null)
+    {
+        <a class="btn ghost" href="@BackHref">Cancel</a>
+        <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add movie" : "Save changes")</button>
+    }
+</div>
+
+@if (_loaded && _form is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Movie not found</h1>
+            <p>It isn't in your collection any more.</p>
+            <a class="btn" href="">Back to movies</a>
+        </div>
+    </div>
+}
+else if (_form is not null)
+{
+    <div class="detail editing">
+        <div>
+            <Poster Title="@(_form.Title.Trim().Length > 0 ? _form.Title : "Untitled")" Subtitle="@string.Join(" & ", _form.DirectorList)" />
+        </div>
+
+        <div>
+            @if (_problem is not null)
+            {
+                <div class="problem" role="alert">
+                    <span>@_problem</span>
+                    @if (_problem == ConflictMessage)
+                    {
+                        <button type="button" class="btn sm" @onclick="ReloadAsync">Load the latest version</button>
+                    }
+                </div>
+            }
+
+            <div class="eyebrow">@(IsNew ? "New movie" : "Editing")</div>
+
+            <div class="field">
+                <label for="title">Title</label>
+                <input id="title" class="input title-input @State("Title", _form.Title.Trim() != _original?.Title)" @bind="_form.Title" @bind:event="oninput" autocomplete="off" />
+                <FieldMessage Errors="_errors" Field="Title" />
+            </div>
+
+            <div class="row3">
+                <div class="field">
+                    <label for="year">Year</label>
+                    <input id="year" type="number" class="input @State("Year", _form.Year != _original?.Year)" @bind="_form.Year" />
+                    <FieldMessage Errors="_errors" Field="Year" />
+                </div>
+                <div class="field">
+                    <label for="runtime">Runtime (min)</label>
+                    <input id="runtime" type="number" class="input @State("RuntimeMinutes", _form.RuntimeMinutes != _original?.RuntimeMinutes)" @bind="_form.RuntimeMinutes" />
+                    <FieldMessage Errors="_errors" Field="RuntimeMinutes" />
+                </div>
+                <div class="field">
+                    <label for="rating">Rating</label>
+                    <input id="rating" class="input @State("Rating", Blank(_form.Rating) != _original?.Rating)" @bind="_form.Rating" placeholder="e.g. R, PG-13" />
+                    <FieldMessage Errors="_errors" Field="Rating" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="directors">Directors</label>
+                <input id="directors" class="input @State("Directors", !_form.DirectorList.SequenceEqual(_original?.Directors ?? []))" @bind="_form.Directors" placeholder="Separate several with commas" />
+            </div>
+
+            <div class="field">
+                <label for="genre">Genres</label>
+                <div class="tags @State("Genres", !_form.Genres.SequenceEqual(_original?.Genres ?? []))">
+                    @foreach (var genre in _form.Genres)
+                    {
+                        <span class="tag" @key="genre">@genre<button type="button" aria-label="Remove @genre" @onclick="() => _form.Genres.Remove(genre)"><Icon Name="x" /></button></span>
+                    }
+                    <input id="genre" class="tag-input" list="genre-options" placeholder="Add genre" autocomplete="off"
+                           value="@_newGenre" @oninput="GenreInput" @onkeydown="GenreKeyDown" @onchange="AddTypedGenre" />
+                </div>
+                <datalist id="genre-options">
+                    @foreach (var genre in _genreOptions.Except(_form.Genres, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <option value="@genre"></option>
+                    }
+                </datalist>
+            </div>
+
+            <div class="field">
+                <label for="overview">Overview</label>
+                <textarea id="overview" class="input @State("Overview", Blank(_form.Overview) != _original?.Overview)" rows="4" @bind="_form.Overview"></textarea>
+            </div>
+
+            <div class="field">
+                <label>Cast</label>
+                @for (var i = 0; i < _form.Cast.Count; i++)
+                {
+                    var row = _form.Cast[i];
+                    <div class="cast-row">
+                        <input class="input" placeholder="Name" aria-label="Cast member @(i + 1) name" @bind="row.Name" />
+                        <input class="input" placeholder="Role" aria-label="Cast member @(i + 1) role" @bind="row.Character" />
+                        <button type="button" class="btn ghost icon" aria-label="Remove cast member @(i + 1)" @onclick="() => _form.Cast.Remove(row)"><Icon Name="x" /></button>
+                    </div>
+                }
+                <button type="button" class="link-btn" @onclick="() => _form.Cast.Add(new CastRow())">+ Add cast member</button>
+                <FieldMessage Errors="_errors" Field="Cast" />
+            </div>
+        </div>
+
+        <div>
+            <div class="panel">
+                <h3>Formats owned</h3>
+                @foreach (var format in Formats.All)
+                {
+                    var row = _form.Formats[format];
+                    var key = format.ToString();
+                    <div class="format-row">
+                        <button type="button" class="fmt-toggle @(row.Owned ? "on" : "")" aria-pressed="@Aria.Bool(row.Owned)" @onclick="() => row.Owned = !row.Owned">
+                            <FormatBadge Format="format" /><span class="small">@(row.Owned ? "Owned" : "Not owned")</span>
+                        </button>
+                        @if (row.Owned && Formats.IsDisc(format))
+                        {
+                            <input class="input mono @State(key + ".Upc", false)" placeholder="UPC (optional)" aria-label="@Formats.Name(format) UPC" @bind="row.Upc" />
+                            <FieldMessage Errors="_errors" Field="@(key + ".Upc")" />
+                        }
+                        else if (row.Owned)
+                        {
+                            <input class="input mono @State(key + ".FilePath", false)" placeholder="File path (optional)" aria-label="@Formats.Name(format) file path" @bind="row.FilePath" />
+                            <FieldMessage Errors="_errors" Field="@(key + ".FilePath")" />
+                        }
+                    </div>
+                }
+                <FieldMessage Errors="_errors" Field="Formats" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string ConflictMessage = "This movie was changed somewhere else after you opened it.";
+    private const string DeletedMessage = "This movie was deleted while you were editing it.";
+
+    private MovieForm? _form;
+    private MovieDto? _original;
+    private bool _loaded;
+    private bool _saving;
+    private string? _problem;
+    private string? _newGenre;
+    private IReadOnlyList<string> _genreOptions = [];
+    private Dictionary<string, string> _errors = [];
+
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool IsNew => Id is null;
+
+    private string BackHref => IsNew ? "" : $"movies/{Id}";
+
+    private string BackLabel => IsNew || _original is null ? "Movies" : _original.Title;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _genreOptions = (await Api.ListMoviesAsync(new())).Facets.Genres;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _problem = null;
+        _errors = [];
+        if (IsNew)
+        {
+            _form = new MovieForm();
+        }
+        else
+        {
+            _original = await Api.GetMovieAsync(Id!.Value);
+            _form = _original is null ? null : MovieForm.From(_original);
+        }
+
+        _loaded = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        AddTypedGenre();
+        _saving = true;
+        _problem = null;
+        try
+        {
+            var request = _form!.ToRequest();
+            var response = IsNew
+                ? await Api.AddMovieAsync(request)
+                : await Api.UpdateMovieAsync(Id!.Value, _original!.Version, request);
+
+            switch (response.Status)
+            {
+                case SaveStatus.Saved:
+                    await Counts.RefreshAsync();
+                    Navigation.NavigateTo($"movies/{response.Movie!.Id}", replace: IsNew);
+                    return;
+                case SaveStatus.Invalid:
+                    _errors = response.Errors.GroupBy(e => e.Field).ToDictionary(g => g.Key, g => string.Join(" ", g.Select(e => e.Message)));
+                    break;
+                case SaveStatus.Conflict:
+                    _problem = ConflictMessage;
+                    break;
+                case SaveStatus.NotFound:
+                    _problem = DeletedMessage;
+                    break;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // A comma finishes a genre, so "Crime, Drama" can be typed or pasted in one go.
+    private void GenreInput(ChangeEventArgs e)
+    {
+        var parts = (e.Value?.ToString() ?? "").Split(',');
+        foreach (var finished in parts[..^1])
+        {
+            _form!.AddGenre(finished);
+        }
+
+        _newGenre = parts[^1];
+    }
+
+    private void GenreKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddTypedGenre();
+        }
+    }
+
+    private void AddTypedGenre()
+    {
+        foreach (var genre in (_newGenre ?? "").Split(','))
+        {
+            _form!.AddGenre(genre);
+        }
+
+        _newGenre = null;
+    }
+
+    // "edited" (amber outline) marks a change from the saved film; "invalid" marks a rejected field.
+    private string State(string field, bool changed) =>
+        _errors.ContainsKey(field) ? "invalid" : !IsNew && changed ? "edited" : "";
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

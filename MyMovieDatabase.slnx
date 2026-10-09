@@ -10,7 +10,10 @@
     <Project Path="src/MMDb.UI/MMDb.UI.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MMDb.Application.Tests/MMDb.Application.Tests.csproj" />
     <Project Path="tests/MMDb.Architecture.Tests/MMDb.Architecture.Tests.csproj" />
+    <Project Path="tests/MMDb.Domain.Tests/MMDb.Domain.Tests.csproj" />
+    <Project Path="tests/MMDb.Infrastructure.Tests/MMDb.Infrastructure.Tests.csproj" />
     <Project Path="tests/MMDb.Server.Tests/MMDb.Server.Tests.csproj" />
     <Project Path="tests/MMDb.UI.Tests/MMDb.UI.Tests.csproj" />
   </Folder>
