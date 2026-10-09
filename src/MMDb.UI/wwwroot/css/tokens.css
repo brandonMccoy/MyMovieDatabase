@@ -1,0 +1,47 @@
+/* Shelf design tokens. Source of truth: docs/design/mockup-v1.html and docs/design/DECISIONS.md.
+   Change values here only together with the user; tests in MMDb.UI.Tests guard the decided ones. */
+:root {
+  /* Surfaces, darkest to lightest */
+  --bg: #0e1115;
+  --surface: #151a20;
+  --surface-2: #1c222a;
+  --surface-3: #242b35;
+  --line: #2a313b;
+  --line-soft: #20262e;
+
+  /* Text, strongest to weakest */
+  --text: #e9edf2;
+  --text-2: #b4bdc8;
+  --muted: #7f8a98;
+  --faint: #56606c;
+
+  /* Accent: projector amber */
+  --accent: #e8b04b;
+  --accent-ink: #1a1305;
+  --accent-soft: rgba(232, 176, 75, .12);
+
+  /* Format badges */
+  --uhd: #e8b04b;
+  --bluray: #4c8dff;
+  --dvd: #d77cc0;
+  --digital: #5cc489;
+
+  /* Chart steps of the same format hues, validated for the dark surface */
+  --c-uhd: #bf8a2c;
+  --c-br: #3a78e0;
+  --c-dvd: #c05aa8;
+  --c-digital: #3fa36b;
+
+  /* States */
+  --danger: #ef5b5b;
+  --ok: #3fbf7f;
+
+  /* Shape */
+  --radius: 6px;
+  --radius-sm: 4px;
+
+  /* Type */
+  --font: "Instrument Sans", system-ui, sans-serif;
+  --serif: "Instrument Serif", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}

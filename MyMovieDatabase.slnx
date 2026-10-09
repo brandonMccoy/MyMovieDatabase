@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MMDb.App/MMDb.App.csproj" />
+    <Project Path="src/MMDb.Application/MMDb.Application.csproj" />
+    <Project Path="src/MMDb.Client/MMDb.Client.csproj" />
+    <Project Path="src/MMDb.Contracts/MMDb.Contracts.csproj" />
+    <Project Path="src/MMDb.Domain/MMDb.Domain.csproj" />
+    <Project Path="src/MMDb.Infrastructure/MMDb.Infrastructure.csproj" />
+    <Project Path="src/MMDb.Server/MMDb.Server.csproj" />
+    <Project Path="src/MMDb.UI/MMDb.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MMDb.Architecture.Tests/MMDb.Architecture.Tests.csproj" />
+    <Project Path="tests/MMDb.Server.Tests/MMDb.Server.Tests.csproj" />
+    <Project Path="tests/MMDb.UI.Tests/MMDb.UI.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MMDb.Application\MMDb.Application.csproj" />
+    <ProjectReference Include="..\MMDb.Infrastructure\MMDb.Infrastructure.csproj" />
+    <ProjectReference Include="..\MMDb.Contracts\MMDb.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

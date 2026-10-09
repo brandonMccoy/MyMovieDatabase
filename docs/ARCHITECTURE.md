@@ -50,7 +50,7 @@ The PC owns all data and does all metadata lookups (API keys live only on the PC
 ## Solution layout
 
 ```
-MyMovieDatabase.sln
+MyMovieDatabase.slnx
 src/
   MMDb.Domain/          Entities (Movie, Comic, WishlistItem), value objects
                         (Upc, ComicBarcode, Isbn), validation. No dependencies.
@@ -68,7 +68,8 @@ src/
                         (CSS tokens). Shared by both platforms.
   MMDb.App/             MAUI Blazor Hybrid host. Windows: starts the server
                         in-process. Android: scanner + client.
-tests/
+tests/                      (each added when its layer first has code)
+  MMDb.Architecture.Tests/    layer dependency rules (reads src/*.csproj)
   MMDb.Domain.Tests/          pure logic (barcode parsing, validation)
   MMDb.Application.Tests/     use cases against real SQLite + fake providers
   MMDb.Infrastructure.Tests/  EF mappings/migrations, providers (recorded HTTP),
@@ -182,14 +183,14 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 ## Prerequisites to install
 
-- .NET 10 SDK (only 9.0.310 is present)
+- .NET 10 SDK (pinned by `global.json`, roll-forward to latest feature band)
 - `dotnet workload install maui` (includes Android)
 - Android SDK/emulator (via Visual Studio installer or Android Studio); USB debugging on the phone
 - API keys: TMDB, UPCitemdb (free tier), Metron account, optionally Comic Vine
 
 ## Build order (milestones)
 
-0. Solution skeleton, CI-style `dotnet test` script, design system tokens.
+0. Solution skeleton, CI-style `dotnet test` script (`scripts/test.ps1`), design system tokens (`MMDb.UI/wwwroot/css/tokens.css`).
 1. Domain + SQLite + movies CRUD on PC (manual entry, no lookup).
 2. Metadata: TMDB search, UPC lookup; review-before-accept screen.
 3. Vault writer + `CLAUDE.md` + Bases.

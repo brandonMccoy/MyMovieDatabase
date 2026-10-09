@@ -1,0 +1,5 @@
+.wordmark {
+    margin: 0;
+    font: 400 34px/1 var(--serif);
+    letter-spacing: -.01em;
+}

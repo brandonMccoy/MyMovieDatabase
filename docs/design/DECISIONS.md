@@ -5,7 +5,7 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 ## Look
 - **Name:** Shelf.
 - **Style:** dark media library (Letterboxd-like), cover-art grid.
-- **Accent:** amber `#e8b04b`. Fonts: Instrument Serif (titles), Instrument Sans (UI). Tokens live in the mockup's `:root`.
+- **Accent:** amber `#e8b04b`. Fonts: Instrument Serif (titles), Instrument Sans (UI), JetBrains Mono (codes), bundled in `MMDb.UI/wwwroot/fonts` so they work offline. Tokens live in `MMDb.UI/wwwroot/css/tokens.css` (from the mockup's `:root`).
 - Format badges: 4K UHD (amber), Blu-ray (blue), DVD (magenta), Digital (green). Charts use darker steps of the same hues (`--c-uhd #bf8a2c`, `--c-br #3a78e0`, `--c-dvd #c05aa8`, `--c-digital #3fa36b`), which pass the dark-surface colorblind-safety check. Green is reserved for Digital, so "owned" and other states use text, not green.
 
 ## Features

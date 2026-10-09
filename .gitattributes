@@ -1,2 +1,7 @@
 * text=auto
 *.verified.* text eol=lf
+
+# Fonts and images are binary
+*.ttf binary
+*.woff2 binary
+*.png binary

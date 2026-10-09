@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <ItemGroup>
+    <PackageReference Include="bunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MMDb.UI\MMDb.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The design-token and font tests read the real static assets. -->
+    <None Include="..\..\src\MMDb.UI\wwwroot\**" LinkBase="wwwroot" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

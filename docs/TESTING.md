@@ -17,7 +17,7 @@ Every change ships with tests. This doc says which kind of test goes where and w
 
 | Purpose | Tool |
 |---|---|
-| Test framework | **xUnit v3** |
+| Test framework | **xUnit v3** on Microsoft.Testing.Platform (`global.json` sets the `dotnet test` runner) |
 | Assertions | **Shouldly** (FluentAssertions v8+ requires a commercial license) |
 | Snapshot/approval | **Verify** (vault markdown, API JSON shapes) |
 | Database | **SQLite** (in-memory with a kept-open connection, or temp file). Never the EF InMemory provider (Microsoft advises against it). |
@@ -44,14 +44,16 @@ Every change ships with tests. This doc says which kind of test goes where and w
 
 ## Live API contract tests
 
-Recorded fixtures can go stale if a provider changes its API. Keep a small set of `[Fact(Explicit = true)]` tests that hit the **real** APIs with real keys and compare the response shape to the fixture. Run them manually (`dotnet test -- --explicit only`) when a provider seems broken; they never run in the normal suite.
+Recorded fixtures can go stale if a provider changes its API. Keep a small set of `[Fact(Explicit = true)]` tests that hit the **real** APIs with real keys and compare the response shape to the fixture. Run them manually (`dotnet test --explicit only`) when a provider seems broken; they never run in the normal suite.
 
 ## Conventions
 
-- Test project per source project: `tests/<Project>.Tests`.
+- Test project per source project: `tests/<Project>.Tests`, created when that project first has code. Shared test settings and packages live in `tests/Directory.Build.props`.
 - Fixture files: `tests/<Project>.Tests/Fixtures/<provider>/<case>.json`.
 - Verify snapshots are committed (`*.verified.*`); never commit `*.received.*`.
-- Fast suite: `dotnet test --filter "Category!=E2E"`. Full: `dotnet test`.
+- E2E tests carry `[Trait("Category", "E2E")]`.
+- CI-style check (restore, build with warnings as errors, fast suite): `./scripts/test.ps1`. Add `-SkipApp` to skip the slow MAUI build while iterating, `-Full` to include E2E.
+- Raw commands: fast suite `dotnet test --filter-not-trait Category=E2E`; full `dotnet test`; one project `dotnet test --project tests/<Project>.Tests`.
 - A change is done when the tests covering it pass and the whole fast suite is green.
 
 ## Sources

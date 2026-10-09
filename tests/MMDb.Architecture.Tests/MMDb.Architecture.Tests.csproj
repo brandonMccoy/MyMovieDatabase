@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Guards the layer rules from docs/ARCHITECTURE.md by reading the src/*.csproj files. -->
+
+</Project>
