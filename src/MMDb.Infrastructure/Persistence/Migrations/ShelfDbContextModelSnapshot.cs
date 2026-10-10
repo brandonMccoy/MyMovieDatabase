@@ -196,6 +196,12 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Crew")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("'[]'");
+
                     b.Property<string>("Directors")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -205,6 +211,9 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Overview")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("People")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PosterPath")

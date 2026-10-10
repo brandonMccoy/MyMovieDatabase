@@ -197,6 +197,59 @@ public sealed class MovieEditorTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task The_crew_is_kept_through_an_edit_and_counted_on_the_form()
+    {
+        IReadOnlyList<CrewMemberDto> crew = [new("Michael Mann", "Screenplay", "Writing"), new("Dante Spinotti", "Director of Photography", "Camera")];
+        var heat = await SeedAsync(Heat with { Crew = crew });
+        var page = RenderEdit(heat.Id);
+
+        page.Find(".crew-kept").TextContent.ShouldBe("2 crew credits from TMDB are kept with this film.");
+        page.Find("#runtime").Change("171");
+        SaveButton(page).Click();
+
+        page.WaitForAssertion(() => RelativeLocation.ShouldBe($"movies/{heat.Id}"));
+        (await Api.GetMovieAsync(heat.Id, Ct))!.Crew.ShouldBe(crew);
+    }
+
+    [Fact]
+    public async Task A_film_without_crew_does_not_mention_it()
+    {
+        var heat = await SeedAsync(Heat);
+
+        RenderEdit(heat.Id).FindAll(".crew-kept").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_long_cast_shows_the_top_of_the_bill_until_the_rest_is_asked_for()
+    {
+        var heat = await SeedAsync(Heat with { Cast = [.. Enumerable.Range(1, 14).Select(i => new CastMemberDto($"Actor {i}", $"Part {i}"))] });
+        var page = RenderEdit(heat.Id);
+
+        page.FindAll(".cast-row").Count.ShouldBe(10);
+        page.Find(".show-cast").TextContent.ShouldBe("Show all 14 cast members");
+
+        page.Find(".show-cast").Click();
+
+        page.FindAll(".cast-row").Count.ShouldBe(14);
+        page.FindAll(".show-cast").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Cast_members_out_of_sight_are_saved_too()
+    {
+        var heat = await SeedAsync(Heat with { Cast = [.. Enumerable.Range(1, 14).Select(i => new CastMemberDto($"Actor {i}", $"Part {i}"))] });
+        var page = RenderEdit(heat.Id);
+
+        page.Find("button[aria-label='Remove cast member 1']").Click();
+        SaveButton(page).Click();
+
+        page.WaitForAssertion(() => RelativeLocation.ShouldBe($"movies/{heat.Id}"));
+        var cast = (await Api.GetMovieAsync(heat.Id, Ct))!.Cast;
+        cast.Count.ShouldBe(13);
+        cast[^1].ShouldBe(new CastMemberDto("Actor 14", "Part 14"));
+    }
+
+    [Fact]
     public async Task Removing_a_cast_member_removes_them_on_save()
     {
         var heat = await SeedAsync(Heat);

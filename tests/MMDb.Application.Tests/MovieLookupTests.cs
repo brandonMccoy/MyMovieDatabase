@@ -27,6 +27,7 @@ public sealed class MovieLookupTests
         result.Matches[0].Details.ShouldSatisfyAllConditions(
             d => d.Directors.ShouldBe(["Michael Mann"]),
             d => d.Cast.ShouldBe(TestMovies.Heat.Cast),
+            d => d.Crew.ShouldBe(TestMovies.HeatCrew),
             d => d.PosterPath.ShouldBe("/heat.jpg"),
             d => d.TrailerYouTubeKey.ShouldBe("0xbBLJ1WGwQ"));
         result.Matches.ShouldAllBe(m => m.Owned == null);

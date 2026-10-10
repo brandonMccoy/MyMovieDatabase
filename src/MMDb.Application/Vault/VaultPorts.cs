@@ -13,8 +13,9 @@ public interface IVaultWriter
     /// Brings the whole vault in line with the collection: rewrites what is out of date and removes the notes
     /// of films and comics no longer in it.
     /// </summary>
+    /// <param name="films">Every film in <paramref name="content"/> in full, to write their notes from.</param>
     /// <exception cref="VaultUnavailableException">The folder is missing or can't be written.</exception>
-    Task SyncAsync(string folder, VaultContent content, CancellationToken cancellationToken = default);
+    Task SyncAsync(string folder, VaultContent content, IReadOnlyList<Movie> films, CancellationToken cancellationToken = default);
 
     /// <summary>Writes one film's note and cover (moving the note if the title changed), then the shared files.</summary>
     /// <param name="content">The whole collection, this film included.</param>

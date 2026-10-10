@@ -124,7 +124,7 @@ public sealed class MovieFromTmdbTests
 
         result.ShouldBeOfType<SaveMovieResult.Saved>().Movie.Id.ShouldBe(owned.Id);
         var list = await shelf.ListAsync();
-        var film = list.Movies.ShouldHaveSingleItem();
+        var film = (await shelf.Movies((catalog, ct) => catalog.GetAsync(list.Movies.ShouldHaveSingleItem().Id, ct))).ShouldNotBeNull();
         film.Formats.Select(f => (f.Format, f.AddedAt)).ShouldBe([(MediaFormat.Uhd4K, TestShelf.Start.AddDays(30)), (MediaFormat.Dvd, TestShelf.Start)]);
         film.Rating.ShouldBe("R");
     }

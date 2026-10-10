@@ -96,6 +96,7 @@ public sealed class AddMovieLookupTests : ShelfTestContext
         page.FindAll(".tag").Select(t => t.TextContent).ShouldBe(["Crime", "Drama", "Thriller"]);
         page.Find("#overview").GetAttribute("value").ShouldBe(TestMovies.Heat.Overview);
         page.FindAll(".cast-row input[placeholder=Name]").Select(i => i.GetAttribute("value")).ShouldBe(["Al Pacino", "Robert De Niro"]);
+        page.Find(".crew-kept").TextContent.ShouldBe($"{TestMovies.HeatCrew.Count} crew credits from TMDB are kept with this film.");
         page.Find(".review-bar .src").TextContent.ShouldBe("Best match · TMDB");
         page.Find(".review-bar button").TextContent.ShouldBe("Not it? 2 other matches");
         page.Find(".detail .poster img").GetAttribute("src").ShouldBe("https://image.tmdb.org/t/p/w342/heat.jpg");
@@ -135,6 +136,7 @@ public sealed class AddMovieLookupTests : ShelfTestContext
         saved.TmdbId.ShouldBe(949);
         saved.TrailerYouTubeKey.ShouldBe("0xbBLJ1WGwQ");
         saved.PosterPath.ShouldBe("/heat.jpg");
+        saved.Crew.Select(c => (c.Name, c.Job, c.Department)).ShouldBe(TestMovies.HeatCrew.Select(c => (c.Name, c.Job, c.Department)));
         saved.CoverUrl.ShouldBe(new Uri(CoverBase, $"{saved.Id:N}-heat.jpg"));
         saved.Formats.Select(f => f.Format).ShouldBe([MovieFormatKind.BluRay]);
         Online.Covers.Files.Keys.ShouldBe([$"{saved.Id:N}-heat.jpg"]);

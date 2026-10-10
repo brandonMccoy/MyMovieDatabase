@@ -182,7 +182,7 @@ else if (_form is not null)
 
             <div class="field">
                 <label>Cast</label>
-                @for (var i = 0; i < _form.Cast.Count; i++)
+                @for (var i = 0; i < ShownCast; i++)
                 {
                     var row = _form.Cast[i];
                     <div class="cast-row">
@@ -191,9 +191,21 @@ else if (_form is not null)
                         <button type="button" class="btn ghost icon" aria-label="Remove cast member @(i + 1)" @onclick="() => _form.Cast.Remove(row)"><Icon Name="x" /></button>
                     </div>
                 }
-                <button type="button" class="link-btn" @onclick="() => _form.Cast.Add(new CastRow())">+ Add cast member</button>
+                @if (ShownCast < _form.Cast.Count)
+                {
+                    <button type="button" class="link-btn show-cast" @onclick="() => _allCast = true">Show all @_form.Cast.Count cast members</button>
+                }
+                else
+                {
+                    <button type="button" class="link-btn" @onclick="() => _form.Cast.Add(new CastRow())">+ Add cast member</button>
+                }
                 <FieldMessage Errors="_errors" Field="Cast" />
             </div>
+            @if (_form.Crew.Count > 0)
+            {
+                <p class="small crew-kept">@_form.Crew.Count crew @(_form.Crew.Count == 1 ? "credit" : "credits") from TMDB @(_form.Crew.Count == 1 ? "is" : "are") kept with this film.</p>
+            }
+            <FieldMessage Errors="_errors" Field="Crew" />
             <FieldMessage Errors="_errors" Field="PosterPath" />
         </div>
 
@@ -251,6 +263,12 @@ else if (_form is not null)
     // What the amber "edited" outline compares against: the saved film, or the TMDB match being reviewed.
     private Baseline? _baseline;
     private MovieSearchState _search = new();
+    private bool _allCast;
+
+    /// <summary>A full cast runs to a hundred rows or more: the top of the bill is shown until the rest is asked for.</summary>
+    private const int CastShownAtFirst = 10;
+
+    private int ShownCast => _allCast ? _form!.Cast.Count : Math.Min(_form!.Cast.Count, CastShownAtFirst);
     private MovieCandidateDto? _candidate;
     private int _candidateIndex;
 

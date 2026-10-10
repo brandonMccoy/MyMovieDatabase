@@ -50,7 +50,9 @@ public sealed class FileVaultWriterTests : IDisposable
         return movie;
     }
 
-    private static VaultContent Films(params Movie[] movies) => new(movies, [], []);
+    private static VaultContent Films(params Movie[] movies) => new([.. movies.Select(m => m.Listing)], [], []);
+
+    private Task SyncAsync(params Movie[] movies) => _writer.SyncAsync(Folder, Films(movies), movies, Ct);
 
     private Task WriteAsync(Movie movie, params Movie[] others) => _writer.WriteMovieAsync(Folder, movie, Films([movie, .. others]), Ct);
 
@@ -85,6 +87,92 @@ public sealed class FileVaultWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task The_cast_names_the_actors_and_not_who_they_play()
+    {
+        var heat = Film(FullHeat);
+
+        await WriteAsync(heat);
+
+        var note = Read("Movies/Heat (1995).md");
+        note.ShouldContain("**Cast** [[Al Pacino]], [[Robert De Niro]], [[Val Kilmer]]\n");
+        note.ShouldNotContain("Vincent Hanna");
+        note.ShouldNotContain("Chris Shiherlis");
+    }
+
+    [Fact]
+    public async Task Headline_crew_are_linked_like_the_directors()
+    {
+        await WriteAsync(Film(FullHeat));
+
+        Read("Movies/Heat (1995).md").ShouldContain(
+            "**Directed by** [[Michael Mann]]\n"
+            + "**Written by** [[Michael Mann]]\n"
+            + "**Produced by** [[Art Linson]], [[Michael Mann]]\n"
+            + "**Executive producers** [[Arnon Milchan]]\n"
+            + "**Cinematography** [[Dante Spinotti]]\n"
+            + "**Music** [[Elliot Goldenthal]]\n"
+            + "**Edited by** [[Pasquale Buba]]\n"
+            + "**Cast** [[Al Pacino]]");
+    }
+
+    [Fact]
+    public async Task Everyone_in_the_cast_is_a_link_and_the_frontmatter_keeps_the_top_ten()
+    {
+        var cast = Enumerable.Range(1, 12).Select(i => new CastMember($"Actor {i}", $"Part {i}"));
+
+        await WriteAsync(Film(FullHeat with { Cast = [.. cast] }));
+
+        var note = Read("Movies/Heat (1995).md");
+        note.ShouldContain("**Cast** [[Actor 1]], [[Actor 2]]");
+        note.ShouldContain("[[Actor 11]], [[Actor 12]]\n");
+        note.ShouldContain("cast:\n  - Actor 1\n");
+        note.ShouldContain("  - Actor 10\ngenres:");
+    }
+
+    [Fact]
+    public async Task The_rest_of_the_crew_is_linked_under_its_job_title()
+    {
+        await WriteAsync(Film(FullHeat with
+        {
+            Crew =
+            [
+                .. TestMovies.HeatCrew,
+                new("Kathy Shorkey", "Set Designer", "Art"),
+                new("Bud Davis", "Stunts", "Crew"),
+                new("Bud Davis", "Stunt Coordinator", "Crew"),
+            ],
+        }));
+
+        Read("Movies/Heat (1995).md").ShouldContain(
+            "\n\n## Crew\n"
+            + "**First Assistant Director** [[Michael Waxman]]\n"
+            + "**Associate Producer** [[Gusmano Cesaretti]]\n"
+            + "**Production Design** [[Neil Spisak]]\n"
+            + "**Set Designer** [[Neil Spisak]], [[Kathy Shorkey]]\n"
+            + "**Stunt Coordinator** [[Bud Davis]]\n"
+            + "**Stunts** [[Bud Davis]]\n"
+            + "\n%% Shelf rewrites");
+    }
+
+    [Fact]
+    public async Task A_film_with_nothing_more_to_credit_has_no_such_section()
+    {
+        await WriteAsync(Film(FullHeat with { Crew = [new("Dante Spinotti", "Director of Photography", "Camera")] }));
+
+        var note = Read("Movies/Heat (1995).md");
+        note.ShouldContain("**Cinematography** [[Dante Spinotti]]\n");
+        note.ShouldNotContain("## Crew");
+    }
+
+    [Fact]
+    public async Task A_crew_credit_cannot_break_its_link_or_turn_into_formatting()
+    {
+        await WriteAsync(Film(FullHeat with { Crew = [new("Some [[Body|else]]", "Thanks *a lot*")] }));
+
+        Read("Movies/Heat (1995).md").ShouldContain("**Thanks \\*a lot\\*** Some \\[\\[Body\\|else\\]\\]\n");
+    }
+
+    [Fact]
     public async Task A_film_entered_by_hand_gets_a_short_note()
     {
         var film = Film(TestMovies.Titled("Mission: Impossible"));
@@ -101,7 +189,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var alien = Film(TestMovies.Titled("Alien", 1979) with { Directors = ["Ridley Scott"] }, new FormatDetails(MediaFormat.BluRay));
         var arrival = Film(TestMovies.Titled("arrival", 2016), new FormatDetails(MediaFormat.Digital));
 
-        await _writer.SyncAsync(Folder, Films(heat, alien, arrival), Ct);
+        await SyncAsync(heat, alien, arrival);
 
         await VerifyText(Read("_Index.md"));
     }
@@ -109,7 +197,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task The_guide_for_claude_describes_the_vault()
     {
-        await _writer.SyncAsync(Folder, Films(), Ct);
+        await SyncAsync();
 
         await VerifyText(Read("CLAUDE.md"));
     }
@@ -117,7 +205,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task The_movies_base_has_cover_table_and_recent_views()
     {
-        await _writer.SyncAsync(Folder, Films(), Ct);
+        await SyncAsync();
 
         await VerifyText(Read("Movies.base"), "yaml");
     }
@@ -209,7 +297,7 @@ public sealed class FileVaultWriterTests : IDisposable
         _clock.Advance(TimeSpan.FromMinutes(1));
         var second = Film(TestMovies.Heat with { Directors = ["Someone Else"] });
 
-        await _writer.SyncAsync(Folder, Films(second, first), Ct);
+        await SyncAsync(second, first);
 
         _writer.NoteOf(Folder, first.Id).ShouldBe("Movies/Heat (1995).md");
         _writer.NoteOf(Folder, second.Id).ShouldBe("Movies/Heat (1995) (2).md");
@@ -276,12 +364,12 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var heat = Film(TestMovies.Heat);
         var alien = Film(TestMovies.Titled("Alien", 1979));
-        await _writer.SyncAsync(Folder, Films(heat, alien), Ct);
+        await SyncAsync(heat, alien);
         await File.WriteAllTextAsync(_vault["Movies/Watch next.md"], "Thief (1981)", Ct);
         await File.WriteAllTextAsync(_vault["Movies/Copy.md"], "---\nmmdb_id: 1\n---\nnot managed", Ct);
         await File.WriteAllTextAsync(_vault["Ideas.md"], "", Ct);
 
-        await _writer.SyncAsync(Folder, Films(alien), Ct);
+        await SyncAsync(alien);
 
         Notes().ShouldBe(["Alien (1979).md", "Copy.md", "Watch next.md"]);
         File.Exists(_vault["Ideas.md"]).ShouldBeTrue();
@@ -296,7 +384,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var restarted = new FileVaultWriter(_covers.Path, _clock);
         heat.Update(TestMovies.Titled("Heat", 1996), TestMovies.On(MediaFormat.Dvd), _clock.GetUtcNow());
 
-        await restarted.SyncAsync(Folder, Films(heat), Ct);
+        await restarted.SyncAsync(Folder, Films(heat), [heat], Ct);
 
         Notes().ShouldBe(["Heat (1996).md"]);
         Read("Movies/Heat (1996).md").ShouldEndWith("Mine.\n");
@@ -344,10 +432,10 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var heat = WithCover(Film(TestMovies.HeatOnTmdb));
         var alien = WithCover(Film(TestMovies.Titled("Alien", 1979)), "alien.jpg");
-        await _writer.SyncAsync(Folder, Films(heat, alien), Ct);
+        await SyncAsync(heat, alien);
         await File.WriteAllTextAsync(_vault["Attachments/covers/my-scan.jpg"], "", Ct);
 
-        await _writer.SyncAsync(Folder, Films(alien), Ct);
+        await SyncAsync(alien);
 
         FileNames("Attachments/covers").ShouldBe([$"{alien.Id:N}-alien.jpg", "my-scan.jpg"]);
     }
@@ -361,7 +449,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var longAgo = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(path, longAgo);
 
-        await _writer.SyncAsync(Folder, Films(heat), Ct);
+        await SyncAsync(heat);
 
         File.GetLastWriteTimeUtc(path).ShouldBe(longAgo);
     }
@@ -369,7 +457,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task No_temporary_files_are_left_behind()
     {
-        await _writer.SyncAsync(Folder, Films(WithCover(Film(TestMovies.HeatOnTmdb))), Ct);
+        await SyncAsync(WithCover(Film(TestMovies.HeatOnTmdb)));
 
         Directory.GetFiles(Folder, "*.shelf-tmp", SearchOption.AllDirectories).ShouldBeEmpty();
     }
@@ -380,7 +468,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await File.WriteAllTextAsync(_vault["CLAUDE.md"], "# My vault rules", Ct);
         await File.WriteAllTextAsync(_vault["Movies.base"], "views: []", Ct);
 
-        await _writer.SyncAsync(Folder, Films(), Ct);
+        await SyncAsync();
 
         Read("CLAUDE.md").ShouldBe("# My vault rules");
         Read("Movies.base").ShouldBe("views: []");
@@ -392,7 +480,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await File.WriteAllTextAsync(_vault["CLAUDE.md"], "<!-- managed_by: mmdb · old version -->", Ct);
         await File.WriteAllTextAsync(_vault["_Index.md"], "---\nmanaged_by: mmdb\n---\nold", Ct);
 
-        await _writer.SyncAsync(Folder, Films(), Ct);
+        await SyncAsync();
 
         Read("CLAUDE.md").ShouldContain("## Movie note frontmatter");
         Read("_Index.md").ShouldContain("# Collection index");
@@ -403,7 +491,7 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var gone = _vault["gone"];
 
-        var error = await Should.ThrowAsync<VaultUnavailableException>(() => _writer.SyncAsync(gone, Films(), Ct));
+        var error = await Should.ThrowAsync<VaultUnavailableException>(() => _writer.SyncAsync(gone, Films(), [], Ct));
 
         error.Problem.ShouldBe(VaultProblem.FolderMissing);
         Directory.Exists(gone).ShouldBeFalse();

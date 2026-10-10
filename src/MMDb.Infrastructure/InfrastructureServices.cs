@@ -89,7 +89,9 @@ public static partial class InfrastructureServices
     public static async Task MigrateShelfDatabaseAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
         await using var scope = services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<ShelfDbContext>().Database.MigrateAsync(cancellationToken);
+        var db = scope.ServiceProvider.GetRequiredService<ShelfDbContext>();
+        await db.Database.MigrateAsync(cancellationToken);
+        await db.IndexPeopleAsync(cancellationToken);
     }
 
     private static void Configure(HttpClient http, string baseAddress)

@@ -72,6 +72,49 @@ public sealed class MovieDetailTests : ShelfTestContext
 
         page.FindAll(".person .n").Select(n => n.TextContent).ShouldBe(["Michael Mann"]);
         page.Find(".person .r").TextContent.ShouldBe("Director");
+        page.Find(".dept .eyebrow").TextContent.ShouldBe("Directing");
+    }
+
+    [Fact]
+    public async Task The_crew_tab_lists_everyone_by_department_with_their_jobs()
+    {
+        var heat = await SeedAsync(Heat with
+        {
+            Crew =
+            [
+                new("Michael Waxman", "First Assistant Director", "Directing"),
+                new("Michael Mann", "Screenplay", "Writing"),
+                new("Art Linson", "Producer", "Production"),
+                new("Michael Mann", "Producer", "Production"),
+                new("Michael Mann", "Executive Producer", "Production"),
+                new("Somebody Else", "Thanks"),
+            ],
+        });
+        var page = RenderDetail(heat.Id);
+
+        page.FindAll(".tabs button").Single(b => b.TextContent == "Crew").Click();
+
+        page.FindAll(".dept").Select(d => (
+                d.QuerySelector(".eyebrow")!.TextContent,
+                string.Join("; ", d.QuerySelectorAll(".person").Select(p => $"{p.QuerySelector(".n")!.TextContent}: {p.QuerySelector(".r")!.TextContent}"))))
+            .ShouldBe(
+            [
+                ("Directing", "Michael Mann: Director; Michael Waxman: First Assistant Director"),
+                ("Writing", "Michael Mann: Screenplay"),
+                ("Production", "Art Linson: Producer; Michael Mann: Producer, Executive Producer"),
+                ("Other", "Somebody Else: Thanks"),
+            ]);
+    }
+
+    [Fact]
+    public async Task A_film_with_no_director_or_crew_says_so()
+    {
+        var film = await SeedAsync(Film("Untitled"));
+        var page = RenderDetail(film.Id);
+
+        page.FindAll(".tabs button").Single(b => b.TextContent == "Crew").Click();
+
+        page.Find(".tabs + *").TextContent.ShouldBe("No crew added.");
     }
 
     [Fact]

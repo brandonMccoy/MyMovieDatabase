@@ -25,9 +25,6 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
 {
     public const string Source = "TMDB";
 
-    /// <summary>How many of the billed cast are kept.</summary>
-    public const int CastLimit = 10;
-
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
     // Theatrical first, then limited, premiere and home releases.
@@ -108,7 +105,10 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
             PosterPath = PosterPath,
             Genres = [.. (Genres ?? []).Select(g => g.Name)],
             Directors = [.. (Credits?.Crew ?? []).Where(c => c.Job == "Director").Select(c => c.Name).Distinct()],
-            Cast = [.. (Credits?.Cast ?? []).OrderBy(c => c.Order).Take(CastLimit).Select(c => new CastMember(c.Name, c.Character))],
+            Cast = [.. (Credits?.Cast ?? []).OrderBy(c => c.Order).Select(c => new CastMember(c.Name, c.Character))],
+            Crew = [.. (Credits?.Crew ?? [])
+                .Where(c => c.Job != "Director" && !string.IsNullOrWhiteSpace(c.Name) && !string.IsNullOrWhiteSpace(c.Job))
+                .Select(c => new CrewMember(c.Name, c.Job!, c.Department))],
             Rating = Certification(region),
             TrailerYouTubeKey = TrailerKey(),
         };
@@ -138,7 +138,7 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
 
     private sealed record CastCredit(string Name, string? Character, int Order);
 
-    private sealed record CrewCredit(string Name, string? Job);
+    private sealed record CrewCredit(string Name, string? Job, string? Department);
 
     private sealed record Page<T>(List<T>? Results);
 

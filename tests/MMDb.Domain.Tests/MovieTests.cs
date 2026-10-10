@@ -13,6 +13,7 @@ public sealed class MovieTests
         Year = 1995,
         Directors = ["Michael Mann"],
         Cast = [new("Al Pacino", "Vincent Hanna"), new("Robert De Niro", "Neil McCauley")],
+        Crew = [new("Michael Mann", "Screenplay", "Writing"), new("Dante Spinotti", "Director of Photography", "Camera")],
         Genres = ["Crime", "Drama", "Thriller"],
         RuntimeMinutes = 170,
         Rating = "R",
@@ -31,6 +32,15 @@ public sealed class MovieTests
         movie.Overview.ShouldBe(Heat.Overview);
         movie.Directors.ShouldBe(["Michael Mann"]);
         movie.Cast.ShouldBe(Heat.Cast);
+        movie.Crew.ShouldBe(Heat.Crew);
+        movie.Listing.ShouldSatisfyAllConditions(
+            l => l.Id.ShouldBe(movie.Id),
+            l => l.Title.ShouldBe("Heat"),
+            l => l.Directors.ShouldBe(movie.Directors),
+            l => l.Genres.ShouldBe(movie.Genres),
+            l => l.Formats.ShouldBe(movie.Formats.Select(f => f.Format)),
+            l => l.LastAddedAt.ShouldBe(movie.LastAddedAt),
+            l => l.CreatedAt.ShouldBe(movie.CreatedAt));
         movie.Genres.ShouldBe(["Crime", "Drama", "Thriller"]);
         movie.Formats.ShouldHaveSingleItem().ShouldSatisfyAllConditions(
             f => f.Format.ShouldBe(MediaFormat.Dvd),

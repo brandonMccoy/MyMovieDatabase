@@ -73,6 +73,14 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Pairing on the phone:** "Pair with your PC": Scan the code, or type the PC's address and the six-digit code shown under the QR code.
 - **Settings → Phone (PC):** as mocked: QR code, code with countdown, PC address, paired phones with Connected / Last seen and Unpair (no confirmation; pairing again takes seconds). "Connected" is text with a neutral dot, not green.
 
+## Cast and crew (decided 2026-10-10)
+- **Vault cast:** film notes name the actors only, not the parts they play (the app still shows the parts).
+- **Everything TMDB credits is kept:** the whole cast and the whole crew come with a lookup, whenever a film's details are fetched. No bulk "fetch crew" button; crew isn't edited by hand (the editor says how many credits are kept; directors stay editable).
+- **Film page:** the Crew tab lists everyone by department (Directing, Writing, Production, Camera, Editing, Sound, Art, …), each person once with their jobs. Search finds crew names too.
+- **Editor:** a long cast shows the first ten rows until "Show all N cast members" is pressed.
+- **Vault note:** everyone in the cast and crew is a `[[link]]` (people get no notes of their own). Writers, producers, executive producers, cinematographers, composers and editors have a line each under the directors and a frontmatter list; the rest of the crew is under `## Crew`, a line per job title. Frontmatter `cast` keeps the ten top-billed. Measured on 1,990 films (419,000 links to 176,000 people) in Obsidian 1.13.7: reopening the vault 4.5 s instead of 2.5 s, local graphs smooth, the global graph unusable (about 7 fps). Accepted: the global graph isn't used.
+- **Performance rule:** code for performance; don't load, fetch or store what a screen or feature doesn't use. The library list, search and the vault's index read a slim listing of each film without its credits; who is in the credits is searched in the database.
+
 ## Open
 - Add-on scan spike and mDNS discovery: need a real phone (see ARCHITECTURE.md).
 - A scan queue that survives closing the app: with the offline queue in milestone 7.

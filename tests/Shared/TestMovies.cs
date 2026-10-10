@@ -19,7 +19,23 @@ internal static class TestMovies
     };
 
     /// <summary>Heat as TMDB has it.</summary>
-    public static MovieDetails HeatOnTmdb => Heat with { TmdbId = 949, PosterPath = "/heat.jpg", TrailerYouTubeKey = "0xbBLJ1WGwQ" };
+    public static MovieDetails HeatOnTmdb => Heat with { TmdbId = 949, PosterPath = "/heat.jpg", TrailerYouTubeKey = "0xbBLJ1WGwQ", Crew = HeatCrew };
+
+    /// <summary>Some of Heat's crew, in credit order.</summary>
+    public static IReadOnlyList<CrewMember> HeatCrew =>
+    [
+        new("Michael Waxman", "First Assistant Director", "Directing"),
+        new("Michael Mann", "Screenplay", "Writing"),
+        new("Art Linson", "Producer", "Production"),
+        new("Michael Mann", "Producer", "Production"),
+        new("Arnon Milchan", "Executive Producer", "Production"),
+        new("Gusmano Cesaretti", "Associate Producer", "Production"),
+        new("Dante Spinotti", "Director of Photography", "Camera"),
+        new("Pasquale Buba", "Editor", "Editing"),
+        new("Elliot Goldenthal", "Original Music Composer", "Sound"),
+        new("Neil Spisak", "Production Design", "Art"),
+        new("Neil Spisak", "Set Designer", "Art"),
+    ];
 
     /// <summary>The other "Heat"s TMDB knows.</summary>
     public static MovieDetails Heat1986OnTmdb => new() { Title = "Heat", Year = 1986, TmdbId = 31939, Directors = ["Dick Richards"], PosterPath = "/heat86.jpg" };

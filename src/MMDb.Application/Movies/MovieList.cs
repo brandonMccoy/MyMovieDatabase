@@ -4,7 +4,7 @@ using MMDb.Domain.Movies;
 namespace MMDb.Application.Movies;
 
 /// <summary>The movies matching a <see cref="MovieQuery"/>, plus the numbers the library header and filters show.</summary>
-public sealed record MovieList(IReadOnlyList<Movie> Movies, MovieFacets Facets);
+public sealed record MovieList(IReadOnlyList<MovieListing> Movies, MovieFacets Facets);
 
 /// <param name="FilmCount">Films in the whole collection.</param>
 /// <param name="DiscCount">Physical copies (every format except Digital) in the whole collection.</param>

@@ -19,6 +19,9 @@ public sealed class Movie : ProductBase
 
     public IReadOnlyList<CastMember> Cast { get; private set; } = [];
 
+    /// <summary>In credit order (see <see cref="CrewCredits.InCreditOrder"/>).</summary>
+    public IReadOnlyList<CrewMember> Crew { get; private set; } = [];
+
     public IReadOnlyList<string> Genres { get; private set; } = [];
 
     public int? RuntimeMinutes { get; private set; }
@@ -45,6 +48,7 @@ public sealed class Movie : ProductBase
         Year = Year,
         Directors = Directors,
         Cast = Cast,
+        Crew = Crew,
         Genres = Genres,
         RuntimeMinutes = RuntimeMinutes,
         Rating = Rating,
@@ -53,6 +57,9 @@ public sealed class Movie : ProductBase
         TrailerYouTubeKey = TrailerYouTubeKey,
         PosterPath = PosterPath,
     };
+
+    public MovieListing Listing => new(
+        Id, Title, Year, Directors, Genres, [.. _formats.Select(f => f.Format).Order()], CreatedAt, LastAddedAt, TmdbId, CoverImage);
 
     /// <summary>Validation errors for this input; empty when <see cref="Create"/> or <see cref="Update"/> would accept it.</summary>
     public static IReadOnlyList<ValidationError> Validate(MovieDetails details, IReadOnlyCollection<FormatDetails> formats) =>
@@ -128,6 +135,7 @@ public sealed class Movie : ProductBase
         Year = details.Year;
         Directors = details.Directors;
         Cast = details.Cast;
+        Crew = details.Crew;
         Genres = details.Genres;
         RuntimeMinutes = details.RuntimeMinutes;
         Rating = details.Rating;

@@ -8,7 +8,14 @@ public interface IMovieRepository
 {
     Task<Movie?> FindAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Movie>> ListAsync(CancellationToken cancellationToken = default);
+    /// <summary>Read-only: every film as lists show it, without its credits.</summary>
+    Task<IReadOnlyList<MovieListing>> ListAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Read-only: every film in full. Only for writing them all out (a vault sync).</summary>
+    Task<IReadOnlyList<Movie>> ListInFullAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The films with someone in the cast or crew whose name contains this, ignoring case and accents.</summary>
+    Task<IReadOnlySet<Guid>> FindCreditingAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>The film owning a format with this barcode, in either of its forms (UPC-A or EAN-13).</summary>
     Task<Movie?> FindByUpcAsync(Upc upc, CancellationToken cancellationToken = default);
@@ -16,7 +23,7 @@ public interface IMovieRepository
     Task<Movie?> FindByTmdbIdAsync(int tmdbId, CancellationToken cancellationToken = default);
 
     /// <summary>Read-only: the films linked to any of these TMDB ids.</summary>
-    Task<IReadOnlyList<Movie>> ListByTmdbIdsAsync(IReadOnlyCollection<int> tmdbIds, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MovieListing>> ListByTmdbIdsAsync(IReadOnlyCollection<int> tmdbIds, CancellationToken cancellationToken = default);
 
     void Add(Movie movie);
 

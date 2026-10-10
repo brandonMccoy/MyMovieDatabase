@@ -28,6 +28,7 @@ public sealed class HttpCollectionApiTests : IAsyncLifetime
         Year = 1995,
         Directors = ["Michael Mann"],
         Cast = [new("Al Pacino", "Vincent Hanna")],
+        Crew = [new("Michael Mann", "Screenplay", "Writing"), new("Dante Spinotti", "Director of Photography", "Camera")],
         Genres = ["Crime", "Drama"],
         RuntimeMinutes = 170,
         Rating = "R",

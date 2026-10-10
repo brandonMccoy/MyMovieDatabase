@@ -8,6 +8,7 @@ public static class MovieFields
     public const string RuntimeMinutes = nameof(RuntimeMinutes);
     public const string Rating = nameof(Rating);
     public const string Cast = nameof(Cast);
+    public const string Crew = nameof(Crew);
     public const string Formats = nameof(Formats);
     public const string PosterPath = nameof(PosterPath);
 

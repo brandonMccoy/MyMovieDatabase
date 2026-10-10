@@ -25,7 +25,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
     private string? _knownFolder;
     private Dictionary<Guid, string> _notes = [];
 
-    public Task SyncAsync(string folder, VaultContent content, CancellationToken cancellationToken = default) =>
+    public Task SyncAsync(string folder, VaultContent content, IReadOnlyList<Movie> films, CancellationToken cancellationToken = default) =>
         GuardAsync(folder, async () =>
         {
             var notes = Scan(folder);
@@ -36,7 +36,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
             }
 
             // Oldest first, so whatever had a name first keeps it.
-            foreach (var movie in content.Movies.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id))
+            foreach (var movie in films.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id))
             {
                 await WriteMovieNoteAsync(folder, notes, movie, cancellationToken);
             }

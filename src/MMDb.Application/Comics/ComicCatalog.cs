@@ -109,7 +109,7 @@ public sealed class ComicCatalog(
         }
 
         _covers.Forget(comic);
-        await vault.RemovedAsync(comic.Id, content.LoadAsync);
+        await vault.RemovedAsync(comic.Id, content);
         return true;
     }
 
@@ -162,7 +162,7 @@ public sealed class ComicCatalog(
         }
 
         await RefreshSeriesAsync(comic, cancellationToken);
-        await vault.ComicSavedAsync(comic, content.LoadAsync);
+        await vault.ComicSavedAsync(comic, content);
         return new SaveComicResult.Saved(comic);
     }
 

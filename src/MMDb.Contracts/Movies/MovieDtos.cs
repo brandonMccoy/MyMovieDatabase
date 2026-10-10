@@ -18,6 +18,9 @@ public enum MovieSortOrder
 
 public sealed record CastMemberDto(string Name, string? Character = null);
 
+/// <summary>Someone behind the camera. A film's crew comes from TMDB in credit order: by department, headline jobs first.</summary>
+public sealed record CrewMemberDto(string Name, string Job, string? Department = null);
+
 public sealed record MovieFormatDto(MovieFormatKind Format, string? Upc, string? FilePath, DateTimeOffset AddedAt);
 
 /// <summary>Everything about one film, for the detail and edit screens.</summary>
@@ -35,6 +38,9 @@ public sealed record MovieDto
     public IReadOnlyList<string> Directors { get; init; } = [];
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
+
+    /// <summary>Everyone but the directors; send it back unchanged with an update.</summary>
+    public IReadOnlyList<CrewMemberDto> Crew { get; init; } = [];
 
     public IReadOnlyList<string> Genres { get; init; } = [];
 
@@ -71,7 +77,6 @@ public sealed record MovieSummaryDto(
     int? Year,
     IReadOnlyList<string> Directors,
     IReadOnlyList<MovieFormatKind> Formats,
-    Uri TrailerUrl,
     Uri? CoverUrl = null);
 
 /// <summary>Search, filters and sort for the library.</summary>
@@ -115,6 +120,9 @@ public sealed record SaveMovieRequest
     public IReadOnlyList<string> Directors { get; init; } = [];
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
+
+    /// <summary>As the lookup match or the film being edited had it.</summary>
+    public IReadOnlyList<CrewMemberDto> Crew { get; init; } = [];
 
     public IReadOnlyList<string> Genres { get; init; } = [];
 

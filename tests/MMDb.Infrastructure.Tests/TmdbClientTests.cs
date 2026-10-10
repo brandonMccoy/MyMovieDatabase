@@ -103,14 +103,40 @@ public sealed class TmdbClientTests
     }
 
     [Fact]
-    public async Task The_top_ten_billed_actors_are_kept_in_billing_order()
+    public async Task The_whole_cast_is_kept_in_billing_order()
     {
         var cast = (await HeatAsync()).Cast;
 
-        cast.Count.ShouldBe(TmdbClient.CastLimit);
+        cast.Count.ShouldBe(12);
         cast[0].ShouldBe(new CastMember("Al Pacino", "Lt. Vincent Hanna"));
         cast[1].ShouldBe(new CastMember("Robert De Niro", "Neil McCauley"));
-        cast.ShouldNotContain(c => c.Name == "Ted Levine" || c.Name == "Dennis Haysbert");
+        cast.Select(c => c.Name).TakeLast(2).ShouldBe(["Ted Levine", "Dennis Haysbert"]);
+    }
+
+    [Fact]
+    public async Task The_crew_comes_with_jobs_and_departments_in_credit_order()
+    {
+        (await HeatAsync()).Normalized().Crew.ShouldBe(
+        [
+            new("Michael Waxman", "First Assistant Director", "Directing"),
+            new("Michael Mann", "Screenplay", "Writing"),
+            new("Art Linson", "Producer", "Production"),
+            new("Michael Mann", "Producer", "Production"),
+            new("Arnon Milchan", "Executive Producer", "Production"),
+            new("Dante Spinotti", "Director of Photography", "Camera"),
+            new("Pasquale Buba", "Editor", "Editing"),
+            new("Elliot Goldenthal", "Original Music Composer", "Sound"),
+            new("Neil Spisak", "Production Design", "Art"),
+        ]);
+    }
+
+    [Fact]
+    public async Task Directors_are_not_listed_again_among_the_crew()
+    {
+        var heat = await HeatAsync();
+
+        heat.Crew.ShouldNotContain(c => c.Job == "Director");
+        heat.Validate().ShouldBeEmpty();
     }
 
     [Fact]
@@ -139,7 +165,8 @@ public sealed class TmdbClientTests
             f => f.PosterPath.ShouldBeNull(),
             f => f.TrailerYouTubeKey.ShouldBeNull(),
             f => f.Directors.ShouldBeEmpty(),
-            f => f.Cast.ShouldBeEmpty());
+            f => f.Cast.ShouldBeEmpty(),
+            f => f.Crew.ShouldBeEmpty());
     }
 
     [Fact]

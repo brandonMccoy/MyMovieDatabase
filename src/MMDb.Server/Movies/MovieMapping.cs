@@ -49,6 +49,7 @@ internal static class MovieMapping
         Year = request.Year,
         Directors = request.Directors ?? [],
         Cast = [.. (request.Cast ?? []).Select(c => new CastMember(c.Name, c.Character))],
+        Crew = [.. (request.Crew ?? []).Select(c => new CrewMember(c.Name, c.Job, c.Department))],
         Genres = request.Genres ?? [],
         RuntimeMinutes = request.RuntimeMinutes,
         Rating = request.Rating,
@@ -69,6 +70,7 @@ internal static class MovieMapping
         Year = movie.Year,
         Directors = movie.Directors,
         Cast = [.. movie.Cast.Select(c => new CastMemberDto(c.Name, c.Character))],
+        Crew = [.. movie.Crew.Select(c => new CrewMemberDto(c.Name, c.Job, c.Department))],
         Genres = movie.Genres,
         RuntimeMinutes = movie.RuntimeMinutes,
         Rating = movie.Rating,
@@ -83,13 +85,14 @@ internal static class MovieMapping
         UpdatedAt = movie.UpdatedAt,
     };
 
-    public static MovieSummaryDto ToSummary(this Movie movie, CoverLinks covers) => new(
+    public static MovieSummaryDto ToSummary(this Movie movie, CoverLinks covers) => movie.Listing.ToSummary(covers);
+
+    public static MovieSummaryDto ToSummary(this MovieListing movie, CoverLinks covers) => new(
         movie.Id,
         movie.Title,
         movie.Year,
         movie.Directors,
-        [.. movie.Formats.Select(f => f.Format.ToContract())],
-        Trailer.UrlFor(movie.Title, movie.Year, movie.TrailerYouTubeKey),
+        [.. movie.Formats.Select(f => f.ToContract())],
         covers.For(movie.CoverImage));
 
     public static MovieListResponse ToContract(this MovieList list, CoverLinks covers) => new(
@@ -143,6 +146,7 @@ internal static class MovieMapping
         Year = match.Details.Year,
         Directors = match.Details.Directors,
         Cast = [.. match.Details.Cast.Select(c => new CastMemberDto(c.Name, c.Character))],
+        Crew = [.. match.Details.Crew.Select(c => new CrewMemberDto(c.Name, c.Job, c.Department))],
         Genres = match.Details.Genres,
         RuntimeMinutes = match.Details.RuntimeMinutes,
         Rating = match.Details.Rating,

@@ -28,6 +28,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
         Year = 1995,
         Directors = ["Michael Mann"],
         Cast = [new("Al Pacino", "Vincent Hanna")],
+        Crew = [new("Michael Mann", "Screenplay", "Writing"), new("Dante Spinotti", "Director of Photography", "Camera")],
         Genres = ["Crime", "Drama"],
         RuntimeMinutes = 170,
         Rating = "R",
@@ -93,6 +94,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
         movie.Year.ShouldBe(1995);
         movie.Directors.ShouldBe(["Michael Mann"]);
         movie.Cast.ShouldBe([new CastMemberDto("Al Pacino", "Vincent Hanna")]);
+        movie.Crew.ShouldBe([new CrewMemberDto("Michael Mann", "Screenplay", "Writing"), new CrewMemberDto("Dante Spinotti", "Director of Photography", "Camera")]);
         movie.Genres.ShouldBe(["Crime", "Drama"]);
         movie.RuntimeMinutes.ShouldBe(170);
         movie.Rating.ShouldBe("R");
@@ -138,7 +140,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
     [Fact]
     public async Task Null_lists_from_the_wire_are_treated_as_empty()
     {
-        var response = await Api.AddMovieAsync(Heat with { Directors = null!, Cast = null!, Genres = null! }, Ct);
+        var response = await Api.AddMovieAsync(Heat with { Directors = null!, Cast = null!, Crew = null!, Genres = null! }, Ct);
 
         response.Status.ShouldBe(SaveStatus.Saved);
         response.Movie!.Directors.ShouldBeEmpty();
@@ -189,7 +191,6 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
         heat.Year.ShouldBe(1995);
         heat.Directors.ShouldBe(["Michael Mann"]);
         heat.Formats.ShouldBe([MovieFormatKind.Uhd4K, MovieFormatKind.Digital]);
-        heat.TrailerUrl.AbsoluteUri.ShouldContain("Heat%201995%20trailer");
         list.Facets.FilmCount.ShouldBe(2);
         list.Facets.DiscCount.ShouldBe(2);
         list.Facets.MatchingCount.ShouldBe(2);
@@ -243,6 +244,8 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
         heat.Year.ShouldBe(1995);
         heat.Directors.ShouldBe(["Michael Mann"]);
         heat.Cast[0].ShouldBe(new CastMemberDto("Al Pacino", "Vincent Hanna"));
+        heat.Crew.Count.ShouldBe(TestMovies.HeatCrew.Count);
+        heat.Crew[1].ShouldBe(new CrewMemberDto("Michael Mann", "Screenplay", "Writing"));
         heat.PosterPath.ShouldBe("/heat.jpg");
         heat.PosterUrl.ShouldBe(new Uri("https://image.tmdb.org/t/p/w342/heat.jpg"));
         heat.ThumbnailUrl.ShouldBe(new Uri("https://image.tmdb.org/t/p/w92/heat.jpg"));

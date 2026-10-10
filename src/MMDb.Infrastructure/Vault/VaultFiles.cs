@@ -26,7 +26,7 @@ internal static class VaultFiles
     /// <param name="series">Each run of single issues, with its series note's path (no extension).</param>
     /// <param name="collected">Each trade, hardcover and omnibus with its note's path (no extension).</param>
     public static string RenderIndex(
-        IReadOnlyList<(Movie Movie, string Note)> movies,
+        IReadOnlyList<(MovieListing Movie, string Note)> movies,
         IReadOnlyList<SeriesIndexEntry> series,
         IReadOnlyList<(Comic Comic, string Note)> collected)
     {
@@ -61,7 +61,7 @@ internal static class VaultFiles
                 index.Append(" · ").AppendJoin(", ", movie.Directors.Select(Markdown.Escape));
             }
 
-            index.Append(" · ").AppendJoin(", ", movie.Formats.Select(f => f.Format.DisplayName())).Append('\n');
+            index.Append(" · ").AppendJoin(", ", movie.Formats.Select(f => f.DisplayName())).Append('\n');
         }
 
         if (series.Count > 0)
@@ -143,7 +143,8 @@ internal static class VaultFiles
 
         ## Answering questions
         - Start with `_Index.md`: the totals, then one line per film (note · directors · formats owned), one line per comic series (publisher · issues owned · missing · key issues) and one per trade or hardcover. "Do I own…", "how many 4K discs", "which Daredevil issues am I missing" or "which Carpenter films" can be answered from it alone.
-        - Open a film's note in `Movies/` only for what the index doesn't have: cast, genres, runtime, rating, overview, barcodes, file paths, the user's own notes.
+        - Open a film's note in `Movies/` only for what the index doesn't have: cast, crew, genres, runtime, rating, overview, barcodes, file paths, the user's own notes.
+        - Everyone in a film's cast and crew is a `[[link]]` in its note; people have no notes of their own unless the user made one, so search the notes for `[[A Name]]` to find every film someone worked on. Writers, producers, cinematographers, composers and editors have a line each under the directors and are in the frontmatter; the rest of the crew is under `## Crew`, one line per job title.
         - A series' `_Series.md` lists every issue owned (each copy linked) and every issue missing. Open an issue's note for its creators, cover date, variant, barcode, summary and the user's notes.
         - To filter many notes on one field, search the frontmatter of `Movies/*.md` or `Comics/**/*.md` instead of opening the notes one by one.
 
@@ -164,7 +165,13 @@ internal static class VaultFiles
         | `year` | number | release year |
         | `formats` | list | formats owned: `4K UHD`, `Blu-ray`, `DVD`, `Digital` |
         | `directors` | list | |
-        | `cast` | list | top-billed actors, in billing order |
+        | `writers` | list | screenplay, story and the novel it is based on |
+        | `producers` | list | |
+        | `executive_producers` | list | |
+        | `cinematographers` | list | directors of photography |
+        | `composers` | list | original music |
+        | `editors` | list | |
+        | `cast` | list | the ten top-billed actors, in billing order; the note links the whole cast |
         | `genres` | list | |
         | `runtime` | number | minutes |
         | `rating` | text | US certification, e.g. `R`, `PG-13` |

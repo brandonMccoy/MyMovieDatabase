@@ -19,6 +19,8 @@ internal sealed class MovieConfiguration : IEntityTypeConfiguration<Movie>
         movie.Property(m => m.Directors).HasConversion(JsonList.Converter<string>(), JsonList.Comparer<string>());
         movie.Property(m => m.Genres).HasConversion(JsonList.Converter<string>(), JsonList.Comparer<string>());
         movie.Property(m => m.Cast).HasConversion(JsonList.Converter<CastMember>(), JsonList.Comparer<CastMember>());
+        movie.Property(m => m.Crew).HasConversion(JsonList.Converter<CrewMember>(), JsonList.Comparer<CrewMember>()).HasDefaultValueSql("'[]'");
+        movie.Property<string?>(PeopleText.Column);
         movie.HasIndex(m => m.TmdbId);
         movie.Property(m => m.PosterPath).HasMaxLength(128);
 

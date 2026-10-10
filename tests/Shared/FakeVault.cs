@@ -18,13 +18,17 @@ internal sealed class FakeVault : IVaultWriter
 
     public static string NoteFor(Movie movie) => $"Movies/{movie.Title} ({movie.Year}).md";
 
+    /// <summary>The films the last sync was given in full, with how many credits each came with.</summary>
+    public IReadOnlyList<(string Title, int Credits)> SyncedFilms { get; private set; } = [];
+
     public static string NoteFor(Comic comic) => $"Comics/{comic.Series} ({comic.SeriesYear})/{comic.Series} {comic.Number}.md";
 
-    public Task SyncAsync(string folder, VaultContent content, CancellationToken cancellationToken = default) =>
+    public Task SyncAsync(string folder, VaultContent content, IReadOnlyList<Movie> films, CancellationToken cancellationToken = default) =>
         Record($"sync {folder} ({content.Movies.Count} films{(content.Comics.Count > 0 ? $", {content.Comics.Count} comics" : "")})", () =>
         {
+            SyncedFilms = [.. films.Select(f => (f.Title, f.Cast.Count + f.Crew.Count))];
             _notes.Clear();
-            foreach (var movie in content.Movies)
+            foreach (var movie in films)
             {
                 _notes[movie.Id] = NoteFor(movie);
             }

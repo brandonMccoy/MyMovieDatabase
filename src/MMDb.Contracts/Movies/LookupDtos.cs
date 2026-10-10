@@ -60,6 +60,8 @@ public sealed record MovieCandidateDto
 
     public IReadOnlyList<CastMemberDto> Cast { get; init; } = [];
 
+    public IReadOnlyList<CrewMemberDto> Crew { get; init; } = [];
+
     public IReadOnlyList<string> Genres { get; init; } = [];
 
     public int? RuntimeMinutes { get; init; }

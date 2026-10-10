@@ -50,7 +50,7 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
     public string? NoteOf(Guid id) => Status.Folder is { } folder ? writer.NoteOf(folder, id) : null;
 
     /// <summary>Switches to <paramref name="folder"/> (<see langword="null"/>: no vault) and writes it all.</summary>
-    internal async Task SyncAsync(string? folder, Func<CancellationToken, Task<VaultContent>> load, CancellationToken cancellationToken)
+    internal async Task SyncAsync(string? folder, VaultContentSource source, CancellationToken cancellationToken)
     {
         await _turn.WaitAsync(cancellationToken);
         try
@@ -65,7 +65,7 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
             Publish(new() { State = VaultState.Syncing, Folder = folder });
             try
             {
-                await WriteAsync(folder, all => writer.SyncAsync(folder, all, cancellationToken), load, cancellationToken);
+                await WriteAsync(folder, async all => await writer.SyncAsync(folder, all, await source.LoadFilmsAsync(cancellationToken), cancellationToken), source, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -79,18 +79,18 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
         }
     }
 
-    internal Task MovieSavedAsync(Movie movie, Func<CancellationToken, Task<VaultContent>> load) =>
-        ChangeAsync((folder, all) => writer.WriteMovieAsync(folder, movie, all), load);
+    internal Task MovieSavedAsync(Movie movie, VaultContentSource source) =>
+        ChangeAsync((folder, all) => writer.WriteMovieAsync(folder, movie, all), source);
 
-    internal Task ComicSavedAsync(Comic comic, Func<CancellationToken, Task<VaultContent>> load) =>
-        ChangeAsync((folder, all) => writer.WriteComicAsync(folder, comic, all), load);
+    internal Task ComicSavedAsync(Comic comic, VaultContentSource source) =>
+        ChangeAsync((folder, all) => writer.WriteComicAsync(folder, comic, all), source);
 
     /// <summary>A film or comic was deleted.</summary>
-    internal Task RemovedAsync(Guid id, Func<CancellationToken, Task<VaultContent>> load) =>
-        ChangeAsync((folder, all) => writer.RemoveAsync(folder, id, all), load);
+    internal Task RemovedAsync(Guid id, VaultContentSource source) =>
+        ChangeAsync((folder, all) => writer.RemoveAsync(folder, id, all), source);
 
     // Not cancellable: the change is already in the database, so the vault should follow it.
-    private async Task ChangeAsync(Func<string, VaultContent, Task> change, Func<CancellationToken, Task<VaultContent>> load)
+    private async Task ChangeAsync(Func<string, VaultContent, Task> change, VaultContentSource source)
     {
         if (Status.Folder is null)
         {
@@ -107,9 +107,9 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
 
             // After a failure other notes may be stale too, so catch up on everything.
             Func<VaultContent, Task> write = Status.State == VaultState.Failed
-                ? all => writer.SyncAsync(folder, all)
+                ? async all => await writer.SyncAsync(folder, all, await source.LoadFilmsAsync())
                 : all => change(folder, all);
-            await WriteAsync(folder, write, load, CancellationToken.None);
+            await WriteAsync(folder, write, source, CancellationToken.None);
         }
         finally
         {
@@ -120,12 +120,12 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
     private async Task WriteAsync(
         string folder,
         Func<VaultContent, Task> write,
-        Func<CancellationToken, Task<VaultContent>> load,
+        VaultContentSource source,
         CancellationToken cancellationToken)
     {
         try
         {
-            var all = await load(cancellationToken);
+            var all = await source.LoadAsync(cancellationToken);
             await write(all);
             Publish(new() { State = VaultState.Synced, Folder = folder, LastSyncAt = clock.GetUtcNow(), NoteCount = all.NoteCount });
         }

@@ -13,8 +13,16 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
     public Task<Movie?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
         movies.FindAsync(id, cancellationToken);
 
-    public async Task<MovieList> ListAsync(MovieQuery query, CancellationToken cancellationToken = default) =>
-        MovieFilter.Apply(await movies.ListAsync(cancellationToken), query);
+    public async Task<MovieList> ListAsync(MovieQuery query, CancellationToken cancellationToken = default)
+    {
+        var crediting = new Dictionary<string, IReadOnlySet<Guid>>();
+        foreach (var term in MovieFilter.Terms(query).Distinct())
+        {
+            crediting[term] = await movies.FindCreditingAsync(term, cancellationToken);
+        }
+
+        return MovieFilter.Apply(await movies.ListAsync(cancellationToken), query, crediting);
+    }
 
     /// <summary>
     /// Adds a film, downloading its poster if it has one. A film already owned (same TMDB id) is not added
@@ -94,7 +102,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
         }
 
         _covers.Forget(movie);
-        await vault.RemovedAsync(movie.Id, content.LoadAsync);
+        await vault.RemovedAsync(movie.Id, content);
         return true;
     }
 
@@ -115,7 +123,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
             return new SaveMovieResult.Conflict();
         }
 
-        await vault.MovieSavedAsync(movie, content.LoadAsync);
+        await vault.MovieSavedAsync(movie, content);
         return new SaveMovieResult.Saved(movie);
     }
 }

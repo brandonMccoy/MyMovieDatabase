@@ -119,18 +119,24 @@ else if (_movie is not null)
                     }
                     break;
                 case Tab.Crew:
-                    @if (_movie.Directors.Count == 0)
+                    @if (_movie.Directors.Count == 0 && _movie.Crew.Count == 0)
                     {
                         <p class="small">No crew added.</p>
                     }
                     else
                     {
-                        <div class="cast">
-                            @foreach (var director in _movie.Directors)
-                            {
-                                <div class="person"><div class="avatar">@Initials(director)</div><div><div class="n">@director</div><div class="r">Director</div></div></div>
-                            }
-                        </div>
+                        @foreach (var department in Departments())
+                        {
+                            <section class="dept" aria-label="@department.Name">
+                                <div class="eyebrow">@department.Name</div>
+                                <div class="cast">
+                                    @foreach (var person in department.People)
+                                    {
+                                        <div class="person"><div class="avatar">@Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Jobs</div></div></div>
+                                    }
+                                </div>
+                            </section>
+                        }
                     }
                     break;
                 case Tab.Details:
@@ -185,6 +191,8 @@ else if (_movie is not null)
     private bool _confirmingDelete;
     private Tab _tab = Tab.Cast;
 
+    private const string Directing = "Directing";
+
     private enum Tab
     {
         Cast,
@@ -228,6 +236,15 @@ else if (_movie is not null)
     }
 
     private string Directors(string separator) => string.Join(separator, _movie!.Directors);
+
+    // The directors lead the Directing department; someone with several jobs in a department is shown once.
+    private IEnumerable<(string Name, IEnumerable<(string Name, string Jobs)> People)> Departments() =>
+        _movie!.Directors.Select(d => new CrewMemberDto(d, "Director", Directing))
+            .Concat(_movie.Crew)
+            .GroupBy(c => c.Department ?? "Other")
+            .Select(department => (
+                department.Key,
+                department.GroupBy(c => c.Name).Select(person => (person.Key, string.Join(", ", person.Select(c => c.Job))))));
 
     // "A", "A & B", "A, B & C"
     private static string Separator(int index, int count) => index == 0 ? "" : index == count - 1 ? " & " : ", ";

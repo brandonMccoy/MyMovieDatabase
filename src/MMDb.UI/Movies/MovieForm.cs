@@ -26,6 +26,8 @@ public sealed class MovieForm
     public Dictionary<MovieFormatKind, FormatRow> Formats { get; } = Components.Formats.All.ToDictionary(f => f, _ => new FormatRow());
 
     // Not edited by hand: they come from TMDB with a lookup and must survive an edit.
+    public IReadOnlyList<CrewMemberDto> Crew { get; set; } = [];
+
     public int? TmdbId { get; set; }
 
     public string? TrailerYouTubeKey { get; set; }
@@ -48,6 +50,7 @@ public sealed class MovieForm
             Rating = movie.Rating,
             Directors = string.Join(", ", movie.Directors),
             Overview = movie.Overview,
+            Crew = movie.Crew,
             TmdbId = movie.TmdbId,
             TrailerYouTubeKey = movie.TrailerYouTubeKey,
             PosterPath = movie.PosterPath,
@@ -79,6 +82,7 @@ public sealed class MovieForm
         Rating = candidate.Rating;
         Directors = string.Join(", ", candidate.Directors);
         Overview = candidate.Overview;
+        Crew = candidate.Crew;
         TmdbId = candidate.TmdbId;
         TrailerYouTubeKey = candidate.TrailerYouTubeKey;
         PosterPath = candidate.PosterPath;
@@ -111,6 +115,7 @@ public sealed class MovieForm
         Genres = [.. Genres],
         Overview = Overview,
         Cast = [.. Cast.Select(c => new CastMemberDto(c.Name, c.Character))],
+        Crew = Crew,
         TmdbId = TmdbId,
         TrailerYouTubeKey = TrailerYouTubeKey,
         PosterPath = PosterPath,

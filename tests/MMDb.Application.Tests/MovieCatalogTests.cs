@@ -20,6 +20,7 @@ public sealed class MovieCatalogTests
         saved.ShouldNotBeNull();
         saved.Title.ShouldBe("Heat");
         saved.Cast.ShouldBe(TestMovies.Heat.Cast);
+        saved.Crew.ShouldBe(TestMovies.Heat.Crew);
         saved.Formats.Select(f => f.Format).ShouldBe([MediaFormat.Uhd4K, MediaFormat.Dvd]);
         saved.Formats[0].Upc?.Value.ShouldBe("786936894424");
     }

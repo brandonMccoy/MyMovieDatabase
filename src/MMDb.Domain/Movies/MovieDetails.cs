@@ -19,6 +19,9 @@ public sealed partial record MovieDetails
 
     public IReadOnlyList<CastMember> Cast { get; init; } = [];
 
+    /// <summary>Everyone behind the camera but the directors; not edited by hand, it comes with a lookup.</summary>
+    public IReadOnlyList<CrewMember> Crew { get; init; } = [];
+
     public IReadOnlyList<string> Genres { get; init; } = [];
 
     public int? RuntimeMinutes { get; init; }
@@ -35,7 +38,7 @@ public sealed partial record MovieDetails
     /// <summary>TMDB's name for the poster image, e.g. <c>/rrBuGu0Pjq7Y2BWSI6teGfZzviY.jpg</c>.</summary>
     public string? PosterPath { get; init; }
 
-    /// <summary>Trims text, turns blanks into nulls, drops empty and duplicate list entries.</summary>
+    /// <summary>Trims text, turns blanks into nulls, drops empty and duplicate list entries, puts the crew in credit order.</summary>
     public MovieDetails Normalized() => this with
     {
         Title = Title?.Trim() ?? "",
@@ -44,6 +47,10 @@ public sealed partial record MovieDetails
         Cast = [.. Cast
             .Select(c => new CastMember(c.Name?.Trim() ?? "", NullIfBlank(c.Character)))
             .Where(c => c.Name.Length > 0 || c.Character is not null)],
+        Crew = CrewCredits.InCreditOrder(Crew
+            .Select(c => new CrewMember(c.Name?.Trim() ?? "", c.Job?.Trim() ?? "", NullIfBlank(c.Department)))
+            .Where(c => c.Name.Length > 0 || c.Job.Length > 0)
+            .Distinct()),
         Rating = NullIfBlank(Rating),
         Overview = NullIfBlank(Overview),
         TrailerYouTubeKey = NullIfBlank(TrailerYouTubeKey),
@@ -83,6 +90,11 @@ public sealed partial record MovieDetails
         if (details.Cast.Any(c => c.Name.Length == 0))
         {
             errors.Add(new(MovieFields.Cast, "Every cast member needs a name."));
+        }
+
+        if (details.Crew.Any(c => c.Name.Length == 0 || c.Job.Length == 0))
+        {
+            errors.Add(new(MovieFields.Crew, "Every crew credit needs a name and a job."));
         }
 
         // It ends up in a file name and a URL, so only TMDB's own shape is accepted.

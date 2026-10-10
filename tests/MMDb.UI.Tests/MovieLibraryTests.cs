@@ -51,15 +51,15 @@ public sealed class MovieLibraryTests : ShelfTestContext
     }
 
     [Fact]
-    public async Task The_trailer_button_opens_youtube_outside_the_app()
+    public async Task A_card_links_to_the_film_and_nowhere_else()
     {
-        await SeedAsync(Heat);
+        var heat = await SeedAsync(Heat);
 
         var page = Render<MovieLibrary>();
 
-        var trailer = page.WaitForElement(".card a.play");
-        trailer.GetAttribute("href").ShouldBe("https://www.youtube.com/results?search_query=Heat%201995%20trailer");
-        trailer.GetAttribute("target").ShouldBe("_blank");
+        var card = page.WaitForElement(".card");
+        card.QuerySelectorAll("a").Select(a => a.GetAttribute("href")).Distinct().ShouldBe([$"movies/{heat.Id}"]);
+        card.TextContent.ShouldNotContain("Trailer");
     }
 
     [Fact]

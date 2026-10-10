@@ -11,6 +11,21 @@ internal static partial class MovieNote
 {
     public const string ManagedBy = "mmdb";
     public const string MyNotesHeading = "## My notes";
+    public const string CrewHeading = "## Crew";
+
+    /// <summary>How many of the cast the frontmatter lists; the note itself links every one of them.</summary>
+    public const int TopBilled = 10;
+
+    // The crew that get a line of links like the directors, and a frontmatter list.
+    private static readonly (string Label, string Key, IReadOnlyList<string> Jobs)[] Headline =
+    [
+        ("Written by", "writers", CrewCredits.WritingJobs),
+        ("Produced by", "producers", [CrewCredits.Producer]),
+        ("Executive producers", "executive_producers", [CrewCredits.ExecutiveProducer]),
+        ("Cinematography", "cinematographers", [CrewCredits.DirectorOfPhotography]),
+        ("Music", "composers", [CrewCredits.Composer]),
+        ("Edited by", "editors", [CrewCredits.Editor]),
+    ];
 
     /// <param name="cover">The cover's path in the vault, if it has one there.</param>
     /// <param name="myNotes">What follows the My notes heading in the note being replaced (see <see cref="MyNotesOf"/>).</param>
@@ -24,7 +39,12 @@ internal static partial class MovieNote
         Key(note, "year", movie.Year);
         List(note, "formats", movie.Formats.Select(f => f.Format.DisplayName()));
         List(note, "directors", movie.Directors);
-        List(note, "cast", movie.Cast.Select(c => c.Name));
+        foreach (var (_, key, jobs) in Headline)
+        {
+            List(note, key, CrewCredits.NamesFor(movie.Crew, jobs));
+        }
+
+        List(note, "cast", movie.Cast.Take(TopBilled).Select(c => c.Name));
         List(note, "genres", movie.Genres);
         Key(note, "runtime", movie.RuntimeMinutes);
         Key(note, "rating", movie.Rating is { } rating ? Yaml.Text(rating) : null);
@@ -57,9 +77,17 @@ internal static partial class MovieNote
             note.Append("**Directed by** ").AppendJoin(", ", movie.Directors.Select(Markdown.PersonLink)).Append('\n');
         }
 
+        foreach (var (label, _, jobs) in Headline)
+        {
+            if (CrewCredits.NamesFor(movie.Crew, jobs) is { Count: > 0 } names)
+            {
+                note.Append("**").Append(label).Append("** ").AppendJoin(", ", names.Select(Markdown.PersonLink)).Append('\n');
+            }
+        }
+
         if (movie.Cast.Count > 0)
         {
-            note.Append("**Cast** ").AppendJoin(", ", movie.Cast.Select(Credit)).Append('\n');
+            note.Append("**Cast** ").AppendJoin(", ", movie.Cast.Select(c => Markdown.PersonLink(c.Name))).Append('\n');
         }
 
         note.Append("**Owned on** ").AppendJoin(", ", movie.Formats.Select(Owned)).Append('\n');
@@ -70,6 +98,7 @@ internal static partial class MovieNote
         }
 
         note.Append("\n\n");
+        Crew(note, movie);
         note.Append("%% Shelf rewrites everything above \"My notes\" when the film changes. Write your own notes below it. %%\n");
         note.Append(MyNotesHeading).Append('\n');
         note.Append(myNotes);
@@ -104,10 +133,25 @@ internal static partial class MovieNote
         return id.Success && Guid.TryParse(id.Groups["id"].Value, out var parsed) ? parsed : null;
     }
 
-    private static string Credit(CastMember member) =>
-        member.Character is { Length: > 0 } character
-            ? $"{Markdown.PersonLink(member.Name)} ({Markdown.Escape(character)})"
-            : Markdown.PersonLink(member.Name);
+    // Everyone the headline lines above don't name: a line per job title, in credit order, each person a link.
+    private static void Crew(StringBuilder note, Movie movie)
+    {
+        var jobs = movie.Crew.Where(c => !CrewCredits.IsHeadline(c)).GroupBy(c => c.Job, StringComparer.OrdinalIgnoreCase).ToList();
+        if (jobs.Count == 0)
+        {
+            return;
+        }
+
+        note.Append(CrewHeading).Append('\n');
+        foreach (var job in jobs)
+        {
+            note.Append("**").Append(Markdown.Escape(job.Key)).Append("** ")
+                .AppendJoin(", ", job.Select(c => c.Name).Distinct(StringComparer.OrdinalIgnoreCase).Select(Markdown.PersonLink))
+                .Append('\n');
+        }
+
+        note.Append('\n');
+    }
 
     private static string Owned(MovieFormat format)
     {

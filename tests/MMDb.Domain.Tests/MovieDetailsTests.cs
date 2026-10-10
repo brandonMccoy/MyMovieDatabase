@@ -94,6 +94,79 @@ public sealed class MovieDetailsTests
     }
 
     [Fact]
+    public void A_crew_credit_needs_a_name_and_a_job()
+    {
+        new MovieDetails { Title = "Heat", Crew = [new("", "Editor", "Editing")] }.Validate().ShouldHaveSingleError(MovieFields.Crew);
+        new MovieDetails { Title = "Heat", Crew = [new("Pasquale Buba", " ", "Editing")] }.Validate().ShouldHaveSingleError(MovieFields.Crew);
+        new MovieDetails { Title = "Heat", Crew = [new("Pasquale Buba", "Editor")] }.Validate().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Normalizing_trims_the_crew_and_drops_blank_and_repeated_credits()
+    {
+        var details = new MovieDetails
+        {
+            Title = "Heat",
+            Crew = [new(" Pasquale Buba ", " Editor ", " Editing "), new("", "", "Crew"), new("Pasquale Buba", "Editor", "Editing"), new("Dov Hoenig", "Editor", " ")],
+        }.Normalized();
+
+        details.Crew.ShouldBe([new("Pasquale Buba", "Editor", "Editing"), new("Dov Hoenig", "Editor")]);
+    }
+
+    [Fact]
+    public void Normalizing_puts_the_crew_in_credit_order()
+    {
+        var details = new MovieDetails
+        {
+            Title = "Heat",
+            Crew =
+            [
+                new("Somebody Else", "Thanks"),
+                new("Kathy Shorkey", "Makeup Artist", "Costume & Make-Up"),
+                new("Stunt Person", "Stunts", "Stunts"),
+                new("Gusmano Cesaretti", "Associate Producer", "Production"),
+                new("Arnon Milchan", "Executive Producer", "Production"),
+                new("Dante Spinotti", "Director of Photography", "Camera"),
+                new("Art Linson", "Producer", "Production"),
+                new("Michael Mann", "Producer", "Production"),
+                new("Michael Mann", "Screenplay", "Writing"),
+                new("Animal Wrangler", "Animal Wrangler", "Animals"),
+            ],
+        }.Normalized();
+
+        details.Crew.Select(c => $"{c.Department}: {c.Name}, {c.Job}").ShouldBe(
+        [
+            "Writing: Michael Mann, Screenplay",
+            "Production: Art Linson, Producer",
+            "Production: Michael Mann, Producer",
+            "Production: Arnon Milchan, Executive Producer",
+            "Production: Gusmano Cesaretti, Associate Producer",
+            "Camera: Dante Spinotti, Director of Photography",
+            "Costume & Make-Up: Kathy Shorkey, Makeup Artist",
+            "Animals: Animal Wrangler, Animal Wrangler",
+            "Stunts: Stunt Person, Stunts",
+            ": Somebody Else, Thanks",
+        ]);
+    }
+
+    [Fact]
+    public void Headline_names_are_listed_once_each_in_the_order_of_their_jobs()
+    {
+        IReadOnlyList<CrewMember> crew =
+        [
+            new("Eric Roth", "Story", "Writing"),
+            new("Michael Mann", "Screenplay", "Writing"),
+            new("Michael Mann", "Story", "Writing"),
+            new("Art Linson", "Producer", "Production"),
+        ];
+
+        CrewCredits.NamesFor(crew, CrewCredits.WritingJobs).ShouldBe(["Michael Mann", "Eric Roth"]);
+        CrewCredits.NamesFor(crew, CrewCredits.Editor).ShouldBeEmpty();
+        crew.Count(CrewCredits.IsHeadline).ShouldBe(4);
+        CrewCredits.IsHeadline(new("Neil Spisak", "Production Design", "Art")).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Normalizing_drops_empty_cast_rows_and_trims_names_and_roles()
     {
         var details = new MovieDetails

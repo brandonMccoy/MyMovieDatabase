@@ -111,4 +111,4 @@ public sealed record MovieLookupResult
 }
 
 /// <param name="Owned">The film in the collection with the same TMDB id, if there is one.</param>
-public sealed record MovieMatch(MovieDetails Details, Movie? Owned);
+public sealed record MovieMatch(MovieDetails Details, MovieListing? Owned);

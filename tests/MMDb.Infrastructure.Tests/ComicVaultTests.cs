@@ -48,9 +48,9 @@ public sealed class ComicVaultTests : IDisposable
     }
 
     private static VaultContent Shelf(IEnumerable<Comic> comics, IEnumerable<ComicSeries>? series = null, IEnumerable<Movie>? movies = null) =>
-        new([.. movies ?? []], [.. comics], [.. series ?? []]);
+        new([.. (movies ?? []).Select(m => m.Listing)], [.. comics], [.. series ?? []]);
 
-    private Task SyncAsync(params Comic[] comics) => _writer.SyncAsync(Folder, Shelf(comics, [Saga]), Ct);
+    private Task SyncAsync(params Comic[] comics) => _writer.SyncAsync(Folder, Shelf(comics, [Saga]), [], Ct);
 
     private string Read(string relative) => File.ReadAllText(_vault[relative]);
 
@@ -109,7 +109,7 @@ public sealed class ComicVaultTests : IDisposable
             Copy(TestComics.SagaVolume1),
         };
 
-        await _writer.SyncAsync(Folder, Shelf(comics, [Saga], [heat]), Ct);
+        await _writer.SyncAsync(Folder, Shelf(comics, [Saga], [heat]), [heat], Ct);
 
         Verify(Read("_Index.md"));
     }

@@ -56,6 +56,32 @@ public sealed class MovieListTests
     }
 
     [Fact]
+    public async Task Search_finds_the_crew()
+    {
+        await using var shelf = await TestShelf.CreateAsync();
+        await shelf.AddAsync(Film("Heat") with { Crew = [new("Dante Spinotti", "Director of Photography", "Camera")] }, MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Collateral") with { Crew = [new("Dion Beebe", "Director of Photography", "Camera")] }, MediaFormat.Dvd);
+
+        (await TitlesAsync(shelf, new() { Search = "spinotti" })).ShouldBe(["Heat"]);
+        (await TitlesAsync(shelf, new() { Search = "photography" })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Each_word_of_a_search_can_match_the_title_or_someone_in_the_credits()
+    {
+        await using var shelf = await TestShelf.CreateAsync();
+        await shelf.AddAsync(Film("Heat", 1995, directors: ["Michael Mann"], cast: ["Al Pacino"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("The Godfather", 1972, cast: ["Al Pacino"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Volver", 2006, cast: ["Penélope Cruz"]), MediaFormat.Dvd);
+
+        (await TitlesAsync(shelf, new() { Search = "pacino 1995" })).ShouldBe(["Heat"]);
+        (await TitlesAsync(shelf, new() { Search = "godfather pacino" })).ShouldBe(["The Godfather"]);
+        (await TitlesAsync(shelf, new() { Search = "mann pacino" })).ShouldBe(["Heat"]);
+        (await TitlesAsync(shelf, new() { Search = "penelope" })).ShouldBe(["Volver"]);
+        (await TitlesAsync(shelf, new() { Search = "pacino cruz" })).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Search_finds_directors_and_cast()
     {
         await using var shelf = await TestShelf.CreateAsync();

@@ -96,17 +96,6 @@
 }
 .poster .pt { position: relative; font: 400 19px/1.02 var(--serif); color: rgba(255,255,255,.92); text-wrap: balance; overflow-wrap: anywhere; }
 .poster .pd { position: relative; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-top: 6px; }
-/* The overlay lets clicks through to the poster link; only the Trailer button catches them. */
-.cover .hover {
-  position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8,10,13,.55); border-radius: var(--radius-sm);
-  opacity: 0; transition: opacity .15s ease; pointer-events: none;
-}
-.card:hover .hover, .card:focus-within .hover { opacity: 1; }
-.play {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 7px 11px;
-  background: rgba(255,255,255,.95); color: #111; border-radius: 999px; text-decoration: none; pointer-events: auto;
-}
-.play svg { width: 11px; height: 11px; }
 .card .t { display: block; margin-top: 9px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card .m { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; color: var(--muted); font-size: 12.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .fmt {
@@ -148,6 +137,8 @@
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--surface-3); display: grid; place-items: center; font-size: 12px; color: var(--muted); flex: none; }
 .person .n { font-weight: 500; font-size: 13.5px; }
 .person .r { color: var(--muted); font-size: 12.5px; }
+.dept + .dept { margin-top: 22px; }
+.dept .eyebrow { margin-bottom: 10px; }
 
 .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px; }
 .panel + .panel { margin-top: 14px; }
@@ -378,7 +369,6 @@ html:has(.phone-app), body:has(.phone-app) { background: transparent; }
 .phone-app .card .t { font-size: 12px; margin-top: 6px; }
 .phone-app .card .m { font-size: 11px; gap: 3px 5px; }
 .phone-app .card .fmt { font-size: 8.5px; padding: 2px 4px; }
-.phone-app .cover .hover { display: none; }
 .phone-app .series-head { gap: 4px 10px; }
 .phone-app .series-head h3 { font-size: 21px; }
 .phone-app .series-head .progress { margin-left: 0; flex-basis: 100%; justify-content: space-between; }

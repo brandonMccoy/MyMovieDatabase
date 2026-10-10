@@ -173,6 +173,18 @@ public sealed class VaultSyncTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_sync_is_given_every_film_with_its_credits()
+    {
+        await _shelf.AddAsync(TestMovies.HeatOnTmdb, MediaFormat.Dvd);
+        await _shelf.AddAsync(TestMovies.Titled("Alien", 1979), MediaFormat.BluRay);
+
+        await SetFolderAsync(Folder);
+
+        _shelf.Vault.SyncedFilms.ShouldBe(
+            [("Heat", TestMovies.Heat.Cast.Count + TestMovies.HeatCrew.Count), ("Alien", 0)], ignoreOrder: true);
+    }
+
+    [Fact]
     public async Task Rebuild_writes_the_whole_collection_again()
     {
         await SetFolderAsync(Folder);
