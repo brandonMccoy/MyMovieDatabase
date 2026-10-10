@@ -63,6 +63,7 @@ public static class MauiProgram
             },
             CoverFolder.BaseUri);
         builder.Services.AddSingleton<IFolderPicker, WindowsFolderPicker>();
+        builder.Services.AddSingleton<IVideoFilePicker, WindowsFilePicker>();
 #endif
 
 #if DEBUG
@@ -79,6 +80,10 @@ public static class MauiProgram
 
         // Catch the vault up in the background; how it went shows in the sidebar.
         _ = Task.Run(() => app.Services.GetRequiredService<IVaultApi>().StartAsync());
+
+        // Read the movie folder for files that arrived, moved or went while Shelf was closed, then watch it.
+        // TMDB isn't asked until the import screen is opened.
+        _ = Task.Run(() => app.Services.GetRequiredService<IDigitalApi>().StartAsync());
 
         // Covers the wishlist is still missing (wanted while offline) are tried for again; they show up when they arrive.
         _ = Task.Run(() => ((InProcessCollectionApi)app.Services.GetRequiredService<ICollectionApi>()).FetchMissingWishlistCoversAsync());

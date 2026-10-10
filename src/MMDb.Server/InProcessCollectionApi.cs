@@ -108,6 +108,9 @@ public sealed class InProcessCollectionApi(IServiceScopeFactory scopes, CoverLin
     public Task<int> FetchMissingWishlistCoversAsync(CancellationToken cancellationToken = default) =>
         Saved(With<WishlistCatalog, int>(wishlist => wishlist.FetchMissingCoversAsync(cancellationToken)), got => got > 0 ? SaveStatus.Saved : SaveStatus.NotFound);
 
+    /// <summary>Tells open screens of a change made past this API (films added by the folder import).</summary>
+    internal void RaiseChanged() => Changed?.Invoke();
+
     private async Task<TResult> Saved<TResult>(Task<TResult> saving, Func<TResult, SaveStatus> status)
     {
         var result = await saving;

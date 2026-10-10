@@ -30,12 +30,16 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
     // Theatrical first, then limited, premiere and home releases.
     private static readonly int[] ReleaseTypePreference = [3, 2, 1, 4, 5, 6];
 
-    public async Task<IReadOnlyList<int>> SearchAsync(string title, int? year, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<int>> SearchAsync(string title, int? year, CancellationToken cancellationToken = default) =>
+        [.. (await FindAsync(title, year, cancellationToken)).Select(hit => hit.TmdbId)];
+
+    public async Task<IReadOnlyList<MovieHit>> FindAsync(string title, int? year, CancellationToken cancellationToken = default)
     {
         var query = $"search/movie?query={Uri.EscapeDataString(title)}&include_adult=false&language={settings.Language}&page=1"
             + (year is { } y ? string.Create(CultureInfo.InvariantCulture, $"&year={y}") : "");
         var page = await GetAsync<SearchPage>(query, cancellationToken);
-        return [.. (page?.Results ?? []).Select(r => r.Id)];
+        return [.. (page?.Results ?? []).Select(r => new MovieHit(
+            r.Id, r.Title ?? "", YearOf(r.ReleaseDate), r.PosterPath, r.OriginalTitle is { Length: > 0 } original && original != r.Title ? original : null))];
     }
 
     public async Task<MovieDetails?> GetAsync(int tmdbId, CancellationToken cancellationToken = default)
@@ -81,7 +85,10 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
 
     private sealed record SearchPage(List<SearchResult>? Results);
 
-    private sealed record SearchResult(int Id);
+    private sealed record SearchResult(int Id, string? Title, string? OriginalTitle, string? ReleaseDate, string? PosterPath);
+
+    private static int? YearOf(string? releaseDate) =>
+        releaseDate is { Length: >= 4 } date && int.TryParse(date.AsSpan(0, 4), CultureInfo.InvariantCulture, out var year) ? year : null;
 
     private sealed record TmdbMovie(
         int Id,
@@ -99,7 +106,7 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
         {
             TmdbId = Id,
             Title = Title ?? "",
-            Year = ReleaseDate is { Length: >= 4 } date && int.TryParse(date.AsSpan(0, 4), CultureInfo.InvariantCulture, out var year) ? year : null,
+            Year = YearOf(ReleaseDate),
             RuntimeMinutes = Runtime is > 0 ? Runtime : null,
             Overview = Overview,
             PosterPath = PosterPath,

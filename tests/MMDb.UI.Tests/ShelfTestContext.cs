@@ -32,6 +32,7 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
         Online.ReplaceIn(Services);
         Services.Replace(ServiceDescriptor.Singleton<IVaultWriter>(Vault));
         Services.AddSingleton<IFolderPicker>(FolderPicker);
+        Services.AddSingleton<IVideoFilePicker>(FilePicker);
     }
 
     protected static readonly Uri CoverBase = new("https://covers.test/");
@@ -44,10 +45,19 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 
     protected FakeFolderPicker FolderPicker { get; } = new();
 
+    protected FakeFilePicker FilePicker { get; } = new();
+
+    protected IDigitalApi Digital => Services.GetRequiredService<IDigitalApi>();
+
     /// <summary>An empty folder that exists, to choose as the vault.</summary>
     protected string VaultFolder => _vaultFolder.Path;
 
     private readonly TempFolder _vaultFolder = new();
+
+    /// <summary>An empty folder that exists, to choose as the movie folder and put video files in.</summary>
+    protected string MoviesFolder => _moviesFolder.Path;
+
+    private readonly TempFolder _moviesFolder = new();
 
     protected IVaultApi VaultApi => Services.GetRequiredService<IVaultApi>();
 
@@ -84,6 +94,7 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
         await base.DisposeAsync();
         _sqlite.Dispose();
         _vaultFolder.Dispose();
+        _moviesFolder.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -126,6 +137,14 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 
     /// <summary>The current location relative to the app root, e.g. <c>movies/…</c> or <c>?q=heat</c>.</summary>
     protected string RelativeLocation => Navigation.ToBaseRelativePath(Navigation.Uri);
+}
+
+/// <summary>Answers the open-a-file dialog with <see cref="Answer"/> (<see langword="null"/>: cancelled).</summary>
+public sealed class FakeFilePicker : IVideoFilePicker
+{
+    public string? Answer { get; set; }
+
+    public Task<string?> PickVideoFileAsync() => Task.FromResult(Answer);
 }
 
 /// <summary>Answers the folder dialog with <see cref="Answer"/> (<see langword="null"/>: cancelled).</summary>

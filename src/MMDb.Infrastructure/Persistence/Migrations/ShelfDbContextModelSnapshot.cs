@@ -406,6 +406,20 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.ToTable("Settings", (string)null);
                 });
 
+            modelBuilder.Entity("MMDb.Infrastructure.Persistence.SkippedFile", b =>
+                {
+                    b.Property<string>("Path")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTimeOffset>("SkippedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Path");
+
+                    b.ToTable("SkippedFiles", (string)null);
+                });
+
             modelBuilder.Entity("MMDb.Domain.Movies.Movie", b =>
                 {
                     b.OwnsMany("MMDb.Domain.Movies.MovieFormat", "Formats", b1 =>

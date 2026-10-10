@@ -22,7 +22,7 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Wishlist alert on scan:** an amber banner over the camera as soon as a scan matches the wishlist, repeated on the review screen; saving removes it from the wishlist. Also works away from home (marked "likely").
 - **Digital format:** the fourth format. Digital copies store the file path; **Play file** opens it on the PC.
 
-- **Digital import:** one movie folder (set in the import screen). Files are matched to TMDB by file name; clear matches are pre-ticked and unclear ones wait for review. Files for a film already owned on disc add Digital to it. **Watch folder** on: new files appear for review automatically.
+- **Digital import:** one movie folder (set in the import screen). Files are matched to TMDB by file name; clear matches are pre-ticked and unclear ones wait for review. Files for a film already owned on disc add Digital to it. **Watch folder** on: new files appear for review automatically. (Built in milestone 6b; see below.)
 
 - **Settings:** approved as mocked: phone pairing (QR + code, paired devices), vault folder + rebuild, online-database status. The movie folder for digital import lives here too.
 - **Claude + vault:** Shelf itself uses no AI. The user asks questions by opening Claude Code in the vault (their subscription). The app may later pass questions to the local Claude Code program.
@@ -102,6 +102,26 @@ Settled while building it (2026-10-10):
 - **Item pages:** a wishlist row's cover and title open the item's own page, laid out like a film's or a comic's page and read-only (the missing tiles in a series don't link anywhere). It shows what TMDB or Metron knows (overview, cast and crew; story, creators, summary), fetched when the page opens. A film's page has a "Format wanted" panel where the format can be changed; formats already owned can't be chosen.
 - **Late covers:** each time the PC starts, covers the wishlist is still missing are tried for again.
 - **Not built:** the mockup's "Key issue" tag on a wishlist row (key issues are marked by hand on comics owned; a wish has no editor).
+
+## Milestone 6b (decided 2026-10-10)
+Screens as built: [m6b-preview](m6b-preview).
+- **Getting there:** from Settings only. Settings has a "Digital movies" section (movie folder + Change, the watch switch, "N video files · N new · N missing", **Review files**). The sidebar's footer shows "N new files" while files wait, and that line opens the import screen. No sidebar entry and no button on the Movies screen. The import screen's back button reads "Settings".
+- **Import screen:** as mocked (folder row, watch switch, the four counts, chips All / Needs review / Matched, a row per file with tick box, file name, film, state and action; "Add N movies" in the top bar). Each row also has **Skip**.
+- **Files you don't want:** Skip takes a file off the list and it stays away on later scans. A "Skipped" chip (shown once something is skipped) lists them, each with "Bring back".
+- **Second file for a film:** a film keeps one file. A file for a film that already has one reads "you already have a file for this film", can't be ticked, and offers "Use this file instead" or Skip.
+- **Missing files:** the film's page says "File not found" in place of Play file. A "Missing" chip on the import screen (shown when there are any) lists those films, each with "Choose file" and "Remove Digital copy". A file moved inside the folder that keeps its name is linked again without asking.
+
+Settled while building it (2026-10-10):
+- **Picking a match:** "Pick match", "Change" and "Search…" open a picker under the row: a search box holding the title read from the file name, and the films found (poster, title, year). Picking one ticks the file.
+- **Under the film's title:** the year, then what adding does: "adds Digital to your Blu-ray and DVD", "adds the file to your Digital copy", "you already have a file for this film", "same film as <the other file>". A guess with several candidates reads "N possible matches" instead.
+- **Two new files for one film:** the first is ticked; the second says "same film as …" and is left unticked ("Check this").
+- **Use this file instead:** the file the film had is skipped at once, so it doesn't come back asking the same question.
+- **Remove Digital copy:** removes the Digital format. For a film owned only digitally that deletes the film, so it asks first, like Delete on a film's page.
+- **Matched means:** the name's title and year are one film's (a year either side counts: TMDB dates some films by a festival). When several films share the title and year (TMDB lists shorts named like well-known films, e.g. two "Arrival" from 2016), TMDB's first is taken. Found on the first real run.
+- **Nothing reviewed twice:** a bulk import doesn't open the editor per film; films come in as TMDB has them and can be edited afterwards.
+- **Play file:** a button under the file's path in "Formats owned" (the mockup had it on the badge's row, where it crowds out "Added Oct 2026" in the narrow panel). Only video files are opened. If the PC has no player for the file it says so.
+- **TMDB is only asked on the import screen:** the scan at startup and the watcher only count files, so the "N new files" line costs no lookups.
+- **Not built:** hiding samples or extras by themselves (they show up once and are skipped by hand); several files per film; a sidebar line for missing files.
 
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.

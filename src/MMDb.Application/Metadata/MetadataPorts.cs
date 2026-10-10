@@ -10,11 +10,23 @@ public interface IMovieMetadata
     /// <exception cref="MetadataException">The database could not be asked.</exception>
     Task<IReadOnlyList<int>> SearchAsync(string title, int? year, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The films matching a title as the search itself lists them, best match first: enough to show and tell
+    /// matches apart without fetching each film (see <see cref="GetAsync"/>).
+    /// </summary>
+    /// <exception cref="MetadataException">The database could not be asked.</exception>
+    Task<IReadOnlyList<MovieHit>> FindAsync(string title, int? year, CancellationToken cancellationToken = default);
+
     /// <summary>One film's details, ready to edit: TMDB id, trailer and poster path included.</summary>
     /// <returns><see langword="null"/> if the database has no such film.</returns>
     /// <exception cref="MetadataException">The database could not be asked.</exception>
     Task<MovieDetails?> GetAsync(int tmdbId, CancellationToken cancellationToken = default);
 }
+
+/// <summary>A film in a search's results.</summary>
+/// <param name="OriginalTitle">The title in the film's own language, when it differs.</param>
+/// <param name="PosterPath">See <see cref="MovieDetails.PosterPath"/>.</param>
+public sealed record MovieHit(int TmdbId, string Title, int? Year, string? PosterPath = null, string? OriginalTitle = null);
 
 /// <summary>Port: a barcode database that names retail products (UPCitemdb).</summary>
 public interface IBarcodeLookup

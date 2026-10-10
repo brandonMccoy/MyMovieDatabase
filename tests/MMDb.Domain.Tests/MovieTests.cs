@@ -200,4 +200,54 @@ public sealed class MovieTests
         movie.PosterPath.ShouldBe("/heat.jpg");
         movie.Details.PosterPath.ShouldBe("/heat.jpg");
     }
+
+    [Fact]
+    public void Linking_a_file_adds_a_digital_copy_to_a_film_owned_on_disc()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Dvd, Upc: "786936894424")], Jan2019);
+
+        movie.LinkFile(@"D:\Movies\Heat (1995).mkv", Mar2025);
+
+        movie.Formats.Select(f => (f.Format, f.FilePath, f.AddedAt)).ShouldBe(
+            [(MediaFormat.Dvd, null, Jan2019), (MediaFormat.Digital, @"D:\Movies\Heat (1995).mkv", Mar2025)]);
+        movie.Formats[0].Upc.ShouldBe(Upc.Parse("786936894424"));
+        movie.Version.ShouldBe(2);
+        movie.UpdatedAt.ShouldBe(Mar2025);
+    }
+
+    [Fact]
+    public void Linking_a_file_to_a_digital_copy_replaces_its_file_and_keeps_when_it_was_added()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Digital, FilePath: @"D:\Movies\heat.avi")], Jan2019);
+
+        movie.LinkFile(@" D:\Movies\Heat.1995.2160p.mkv ", Mar2025);
+
+        var digital = movie.Formats.ShouldHaveSingleItem();
+        digital.FilePath.ShouldBe(@"D:\Movies\Heat.1995.2160p.mkv");
+        digital.AddedAt.ShouldBe(Jan2019);
+        movie.Version.ShouldBe(2);
+    }
+
+    [Fact]
+    public void Removing_a_format_leaves_the_others()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Dvd), new(MediaFormat.Digital, FilePath: @"D:\Movies\heat.mkv")], Jan2019);
+
+        movie.RemoveFormat(MediaFormat.Digital, Mar2025).ShouldBeTrue();
+
+        movie.Formats.ShouldHaveSingleItem().Format.ShouldBe(MediaFormat.Dvd);
+        movie.Version.ShouldBe(2);
+    }
+
+    [Fact]
+    public void The_only_format_and_a_format_not_owned_cannot_be_removed()
+    {
+        var movie = Movie.Create(Heat, [new(MediaFormat.Digital)], Jan2019);
+
+        movie.RemoveFormat(MediaFormat.Digital, Mar2025).ShouldBeFalse();
+        movie.RemoveFormat(MediaFormat.Dvd, Mar2025).ShouldBeFalse();
+
+        movie.Owns(MediaFormat.Digital).ShouldBeTrue();
+        movie.Version.ShouldBe(1);
+    }
 }

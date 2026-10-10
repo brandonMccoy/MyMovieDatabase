@@ -1,0 +1,67 @@
+@* The movie folder and its watch switch: rows of a settings section, in Settings and on the import screen. *@
+@implements IDisposable
+@inject IDigitalApi Digital
+@inject IServiceProvider Services
+
+@{
+    var folder = Digital.Folder;
+}
+<div class="setrow">
+    <span class="lbl">Movie folder</span>
+    <div class="input folder @(folder.Folder is null ? "unset" : null)">@(folder.Folder ?? "Not set")</div>
+    @if (_picker is not null)
+    {
+        <button type="button" class="btn sm choose-movies" disabled="@_choosing" @onclick="ChooseAsync">
+            @(folder.Folder is null ? "Choose folder" : "Change")
+        </button>
+    }
+</div>
+@if (_missingChoice is not null)
+{
+    <div class="setrow"><span></span><span class="warn">@_missingChoice isn't there any more. Choose another folder.</span><span></span></div>
+}
+else if (folder.State == MovieFolderState.FolderMissing)
+{
+    <div class="setrow"><span></span><span class="warn">Folder not found. Reconnect its drive, or choose the folder again.</span><span></span></div>
+}
+@if (folder.Folder is not null)
+{
+    <div class="setrow">
+        <span class="lbl">Watch for new files</span>
+        <span class="small">New files dropped in this folder show up for review</span>
+        <button type="button" role="switch" class="switch-ui @(folder.Watch ? "on" : null)" aria-checked="@Aria.Bool(folder.Watch)"
+                aria-label="Watch for new files" @onclick="() => Digital.SetWatchAsync(!folder.Watch)"><i></i></button>
+    </div>
+}
+
+@code {
+    private IFolderPicker? _picker;
+    private bool _choosing;
+    private string? _missingChoice;
+
+    protected override void OnInitialized()
+    {
+        _picker = Services.GetService<IFolderPicker>();
+        Digital.Changed += OnChanged;
+    }
+
+    private async Task ChooseAsync()
+    {
+        _choosing = true;
+        try
+        {
+            if (await _picker!.PickFolderAsync() is { } folder)
+            {
+                _missingChoice = await Digital.SetFolderAsync(folder) ? null : folder;
+            }
+        }
+        finally
+        {
+            _choosing = false;
+        }
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Digital.Changed -= OnChanged;
+}

@@ -41,6 +41,8 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
 {
     private readonly SemaphoreSlim _turn = new(1, 1);
     private volatile VaultStatus _status = new() { State = VaultState.NotSetUp };
+    private int _held;
+    private bool _missed;
 
     public event Action? Changed;
 
@@ -79,6 +81,21 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
         }
     }
 
+    /// <summary>
+    /// Many saves are coming (a folder of films being imported): until <see cref="ReleaseAsync"/>, changes aren't
+    /// written one by one, each with the index and the other shared files, but all at once at the end.
+    /// </summary>
+    internal void Hold() => Interlocked.Increment(ref _held);
+
+    /// <summary>Ends a <see cref="Hold"/> and writes what changed meanwhile.</summary>
+    internal async Task ReleaseAsync(VaultContentSource source)
+    {
+        if (Interlocked.Decrement(ref _held) == 0 && Interlocked.Exchange(ref _missed, false) && Status.Folder is { } folder)
+        {
+            await SyncAsync(folder, source, CancellationToken.None);
+        }
+    }
+
     internal Task MovieSavedAsync(Movie movie, VaultContentSource source) =>
         ChangeAsync((folder, all) => writer.WriteMovieAsync(folder, movie, all), source);
 
@@ -98,6 +115,12 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
     {
         if (Status.Folder is null)
         {
+            return;
+        }
+
+        if (Volatile.Read(ref _held) > 0)
+        {
+            Volatile.Write(ref _missed, true);
             return;
         }
 

@@ -56,11 +56,29 @@
                 }
             </section>
         }
+        @if (_digital is not null)
+        {
+            var movies = _digital.Folder;
+            <section class="set" aria-labelledby="digital-heading">
+                <h3 id="digital-heading">Digital movies</h3>
+                <div class="desc">Shelf looks in one folder for video files and matches them to films by their names.</div>
+                <MovieFolder />
+                @if (movies.State == MovieFolderState.Ready)
+                {
+                    <div class="setrow">
+                        <span class="lbl">Files</span>
+                        <span class="sync-state files-state">@Files(movies)</span>
+                        <a class="btn sm review-files" href="import">Review files</a>
+                    </div>
+                }
+            </section>
+        }
     </div>
 </div>
 
 @code {
     private IVaultApi? _vault;
+    private IDigitalApi? _digital;
     private IFolderPicker? _picker;
     private bool _choosing;
     private string? _missingChoice;
@@ -72,6 +90,12 @@
         if (_vault is not null)
         {
             _vault.StatusChanged += OnChanged;
+        }
+
+        _digital = Services.GetService<IDigitalApi>();
+        if (_digital is not null)
+        {
+            _digital.Changed += OnChanged;
         }
     }
 
@@ -102,10 +126,25 @@
         _ => $"Couldn't write to the vault: {status.Detail}",
     };
 
+    // "231 video files · 3 new · 1 missing"
+    private static string Files(MovieFolderDto movies) => string.Join(" · ", new[]
+    {
+        movies.VideoFileCount == 1 ? "1 video file" : $"{Number(movies.VideoFileCount)} video files",
+        movies.Files.Count > 0 ? $"{Number(movies.Files.Count)} new" : null,
+        movies.Missing.Count > 0 ? $"{Number(movies.Missing.Count)} missing" : null,
+    }.OfType<string>());
+
+    private static string Number(int count) => count.ToString("N0", CultureInfo.InvariantCulture);
+
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
+        if (_digital is not null)
+        {
+            _digital.Changed -= OnChanged;
+        }
+
         if (_vault is not null)
         {
             _vault.StatusChanged -= OnChanged;

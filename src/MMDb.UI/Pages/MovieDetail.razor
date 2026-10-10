@@ -127,6 +127,7 @@ else if (_movie is not null)
                 <h3>Formats owned @if (!Device.IsPhone) {<a href="movies/@_movie.Id/edit">+ Add format</a>}</h3>
                 @foreach (var format in _movie.Formats)
                 {
+                    var file = format.Format == MovieFormatKind.Digital && _digital is not null ? format.FilePath : null;
                     <div class="owned">
                         <FormatBadge Format="format.Format" />
                         <span class="small">Added @MonthYear(format.AddedAt)</span>
@@ -138,6 +139,18 @@ else if (_movie is not null)
                     @if (format.FilePath is not null)
                     {
                         <div class="mono owned-code">@format.FilePath</div>
+                        @if (file is not null && !_fileThere)
+                        {
+                            <div class="warn file-problem">File not found</div>
+                        }
+                        else if (file is not null)
+                        {
+                            <button type="button" class="btn sm play" @onclick="PlayAsync"><Icon Name="play" />Play file</button>
+                            @if (_playFailed)
+                            {
+                                <div class="warn file-problem">Couldn't open the file. Check that this PC has a player for it.</div>
+                            }
+                        }
                     }
                 }
             </div>
@@ -156,6 +169,9 @@ else if (_movie is not null)
 @code {
     private MovieDto? _movie;
     private VaultNoteDto? _note;
+    private IDigitalApi? _digital;
+    private bool _fileThere;
+    private bool _playFailed;
     private bool _loaded;
     private bool _menuOpen;
     private bool _confirmingDelete;
@@ -174,7 +190,23 @@ else if (_movie is not null)
     {
         _movie = await Api.GetMovieAsync(Id);
         _note = _movie is null ? null : Services.GetService<IVaultApi>()?.NoteFor(Id);
+
+        // The PC plays a digital copy's file; the phone has no way to the file.
+        _digital = Services.GetService<IDigitalApi>();
+        _playFailed = false;
+        CheckFile();
         _loaded = true;
+    }
+
+    private void CheckFile() =>
+        _fileThere = _digital is not null
+            && _movie?.Formats.FirstOrDefault(f => f.Format == MovieFormatKind.Digital)?.FilePath is { } path
+            && _digital.FileExists(path);
+
+    private async Task PlayAsync()
+    {
+        _playFailed = !await _digital!.PlayAsync(Id);
+        CheckFile();
     }
 
     private void AskToDelete()

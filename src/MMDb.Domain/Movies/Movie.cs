@@ -127,6 +127,43 @@ public sealed class Movie : ProductBase
         return [.. added.Select(f => f.Format).Order()];
     }
 
+    /// <summary>
+    /// Points the film's digital copy at a video file on the PC. A film not owned digitally yet now is; one that
+    /// is has its file replaced.
+    /// </summary>
+    public void LinkFile(string path, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (_formats.Find(f => f.Format == MediaFormat.Digital) is { } digital)
+        {
+            digital.MoveTo(path);
+        }
+        else
+        {
+            _formats.Add(new MovieFormat(new FormatDetails(MediaFormat.Digital, FilePath: path), now));
+        }
+
+        Touch(now);
+    }
+
+    /// <summary>Stops owning the film on one format.</summary>
+    /// <returns>
+    /// <see langword="false"/> (and nothing changed) if the film isn't owned on it, or on nothing else: a film
+    /// in the collection is owned on at least one format.
+    /// </returns>
+    public bool RemoveFormat(MediaFormat format, DateTimeOffset now)
+    {
+        if (!Owns(format) || _formats.Count == 1)
+        {
+            return false;
+        }
+
+        _formats.RemoveAll(f => f.Format == format);
+        Touch(now);
+        return true;
+    }
+
     public bool Owns(MediaFormat format) => _formats.Exists(f => f.Format == format);
 
     private void Apply(MovieDetails details)

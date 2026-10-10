@@ -25,6 +25,9 @@ public interface IMovieRepository
     /// <summary>Read-only: the films linked to any of these TMDB ids.</summary>
     Task<IReadOnlyList<MovieListing>> ListByTmdbIdsAsync(IReadOnlyCollection<int> tmdbIds, CancellationToken cancellationToken = default);
 
+    /// <summary>Read-only: the films owned digitally, each with its video file if it has one.</summary>
+    Task<IReadOnlyList<DigitalCopy>> ListDigitalAsync(CancellationToken cancellationToken = default);
+
     void Add(Movie movie);
 
     void Remove(Movie movie);
@@ -32,6 +35,12 @@ public interface IMovieRepository
     /// <exception cref="ConcurrencyConflictException">The movie was changed or deleted by someone else since it was loaded.</exception>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>A film's digital copy: what the folder import needs to know of it.</summary>
+/// <param name="FilePath">The video file on the PC, if one is linked.</param>
+/// <param name="Formats">Every format the film is owned on, Digital included.</param>
+public sealed record DigitalCopy(
+    Guid MovieId, string Title, int? Year, string? FilePath, IReadOnlyList<MediaFormat> Formats, int? TmdbId = null, string? CoverImage = null);
 
 /// <summary>A save lost the race with another change to the same product.</summary>
 public sealed class ConcurrencyConflictException(string message, Exception? innerException = null)

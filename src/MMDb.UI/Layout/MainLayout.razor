@@ -44,6 +44,13 @@
                     }
                 </div>
             }
+            @if (_digital?.Folder.Files.Count is > 0 and var waiting)
+            {
+                <a class="vault-line new-files" href="import">
+                    <Icon Name="film" Class="i12" />
+                    <span>@(waiting == 1 ? "1 new file" : $"{waiting.ToString("N0", CultureInfo.InvariantCulture)} new files")</span>
+                </a>
+            }
             <nav class="nav">
                 <NavLink href="settings"><Icon Name="gear" />Settings</NavLink>
             </nav>
@@ -56,9 +63,16 @@
 
 @code {
     private IVaultApi? _vault;
+    private IDigitalApi? _digital;
 
     protected override async Task OnInitializedAsync()
     {
+        _digital = Services.GetService<IDigitalApi>();
+        if (_digital is not null)
+        {
+            _digital.Changed += OnChanged;
+        }
+
         _vault = Services.GetService<IVaultApi>();
         if (_vault is not null)
         {
@@ -74,6 +88,10 @@
     public void Dispose()
     {
         Counts.Changed -= OnChanged;
+        if (_digital is not null)
+        {
+            _digital.Changed -= OnChanged;
+        }
         if (_vault is not null)
         {
             _vault.StatusChanged -= OnChanged;

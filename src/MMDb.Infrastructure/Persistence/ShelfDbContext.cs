@@ -25,6 +25,8 @@ public sealed class ShelfDbContext(DbContextOptions<ShelfDbContext> options) : D
 
     internal DbSet<Setting> Settings => Set<Setting>();
 
+    internal DbSet<SkippedFile> SkippedFiles => Set<SkippedFile>();
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         IndexPeople(onlyMissing: false);

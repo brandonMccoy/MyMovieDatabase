@@ -2,6 +2,7 @@ using MMDb.Application.Covers;
 using MMDb.Application.Metadata;
 using MMDb.Application.Vault;
 using MMDb.Application.Wishlist;
+using MMDb.Domain;
 using MMDb.Domain.Movies;
 using MMDb.Domain.Wishlist;
 
@@ -85,6 +86,45 @@ public sealed class MovieCatalog(
 
         movie.Update(details, formats, clock.GetUtcNow());
         return await SaveAsync(movie, cancellationToken);
+    }
+
+    /// <summary>
+    /// Points a film's digital copy at a video file on the PC; a film not owned digitally yet now is. Its
+    /// details are left as they are.
+    /// </summary>
+    /// <param name="replace">Whether a file the film already has may be swapped for this one.</param>
+    /// <returns><see cref="SaveMovieResult.AlreadyOwned"/> if the film has another file and it may not be replaced.</returns>
+    public async Task<SaveMovieResult> LinkFileAsync(Guid id, string path, bool replace, CancellationToken cancellationToken = default)
+    {
+        var movie = await movies.FindAsync(id, cancellationToken);
+        if (movie is null)
+        {
+            return new SaveMovieResult.NotFound();
+        }
+
+        var current = movie.Formats.FirstOrDefault(f => f.Format == MediaFormat.Digital)?.FilePath;
+        if (current is not null && !replace && !string.Equals(current, path, StringComparison.OrdinalIgnoreCase))
+        {
+            return new SaveMovieResult.AlreadyOwned(movie);
+        }
+
+        movie.LinkFile(path, clock.GetUtcNow());
+        return await SaveAsync(movie, cancellationToken);
+    }
+
+    /// <summary>Stops owning a film on one format; its other formats and details stay.</summary>
+    /// <returns><see cref="SaveMovieResult.Invalid"/> if it is the only format the film is owned on, or it isn't owned on it.</returns>
+    public async Task<SaveMovieResult> RemoveFormatAsync(Guid id, MediaFormat format, CancellationToken cancellationToken = default)
+    {
+        var movie = await movies.FindAsync(id, cancellationToken);
+        if (movie is null)
+        {
+            return new SaveMovieResult.NotFound();
+        }
+
+        return movie.RemoveFormat(format, clock.GetUtcNow())
+            ? await SaveAsync(movie, cancellationToken)
+            : new SaveMovieResult.Invalid(FormatDetails.ValidateSet([]));
     }
 
     /// <returns><see langword="false"/> if there was no such movie.</returns>

@@ -1,0 +1,66 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/TU9NIjwzjoKPwQHoHshkFcQUCG.jpg",
+      "genre_ids": [
+        35,
+        53,
+        18
+      ],
+      "id": 496243,
+      "title": "Parasite",
+      "original_language": "ko",
+      "original_title": "기생충",
+      "overview": "All unemployed, Ki-taek's family takes peculiar interest in the wealthy and glamorous Parks for their livelihood until they get entangled in an unexpected incident.",
+      "popularity": 34.14,
+      "poster_path": "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
+      "release_date": "2019-05-30",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.49,
+      "vote_count": 21460
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/sRQgHkE5Z1wPK8wvVcVjbNBtI6h.jpg",
+      "genre_ids": [
+        27
+      ],
+      "id": 1100466,
+      "title": "Sealed Video 44: Parasite",
+      "original_language": "ja",
+      "original_title": "封印映像44 寄生虫",
+      "overview": "44th entry in the 'Sealed Video' franchise from the production team of 'Honto ni Atta. Noroi no Video'.",
+      "popularity": 0.5883,
+      "poster_path": "/7lUu9vV2tgH2ZGbBaIo5vSLvFle.jpg",
+      "release_date": "2019-12-04",
+      "softcore": false,
+      "video": false,
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        16
+      ],
+      "id": 1309516,
+      "title": "More Animated Worker and Parasite",
+      "original_language": "en",
+      "original_title": "More Animated Worker and Parasite",
+      "overview": "\"The follow up to my previous silly video where Worker and Parasite finally make it home in their Lada\".",
+      "popularity": 0.4447,
+      "poster_path": null,
+      "release_date": "",
+      "softcore": false,
+      "video": false,
+      "vote_average": 7.0,
+      "vote_count": 1
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 3
+}

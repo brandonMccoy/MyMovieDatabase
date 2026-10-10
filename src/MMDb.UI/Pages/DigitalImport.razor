@@ -1,0 +1,430 @@
+@page "/import"
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@implements IDisposable
+@inject IServiceProvider Services
+
+<PageTitle>Import digital movies · Shelf</PageTitle>
+
+@if (_digital is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Not on this device</h1>
+            <p>Digital movies are imported on the PC, where the files are.</p>
+            <a class="btn" href="">Back to movies</a>
+        </div>
+    </div>
+    return;
+}
+
+@{
+    var folder = _digital.Folder;
+    var ticked = folder.Files.Count(f => f.Ticked);
+    var adding = folder.Progress is { Step: ImportStep.Adding };
+}
+<div class="topbar">
+    <a class="btn ghost back" href="settings"><Icon Name="back" />Settings</a>
+    <div class="spacer"></div>
+    <a class="btn" href="settings">Cancel</a>
+    <button type="button" class="btn primary add" disabled="@(ticked == 0 || adding)" @onclick="() => _digital.AddTickedAsync()">
+        @(adding ? $"Adding {Math.Min(folder.Progress!.Done + 1, folder.Progress.Total)} of {folder.Progress.Total}…" : ticked == 0 ? "Add movies" : ticked == 1 ? "Add 1 movie" : $"Add {Number(ticked)} movies")
+    </button>
+</div>
+
+<div class="content">
+    <div class="section-head"><h1>Import digital movies</h1></div>
+    <div class="import-setup">
+        <MovieFolder />
+    </div>
+
+    @if (folder.State == MovieFolderState.NotSetUp)
+    {
+        <p class="small import-intro">
+            Choose the folder where your movie files are. Shelf reads each file's name, finds the film on TMDB and shows the match
+            for you to check. Nothing is added until you say so.
+        </p>
+    }
+    else if (folder.State == MovieFolderState.Ready)
+    {
+        var matched = folder.Files.Count(f => !NeedsReview(f) && f.Match == FileMatch.Matched);
+        var review = folder.Files.Count(NeedsReview);
+        <div class="import-sum" role="status">
+            <span><b>@Number(folder.VideoFileCount)</b> @(folder.VideoFileCount == 1 ? "video file" : "video files") found</span>
+            <span><b>@Number(matched)</b> matched</span>
+            <span><b>@Number(review)</b> @(review == 1 ? "needs" : "need") review</span>
+            <span><b>@Number(folder.LinkedCount)</b> already in collection as Digital</span>
+            @if (folder.Progress is { Step: ImportStep.Matching } looking)
+            {
+                <span class="working">Looking up @Number(looking.Done) of @Number(looking.Total)…</span>
+            }
+        </div>
+
+        <LookupProblem Status="folder.Problem" FailedService="@folder.FailedService">
+            <button type="button" class="btn sm retry" @onclick="() => _digital.MatchAsync()">Try again</button>
+        </LookupProblem>
+
+        <div class="filters" role="group" aria-label="Which files to show">
+            <button type="button" class="chip @On(View.All)" @onclick="() => Show(View.All)">All</button>
+            <button type="button" class="chip @On(View.Review)" @onclick="() => Show(View.Review)">Needs review<span class="n">@Number(review)</span></button>
+            <button type="button" class="chip @On(View.Matched)" @onclick="() => Show(View.Matched)">Matched<span class="n">@Number(matched)</span></button>
+            @if (folder.Skipped.Count > 0 || _view == View.Skipped)
+            {
+                <button type="button" class="chip @On(View.Skipped)" @onclick="() => Show(View.Skipped)">Skipped<span class="n">@Number(folder.Skipped.Count)</span></button>
+            }
+            @if (folder.Missing.Count > 0 || _view == View.Missing)
+            {
+                <button type="button" class="chip @On(View.Missing)" @onclick="() => Show(View.Missing)">Missing<span class="n">@Number(folder.Missing.Count)</span></button>
+            }
+        </div>
+
+        @switch (_view)
+        {
+            case View.Skipped:
+                @foreach (var skipped in folder.Skipped)
+                {
+                    <div class="imp skipped" @key="skipped.Path">
+                        <span class="file" title="@skipped.Path">@skipped.Name</span>
+                        <button type="button" class="btn sm back-in" @onclick="() => _digital.BringBackAsync(skipped.Path)">Bring back</button>
+                    </div>
+                }
+                @if (folder.Skipped.Count == 0)
+                {
+                    <p class="small import-none">No skipped files.</p>
+                }
+                break;
+
+            case View.Missing:
+                @foreach (var missing in folder.Missing)
+                {
+                    <div class="imp gone" @key="missing.MovieId">
+                        <span class="hit">
+                            <Poster Title="@missing.Title" ImageUrl="missing.CoverUrl" />
+                            <a class="ht" href="movies/@missing.MovieId">@missing.Title<span>@missing.Year</span></a>
+                        </span>
+                        <span class="file" title="@missing.Path">@missing.Path</span>
+                        <span class="conf review">File not found</span>
+                        <span class="imp-actions">
+                            @if (_files is not null)
+                            {
+                                <button type="button" class="btn sm locate" @onclick="() => LocateAsync(missing)">Choose file</button>
+                            }
+                            <button type="button" class="btn sm ghost remove-copy" @onclick="() => RemoveAsync(missing)">Remove Digital copy</button>
+                        </span>
+                    </div>
+                    @if (_wrongFile == missing.MovieId)
+                    {
+                        <p class="warn imp-note">That isn't a video file Shelf can link. Choose an .mkv, .mp4, .m4v, .avi, .mov or .wmv file.</p>
+                    }
+                    @if (_removing == missing.MovieId)
+                    {
+                        <div class="confirm" role="alertdialog" aria-label="Delete movie">
+                            <div><b>Delete @missing.Title?</b> Digital is the only format you own it on, so removing the copy removes the film.</div>
+                            <div class="confirm-actions">
+                                <button type="button" class="btn" @onclick="() => _removing = null">Cancel</button>
+                                <button type="button" class="btn danger" @onclick="() => _digital.RemoveCopyAsync(missing.MovieId)">Delete</button>
+                            </div>
+                        </div>
+                    }
+                }
+                @if (folder.Missing.Count == 0)
+                {
+                    <p class="small import-none">No missing files.</p>
+                }
+                break;
+
+            default:
+                ImportFileDto[] files = _view switch
+                {
+                    View.Review => [.. folder.Files.Where(NeedsReview)],
+                    View.Matched => [.. folder.Files.Where(f => !NeedsReview(f) && f.Match == FileMatch.Matched)],
+                    _ => [.. folder.Files],
+                };
+                <div class="imp-list">
+                    <Virtualize Items="files" ItemSize="53" Context="file">
+                        <div class="imp" @key="file.Path">
+                            <button type="button" role="checkbox" class="cb @(file.Ticked ? "on" : null)" aria-checked="@Aria.Bool(file.Ticked)"
+                                    aria-label="Add @file.Name" disabled="@(file.Film is null || file.OwnedFile is not null)"
+                                    @onclick="() => _digital.Tick(file.Path, !file.Ticked)"></button>
+                            <span class="file" title="@file.Path">@file.Name</span>
+                            <span class="arrow" aria-hidden="true">→</span>
+                            <span class="hit">
+                                @if (file.Film is { } film)
+                                {
+                                    <Poster Title="@film.Title" ImageUrl="film.ThumbnailUrl" />
+                                    <span class="ht">@film.Title<span>@Sub(file)</span></span>
+                                }
+                                else
+                                {
+                                    <span class="small">@(file.Match == FileMatch.NoMatch ? "No film found for this file name" : folder.Problem is null ? "Looking up…" : "Not looked up yet")</span>
+                                }
+                            </span>
+                            <span class="conf @ConfClass(file)">@ConfLabel(file)</span>
+                            <span class="imp-actions">
+                                @if (file.OwnedFile is not null)
+                                {
+                                    <button type="button" class="btn sm use" @onclick="() => _digital.UseInsteadAsync(file.Path)">Use this file instead</button>
+                                }
+                                else if (file.Match != FileMatch.Waiting)
+                                {
+                                    <button type="button" class="btn sm pick" aria-expanded="@Aria.Bool(_picking == file.Path)" @onclick="() => TogglePicker(file)">@PickLabel(file)</button>
+                                }
+                                <button type="button" class="btn sm ghost skip" @onclick="() => SkipAsync(file)">Skip</button>
+                            </span>
+                        </div>
+                        @if (_picking == file.Path)
+                        {
+                            <div class="imp-pick">
+                                <form class="lookup-bar" @onsubmit="() => SearchAsync()">
+                                    <div class="search">
+                                        <Icon Name="search" />
+                                        <input type="search" aria-label="Film title" placeholder="Title, with the year to narrow it down…" autocomplete="off"
+                                               @bind="_query" @bind:event="oninput" />
+                                    </div>
+                                    <button type="submit" class="btn sm primary" disabled="@(_searching || string.IsNullOrWhiteSpace(_query))">Search</button>
+                                </form>
+                                @if (_searching)
+                                {
+                                    <p class="small" role="status">Searching…</p>
+                                }
+                                else if (_found is { Status: LookupStatus.NoMatches })
+                                {
+                                    <p class="notice" role="status">No films found on TMDB for “@_searchedFor”.</p>
+                                }
+                                else
+                                {
+                                    <LookupProblem Status="_found?.Status" FailedService="@_found?.FailedService" />
+                                }
+                                <ul class="matches">
+                                    @foreach (var hit in _found?.Hits ?? file.Hits)
+                                    {
+                                        <li @key="hit.TmdbId">
+                                            <button type="button" class="match" @onclick="() => ChooseAsync(file, hit)">
+                                                <Poster Title="@hit.Title" ImageUrl="hit.ThumbnailUrl" />
+                                                <span class="match-text">
+                                                    <span class="mt">@hit.Title</span>
+                                                    <span class="mm">@hit.Year</span>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </Virtualize>
+                </div>
+                @if (files.Length == 0)
+                {
+                    <p class="small import-none">
+                        @(folder.Files.Count > 0 ? "No files here."
+                            : folder.VideoFileCount == 0 ? "No video files in this folder yet."
+                            : "Nothing to review: every video file is in your collection or skipped.")
+                    </p>
+                }
+                break;
+        }
+    }
+</div>
+
+@code {
+    private IDigitalApi? _digital;
+    private IVideoFilePicker? _files;
+    private View _view = View.All;
+    private string? _picking;
+    private string _query = "";
+    private string? _searchedFor;
+    private bool _searching;
+    private FilmSearchResponse? _found;
+    private Guid? _removing;
+    private Guid? _wrongFile;
+    private int _renderWaiting;
+    private bool _closed;
+
+    private enum View
+    {
+        All,
+        Review,
+        Matched,
+        Skipped,
+        Missing,
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _digital = Services.GetService<IDigitalApi>();
+        _files = Services.GetService<IVideoFilePicker>();
+        if (_digital is null)
+        {
+            return;
+        }
+
+        _digital.Changed += OnChanged;
+
+        // Films may have been added, edited or deleted since the last scan. What the scan finds is then looked up.
+        await _digital.RescanAsync();
+        LookUpNewFiles();
+    }
+
+    // A file whose match is only a guess, or has none, or is a second file for a film.
+    private static bool NeedsReview(ImportFileDto file) => file.Match == FileMatch.NoMatch || Unsure(file);
+
+    private static bool Unsure(ImportFileDto file) =>
+        file.Match == FileMatch.Check || file.OwnedFile is not null || file is { SameFilmAs: not null, Ticked: false };
+
+    private static string Sub(ImportFileDto file)
+    {
+        if (file is { Match: FileMatch.Check, Hits.Count: > 1, OwnedFile: null })
+        {
+            return $"{file.Hits.Count} possible matches";
+        }
+
+        var note = file switch
+        {
+            { OwnedFile: not null } => "you already have a file for this film",
+            { SameFilmAs: { } other } => $"same film as {other}",
+            { Owned: { } owned } when owned.Formats.Contains(MovieFormatKind.Digital) => "adds the file to your Digital copy",
+            { Owned: { } owned } => $"adds Digital to your {Formats.Join(owned.Formats)}",
+            _ => null,
+        };
+        return string.Join(" · ", new[] { file.Film?.Year?.ToString(CultureInfo.InvariantCulture), note }.OfType<string>());
+    }
+
+    private static string ConfLabel(ImportFileDto file) => file.Match switch
+    {
+        _ when Unsure(file) => "Check this",
+        FileMatch.Matched => "Matched",
+        FileMatch.NoMatch => "No match",
+        _ => "",
+    };
+
+    private static string ConfClass(ImportFileDto file) =>
+        Unsure(file) ? "review" : file.Match == FileMatch.NoMatch ? "none" : "exact";
+
+    private static string PickLabel(ImportFileDto file) => file switch
+    {
+        { Match: FileMatch.NoMatch } => "Search…",
+        { Match: FileMatch.Check, Hits.Count: > 1 } => "Pick match",
+        _ => "Change",
+    };
+
+    private static string Number(int count) => count.ToString("N0", CultureInfo.InvariantCulture);
+
+    private string? On(View view) => _view == view ? "on" : null;
+
+    private void Show(View view)
+    {
+        _view = view;
+        ClosePicker();
+    }
+
+    private void TogglePicker(ImportFileDto file)
+    {
+        var open = _picking != file.Path;
+        ClosePicker();
+        if (open)
+        {
+            _picking = file.Path;
+            _query = file.Reading;
+        }
+    }
+
+    private void ClosePicker()
+    {
+        _picking = null;
+        _found = null;
+        _searching = false;
+    }
+
+    private async Task SearchAsync()
+    {
+        var query = _query.Trim();
+        if (query.Length == 0 || _searching)
+        {
+            return;
+        }
+
+        _searching = true;
+        try
+        {
+            var found = await _digital!.SearchAsync(query);
+            _searchedFor = query;
+            _found = found;
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    private async Task ChooseAsync(ImportFileDto file, FilmHitDto film)
+    {
+        ClosePicker();
+        await _digital!.ChooseAsync(file.Path, film);
+    }
+
+    private async Task SkipAsync(ImportFileDto file)
+    {
+        if (_picking == file.Path)
+        {
+            ClosePicker();
+        }
+
+        await _digital!.SkipAsync(file.Path);
+    }
+
+    private async Task LocateAsync(MissingFileDto missing)
+    {
+        _wrongFile = null;
+        if (await _files!.PickVideoFileAsync() is { } path && !await _digital!.LocateAsync(missing.MovieId, path))
+        {
+            _wrongFile = missing.MovieId;
+        }
+    }
+
+    private Task RemoveAsync(MissingFileDto missing)
+    {
+        if (missing.OnlyCopy)
+        {
+            _removing = missing.MovieId;
+            return Task.CompletedTask;
+        }
+
+        return _digital!.RemoveCopyAsync(missing.MovieId);
+    }
+
+    // Looking up a few hundred files changes the status a few hundred times: draw at most ten times a second.
+    private void OnChanged()
+    {
+        if (Interlocked.Exchange(ref _renderWaiting, 1) == 0)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await Task.Delay(100);
+                Volatile.Write(ref _renderWaiting, 0);
+                if (!_closed)
+                {
+                    StateHasChanged();
+                    LookUpNewFiles();
+                }
+            });
+        }
+    }
+
+    // Files the watcher found while the screen is open, a new folder's files, a file brought back from Skipped.
+    private void LookUpNewFiles()
+    {
+        var folder = _digital!.Folder;
+        if (folder is { Progress: null, Problem: null } && folder.Files.Any(f => f.Match == FileMatch.Waiting))
+        {
+            _ = _digital.MatchAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        _closed = true;
+        if (_digital is not null)
+        {
+            _digital.Changed -= OnChanged;
+        }
+    }
+}

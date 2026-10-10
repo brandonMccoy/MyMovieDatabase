@@ -68,6 +68,30 @@ internal sealed class EfMovieRepository(ShelfDbContext db) : IMovieRepository
             m.CoverImage))];
     }
 
+    public async Task<IReadOnlyList<DigitalCopy>> ListDigitalAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await db.Movies.AsNoTracking()
+            .Where(m => m.Formats.Any(f => f.Format == MediaFormat.Digital))
+            .Select(m => new
+            {
+                m.Id,
+                m.Title,
+                m.Year,
+                m.TmdbId,
+                m.CoverImage,
+                Formats = m.Formats.Select(f => new { f.Format, f.FilePath }).ToList(),
+            })
+            .ToListAsync(cancellationToken);
+        return [.. rows.Select(m => new DigitalCopy(
+            m.Id,
+            m.Title,
+            m.Year,
+            m.Formats.First(f => f.Format == MediaFormat.Digital).FilePath,
+            [.. m.Formats.Select(f => f.Format).Order()],
+            m.TmdbId,
+            m.CoverImage))];
+    }
+
     public void Add(Movie movie) => db.Movies.Add(movie);
 
     public void Remove(Movie movie) => db.Movies.Remove(movie);

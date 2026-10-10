@@ -1,0 +1,31 @@
+@* Why TMDB could not be asked, in the words the Add movie search uses. Renders nothing for the other statuses. *@
+@switch (Status)
+{
+    case LookupStatus.NotConfigured:
+        <p class="notice" role="alert">
+            TMDB isn't set up on this PC yet. Add your TMDB key with
+            <code class="mono">dotnet user-secrets set Tmdb:ApiKey &lt;key&gt; --project src/MMDb.App</code>
+            and restart Shelf.
+        </p>
+        break;
+    case LookupStatus.KeyRejected:
+        <p class="notice" role="alert">@Service turned down the key on this PC. Check it in user secrets (Tmdb:ApiKey).</p>
+        break;
+    case LookupStatus.Busy:
+        <p class="notice" role="alert">@Service is busy right now. Wait a moment and try again. @ChildContent</p>
+        break;
+    case LookupStatus.Unavailable:
+        <p class="notice" role="alert">Couldn't reach @Service. Check the internet connection and try again. @ChildContent</p>
+        break;
+}
+
+@code {
+    [Parameter] public LookupStatus? Status { get; set; }
+
+    [Parameter] public string? FailedService { get; set; }
+
+    /// <summary>After the message of a problem that may pass: a "Try again" button.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string Service => FailedService ?? "TMDB";
+}

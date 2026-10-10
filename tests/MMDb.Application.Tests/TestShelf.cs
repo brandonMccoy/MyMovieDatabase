@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using MMDb.Application.Comics;
 using MMDb.Application.Devices;
+using MMDb.Application.Digital;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -86,6 +87,19 @@ internal sealed class TestShelf : IAsyncDisposable
     public Task<ComicShelf> ListComicsAsync(ComicQuery? query = null) => Comics((catalog, ct) => catalog.ListAsync(query ?? new(), ct));
 
     public Task<MovieLookupResult> LookupAsync(string query) => Use<MovieLookup, MovieLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
+
+    /// <summary>What the PC knows about the movie folder.</summary>
+    public ImportStatus Importing => _services.GetRequiredService<ImportDesk>().Status;
+
+    public ImportDesk ImportDesk => _services.GetRequiredService<ImportDesk>();
+
+    public Task<T> Import<T>(Func<DigitalImport, CancellationToken, Task<T>> use) => Use(use);
+
+    public Task Import(Func<DigitalImport, CancellationToken, Task> use) => Use<DigitalImport, bool>(async (import, ct) =>
+    {
+        await use(import, ct);
+        return true;
+    });
 
     public Task<T> Wishlist<T>(Func<WishlistCatalog, CancellationToken, Task<T>> use) => Use(use);
 

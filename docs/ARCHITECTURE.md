@@ -100,6 +100,7 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - **PairedDevice**: `Id`, `Name`, `TokenHash` (SHA-256 of the phone's token), `PairedAt`, `LastSeenAt`.
 - **WishlistMovie** (one row per film wanted): `Title`, `Year`, `Directors`, `TmdbId?`, `TrailerYouTubeKey`, `PosterPath`, `Format` (the one format wanted), cover. Only what the list shows and what finds the film again; "Got it" fetches the rest from TMDB. No priority, price or notes.
 - **WishlistComic** (one row per issue or book wanted): `Format`, `Series`, `SeriesYear`, `Number`, `Title`, `Publisher`, `Isbn`, `MetronId?`, `MetronSeriesId?`, `CoverUrl`, `FromMissing`. Which cover or printing doesn't matter.
+- **SkippedFile**: `Path` (the key, compared without case), `SkippedAt`. A video file in the movie folder the user never wants offered for import.
 - **LookupCache**: provider + request (API key stripped) → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble. Kept 30 days (TMDB search results: 1 day). Only successful answers are kept; for UPCitemdb that includes "unknown barcode".
 
 ## Adding a product: scan → review → accept
@@ -148,12 +149,15 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 ## Digital movies (PC only)
 
-- **Folder import:** the user picks a single movie folder (stored in settings), and the PC enumerates video files (`.mkv .mp4 .m4v .avi .mov .wmv`, recursive).
-- **Parsing:** `ReleaseNameParser` (Domain, pure) turns a file name into title + year by stripping quality, source, codec, language and group tags (`2160p`, `UHD`, `WEB-DL`, `x265`, `KOREAN`…) and turning dots and underscores into spaces.
-- **Matching:** TMDB search by title + year, scored into *Matched* (one confident hit), *Check this* (several hits, or no year) and *No match*. Files already linked to a movie are skipped.
-- **Saving:** accepting creates the Movie if needed and adds a `Digital` MovieFormat with `FilePath`.
-- **Watch folder (confirmed):** a `FileSystemWatcher` on the movie folder queues new files for review, and a full rescan runs on startup to catch changes made while the app was closed. Missing files (moved or deleted) are flagged, never auto-removed.
-- **Play file:** opens the file with the OS default player (`Process.Start` with `UseShellExecute`). PC only; the phone shows the format but no play button.
+- **Movie folder:** the user picks a single folder (Settings or the import screen; kept in the `Settings` table as `digital.folder`). A scan lists its video files (`.mkv .mp4 .m4v .avi .mov .wmv`, recursive) and sorts them into: linked (a film's digital copy already), waiting for review, skipped, and missing (a film's file that is no longer there). **A scan only reads the folder and the database; it asks TMDB nothing**, so it is cheap enough to run at startup and after every change the watcher reports.
+- **Parsing:** `ReleaseNameParser` (Domain, pure) turns a file name into title + year. The title runs up to the year or the first thing that can only be a tag (`2160p`, `WEB-DL`, `x265`, `S01E02`…); dots and underscores become spaces. Words that are tags but also title words (`KOREAN`, `Uncut`, `Complete`) only end a name that has no year, so "The English Patient" survives. The year is the last one before the tags unless the name starts with it ("1917.mkv", "2001.A.Space.Odyssey.mkv"). A file whose own name has no year takes its folder's when that has one ("Heat (1995)/movie.mkv").
+- **Matching:** done when the import screen is open, four files at a time (`DigitalImport.MatchAsync`). `IMovieMetadata.FindAsync` lists a search's films as TMDB's search itself gives them (id, title, original title, year, poster): one request per file, no details fetched. A number taken for the year that finds nothing is searched again as part of the title ("Blade Runner 2049.mkv"). Rated *Matched* (one film has the title and the year, ignoring case, accents and punctuation; a year either side counts when no film has the year itself; of several with the title and year, TMDB's first if it is one of them), *Check this* (anything else that found films: no year, a title that is only close) or *No match*. Of two new files that turn out to be one film, the second is left unticked.
+- **Saving:** adding fetches each new film's full details (four at a time) and saves it through `MovieCatalog.AddAsync` with a `Digital` MovieFormat and `FilePath`. A film already owned keeps its details and gets the file (`MovieCatalog.LinkFileAsync`). From ten films up, the vault is written once at the end (`VaultMirror.Hold` / `ReleaseAsync`) instead of after every film.
+- **One file per film:** a second file for a film that has one is never added by itself; "Use this file instead" swaps the film's file and skips the old one.
+- **Skipped files:** kept in the `SkippedFiles` table (path, case-insensitive), so later scans leave them out until they are brought back.
+- **Watch folder:** `IFolderWatcher` (Infrastructure: a `FileSystemWatcher` on file and folder names, recursive) tells the PC once things have been quiet for two seconds; `InProcessDigitalApi` then scans again. A scan also runs at startup to catch what changed while the app was closed. Missing files are flagged, never removed automatically; a file that turns up elsewhere in the folder under the same name (and is the only one) is linked again. If the folder itself is gone (a drive unplugged), nothing is called missing.
+- **State:** `ImportDesk` (Application, one per app) holds what the last scan found and what was looked up, as an immutable status the screens read; `DigitalImport` (scoped) has the use cases; `IDigitalApi` / `InProcessDigitalApi` hand it to the UI. PC only: the phone has no `IDigitalApi`.
+- **Play file:** opens the film's file with the OS default player (`IFileOpener`: `Process.Start` with `UseShellExecute`), only if it is a video file that exists: a path can be typed by hand or come from a phone, and opening runs whatever it names. PC only; the phone shows the format but no play button.
 
 ## Barcode scanning
 
@@ -232,8 +236,8 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 4. Comics (Metron, Open Library by ISBN), on the PC.
 5. Server API + pairing + Android app with scanner. (The add-on scan spike and mDNS wait for a real phone.)
 6. Wishlist + wishlist match on scan. (Done 2026-10-10; the "likely" match away from home comes with milestone 7.)
-6b. Digital folder import + watch folder.
-7. Offline cache/queue on phone.
+6b. Digital folder import + watch folder, Play file. (Done 2026-10-10.)
+7. Offline cache/queue on phone: the phone knows the movie and comic collection and the wishlist without the PC. Built last (decided 2026-10-10), after 8.
 8. Stats screen.
 
 Each milestone ships with its tests (see [TESTING.md](TESTING.md)).

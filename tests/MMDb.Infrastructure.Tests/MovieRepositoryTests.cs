@@ -373,6 +373,31 @@ public sealed class MovieRepositoryTests
         (await repository.ListByTmdbIdsAsync([949, 348, 1], Ct)).Select(m => m.Title).Order().ShouldBe(["Alien", "Heat"]);
     }
 
+    [Fact]
+    public async Task Digital_copies_are_listed_with_their_file_and_the_films_formats()
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        var heat = Movie.Create(TestMovies.HeatOnTmdb, [new(MediaFormat.BluRay), new(MediaFormat.Digital, FilePath: @"D:\Movies\Heat (1995).mkv")], Jan2019);
+        heat.UseCover("heat.jpg");
+        var alien = Movie.Create(TestMovies.Titled("Alien", 1979), [new(MediaFormat.Digital)], Jan2019);
+        var disc = Movie.Create(TestMovies.Titled("Arrival", 2016), [new(MediaFormat.Dvd)], Jan2019);
+        await SaveAsync(database, heat);
+        await SaveAsync(database, alien);
+        await SaveAsync(database, disc);
+
+        await using var db = database.NewContext();
+        var copies = (await new EfMovieRepository(db).ListDigitalAsync(Ct)).OrderBy(c => c.Title).ToList();
+
+        copies.Select(c => (c.MovieId, c.Title, c.Year, c.FilePath, c.TmdbId, c.CoverImage)).ShouldBe(
+        [
+            (alien.Id, "Alien", 1979, null, null, null),
+            (heat.Id, "Heat", 1995, @"D:\Movies\Heat (1995).mkv", 949, "heat.jpg"),
+        ]);
+        copies[0].Formats.ShouldBe([MediaFormat.Digital]);
+        copies[1].Formats.ShouldBe([MediaFormat.BluRay, MediaFormat.Digital]);
+        db.ChangeTracker.Entries().ShouldBeEmpty();
+    }
+
     private static async Task SaveAsync(TestDatabase database, Movie movie)
     {
         await using var db = database.NewContext();

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MMDb.Application.Digital;
 using MMDb.Application.Metadata;
 using MMDb.Domain;
 using MMDb.Domain.Comics;
@@ -25,6 +26,11 @@ internal sealed class FakeOnline
 
     public FakeComicCovers ComicCovers { get; } = new();
 
+    /// <summary>Not online, but faked for the same reason: the movie folder's watcher only speaks when a test says so.</summary>
+    public FakeFolderWatcher Watcher { get; } = new();
+
+    public FakeFileOpener Player { get; } = new();
+
     /// <summary>Settings for an in-memory database; the cover folder is never touched because the store is faked.</summary>
     public static ShelfSettings Settings(InMemorySqlite sqlite) => new()
     {
@@ -40,13 +46,16 @@ internal sealed class FakeOnline
         .Replace(ServiceDescriptor.Singleton<ICoverStore>(Covers))
         .Replace(ServiceDescriptor.Singleton<IComicMetadata>(Metron))
         .Replace(ServiceDescriptor.Singleton<IBookMetadata>(Books))
-        .Replace(ServiceDescriptor.Singleton<ICoverSource>(ComicCovers));
+        .Replace(ServiceDescriptor.Singleton<ICoverSource>(ComicCovers))
+        .Replace(ServiceDescriptor.Singleton<IFolderWatcher>(Watcher))
+        .Replace(ServiceDescriptor.Singleton<IFileOpener>(Player));
 }
 
 /// <summary>Finds films whose title contains the search text (ignoring case), in the order they were added.</summary>
 internal sealed class FakeTmdb : IMovieMetadata
 {
     private readonly List<MovieDetails> _films = [];
+    private readonly Dictionary<int, int[]> _otherYears = [];
     private readonly List<(string Title, int? Year)> _searches = [];
     private int _fetches;
 
@@ -57,13 +66,18 @@ internal sealed class FakeTmdb : IMovieMetadata
     public int Fetches => Volatile.Read(ref _fetches);
 
     /// <param name="film">Must have a <see cref="MovieDetails.TmdbId"/>.</param>
-    public FakeTmdb Add(MovieDetails film)
+    /// <param name="alsoReleasedIn">Other years a search finds the film under (TMDB's year filter looks at every country's release).</param>
+    public FakeTmdb Add(MovieDetails film, params int[] alsoReleasedIn)
     {
         _films.Add(film);
+        _otherYears[film.TmdbId!.Value] = alsoReleasedIn;
         return this;
     }
 
-    public Task<IReadOnlyList<int>> SearchAsync(string title, int? year, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<int>> SearchAsync(string title, int? year, CancellationToken cancellationToken = default) =>
+        [.. (await FindAsync(title, year, cancellationToken)).Select(hit => hit.TmdbId)];
+
+    public Task<IReadOnlyList<MovieHit>> FindAsync(string title, int? year, CancellationToken cancellationToken = default)
     {
         ThrowIfFailing();
         lock (_searches)
@@ -71,10 +85,11 @@ internal sealed class FakeTmdb : IMovieMetadata
             _searches.Add((title, year));
         }
 
-        IReadOnlyList<int> ids = [.. _films
-            .Where(f => f.Title.Contains(title, StringComparison.OrdinalIgnoreCase) && (year is null || f.Year == year))
-            .Select(f => f.TmdbId!.Value)];
-        return Task.FromResult(ids);
+        IReadOnlyList<MovieHit> hits = [.. _films
+            .Where(f => f.Title.Contains(title, StringComparison.OrdinalIgnoreCase)
+                && (year is null || f.Year == year || _otherYears[f.TmdbId!.Value].Contains(year.Value)))
+            .Select(f => new MovieHit(f.TmdbId!.Value, f.Title, f.Year, f.PosterPath))];
+        return Task.FromResult(hits);
     }
 
     public Task<MovieDetails?> GetAsync(int tmdbId, CancellationToken cancellationToken = default)
@@ -294,5 +309,72 @@ internal sealed class FakeComicCovers : ICoverSource
         }
 
         return Task.FromResult(Offline ? null : ImageFor(url));
+    }
+}
+
+/// <summary>Watches nothing by itself: a test says when the files in the watched folders changed.</summary>
+internal sealed class FakeFolderWatcher : IFolderWatcher
+{
+    private readonly Lock _lock = new();
+    private readonly List<(string Folder, Action Changed)> _watching = [];
+
+    /// <summary>The folders being watched now.</summary>
+    public IReadOnlyList<string> Watched { get { lock (_lock) { return [.. _watching.Select(w => w.Folder)]; } } }
+
+    public IDisposable Watch(string folder, Action changed)
+    {
+        if (!Directory.Exists(folder))
+        {
+            throw new DirectoryNotFoundException(folder);
+        }
+
+        var watching = (folder, changed);
+        lock (_lock)
+        {
+            _watching.Add(watching);
+        }
+
+        return new Stop(() => { lock (_lock) { _watching.Remove(watching); } });
+    }
+
+    /// <summary>Tells every listener that files arrived, left or moved.</summary>
+    public void Stir()
+    {
+        (string Folder, Action Changed)[] listeners;
+        lock (_lock)
+        {
+            listeners = [.. _watching];
+        }
+
+        foreach (var (_, changed) in listeners)
+        {
+            changed();
+        }
+    }
+
+    private sealed class Stop(Action stop) : IDisposable
+    {
+        public void Dispose() => stop();
+    }
+}
+
+/// <summary>Records the files it was asked to open instead of starting a video player.</summary>
+internal sealed class FakeFileOpener : IFileOpener
+{
+    private readonly List<string> _opened = [];
+
+    /// <summary>Whether the PC has a program for the file.</summary>
+    public bool Works { get; set; } = true;
+
+    public IReadOnlyList<string> Opened { get { lock (_opened) { return [.. _opened]; } } }
+
+    public bool Open(string path)
+    {
+        lock (_opened)
+        {
+            _opened.Add(path);
+        }
+
+        return Works;
     }
 }

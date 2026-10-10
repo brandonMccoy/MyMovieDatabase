@@ -29,4 +29,6 @@ public sealed class MovieFormat
         Upc = details.ParsedUpc;
         FilePath = details.NormalizedFilePath;
     }
+
+    internal void MoveTo(string path) => FilePath = path.Trim();
 }

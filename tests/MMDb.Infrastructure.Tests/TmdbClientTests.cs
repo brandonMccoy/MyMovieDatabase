@@ -30,6 +30,32 @@ public sealed class TmdbClientTests
     }
 
     [Fact]
+    public async Task A_search_lists_each_film_with_its_year_poster_and_original_title()
+    {
+        var hits = await Client(FakeHttp.Replaying("tmdb/search-parasite-2019.json")).FindAsync("parasite", 2019, Ct);
+
+        hits.ShouldBe(
+        [
+            new(496243, "Parasite", 2019, "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", "기생충"),
+            new(1100466, "Sealed Video 44: Parasite", 2019, "/7lUu9vV2tgH2ZGbBaIo5vSLvFle.jpg", "封印映像44 寄生虫"),
+            new(1309516, "More Animated Worker and Parasite", null),
+        ]);
+    }
+
+    [Fact]
+    public async Task Listing_films_asks_the_same_search_as_their_ids()
+    {
+        var http = FakeHttp.Replaying("tmdb/search-heat.json");
+
+        var hits = await Client(http).FindAsync("heat", 1995, Ct);
+
+        hits.Select(h => (h.TmdbId, h.Title, h.Year, h.OriginalTitle)).ShouldBe([(949, "Heat", 1995, null), (31939, "Heat", 1986, null), (42113, "Heat and Dust", 1983, null)]);
+        var uri = http.Requests.ShouldHaveSingleItem().Uri;
+        uri.AbsolutePath.ShouldBe("/3/search/movie");
+        HttpUtility.ParseQueryString(uri.Query)["year"].ShouldBe("1995");
+    }
+
+    [Fact]
     public async Task A_search_sends_the_title_and_year()
     {
         var http = FakeHttp.Replaying("tmdb/search-heat.json");
