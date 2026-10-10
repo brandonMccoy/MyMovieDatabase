@@ -173,14 +173,19 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
   Comics/<Series> (<Volume>)/<Series> #<Issue>.md
   Comics/<Series> (<Volume>)/_Series.md   links all issues
   Wishlist/<…>.md
-  Attachments/covers/<id>.jpg
+  Attachments/covers/<movie id>-<poster file>   copies of the covers
+  .trash/                       removed notes that had text under "My notes"
   Movies.base  Comics.base  Wishlist.base  (Obsidian Bases views)
 ```
 
 - Each note has **YAML frontmatter** with every structured field, plus a readable body (overview, credits, cover embed, `[[links]]` to series/people). Frontmatter keys are stable and documented in the vault's `CLAUDE.md`.
 - Every note includes `mmdb_id` and `managed_by: mmdb`. The app only touches notes it owns.
 - Writes are atomic (temp file → rename). A "Rebuild vault" command regenerates everything from the database.
-- *Feature question:* keep a `## My notes` section that the app never overwrites, so hand-written notes survive.
+- **My notes:** everything under a note's `## My notes` heading is kept when Shelf rewrites the note (the only part Shelf ever reads back). A removed film's note is deleted, or moved to the vault's `.trash/` if it had text there.
+- **When it is written:** each save or delete rewrites that film's note and cover, then `_Index.md`, `CLAUDE.md` and `Movies.base` (files whose text hasn't changed are left untouched). At startup, on choosing a folder and on **Rebuild vault**, everything is brought up to date and notes of films no longer owned are removed. After a failed write (folder gone, file in use) the next change does a full catch-up. A failure never fails the save; it shows in the sidebar and in Settings.
+- **Names:** `Title (Year).md`; characters Windows or Obsidian links can't hold are dropped (`:` becomes ` -`). A name already used by another film or by one of the user's own files gets ` (2)`. When a title changes, the note moves with its My notes.
+- **Shared files:** `CLAUDE.md` starts with a `managed_by: mmdb` comment and `Movies.base` with a `# managed_by: mmdb` line; without it (the user's own file, or a base whose views were changed in Obsidian) Shelf leaves the file alone.
+- **Folder:** chosen in Settings and kept in the database's `Settings` table. Ports: `IVaultWriter` (files, in Infrastructure) and `ISettingStore`; `VaultMirror` takes one write at a time and holds the status.
 
 ## Cross-cutting
 

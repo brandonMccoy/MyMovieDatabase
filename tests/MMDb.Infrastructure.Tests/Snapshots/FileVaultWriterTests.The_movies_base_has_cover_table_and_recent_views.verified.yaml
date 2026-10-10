@@ -1,0 +1,54 @@
+# managed_by: mmdb · Shelf rewrites this file. Change a view in Obsidian and Shelf leaves it alone from then on.
+filters:
+  and:
+    - file.inFolder("Movies")
+    - 'managed_by == "mmdb"'
+properties:
+  file.name:
+    displayName: Film
+  formats:
+    displayName: Formats
+  directors:
+    displayName: Directors
+  genres:
+    displayName: Genres
+  runtime:
+    displayName: Runtime
+  rating:
+    displayName: Rating
+  added:
+    displayName: Added
+views:
+  - type: cards
+    name: Covers
+    order:
+      - file.name
+      - formats
+    sort:
+      - property: file.name
+        direction: ASC
+    image: note.cover
+    imageAspectRatio: 1.5
+  - type: table
+    name: All films
+    order:
+      - file.name
+      - directors
+      - formats
+      - genres
+      - runtime
+      - rating
+      - added
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Recently added
+    order:
+      - file.name
+      - formats
+      - added
+    sort:
+      - property: added
+        direction: DESC
+    limit: 50

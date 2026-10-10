@@ -1,7 +1,9 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using MMDb.Application.Vault;
 using MMDb.Contracts;
 using MMDb.Contracts.Movies;
 using MMDb.Infrastructure;
@@ -12,7 +14,7 @@ namespace MMDb.UI.Tests;
 
 /// <summary>
 /// bUnit context with the PC's real collection (in-memory SQLite) behind <see cref="ICollectionApi"/>,
-/// and fakes for the online databases and the cover folder.
+/// and fakes for the online databases, the cover folder, the vault writer and the folder dialog.
 /// </summary>
 public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 {
@@ -26,6 +28,8 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
         Services.AddSingleton<TimeProvider>(Clock);
         Services.AddShelfUi();
         Online.ReplaceIn(Services);
+        Services.Replace(ServiceDescriptor.Singleton<IVaultWriter>(Vault));
+        Services.AddSingleton<IFolderPicker>(FolderPicker);
     }
 
     protected static readonly Uri CoverBase = new("https://covers.test/");
@@ -33,6 +37,17 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
     protected FakeTimeProvider Clock { get; } = new(Start);
 
     private protected FakeOnline Online { get; } = new();
+
+    private protected FakeVault Vault { get; } = new();
+
+    protected FakeFolderPicker FolderPicker { get; } = new();
+
+    /// <summary>An empty folder that exists, to choose as the vault.</summary>
+    protected string VaultFolder => _vaultFolder.Path;
+
+    private readonly TempFolder _vaultFolder = new();
+
+    protected IVaultApi VaultApi => Services.GetRequiredService<IVaultApi>();
 
     protected ICollectionApi Api => Services.GetRequiredService<ICollectionApi>();
 
@@ -66,6 +81,7 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
     {
         await base.DisposeAsync();
         _sqlite.Dispose();
+        _vaultFolder.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -78,4 +94,18 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 
     /// <summary>The current location relative to the app root, e.g. <c>movies/…</c> or <c>?q=heat</c>.</summary>
     protected string RelativeLocation => Navigation.ToBaseRelativePath(Navigation.Uri);
+}
+
+/// <summary>Answers the folder dialog with <see cref="Answer"/> (<see langword="null"/>: cancelled).</summary>
+public sealed class FakeFolderPicker : IFolderPicker
+{
+    public string? Answer { get; set; }
+
+    public int Opened { get; private set; }
+
+    public Task<string?> PickFolderAsync()
+    {
+        Opened++;
+        return Task.FromResult(Answer);
+    }
 }

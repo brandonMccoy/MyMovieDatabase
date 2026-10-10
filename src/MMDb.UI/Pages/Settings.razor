@@ -1,0 +1,110 @@
+@page "/settings"
+@implements IDisposable
+@inject IServiceProvider Services
+
+<PageTitle>Settings · Shelf</PageTitle>
+
+<div class="topbar">
+    <SearchBox />
+</div>
+
+<div class="content">
+    <div class="section-head"><h1>Settings</h1></div>
+    <div class="settings">
+        @if (_vault is not null)
+        {
+            var status = _vault.Status;
+            <section class="set" aria-labelledby="vault-heading">
+                <h3 id="vault-heading">Obsidian vault</h3>
+                <div class="desc">Shelf writes one note per film here. It only edits notes it created.</div>
+                <div class="setrow">
+                    <span class="lbl">Vault folder</span>
+                    <div class="input folder @(status.Folder is null ? "unset" : null)">@(status.Folder ?? "Not set")</div>
+                    @if (_picker is not null)
+                    {
+                        <button type="button" class="btn sm choose" disabled="@_choosing" @onclick="ChooseAsync">
+                            @(status.Folder is null ? "Choose folder" : "Change")
+                        </button>
+                    }
+                </div>
+                @if (_missingChoice is not null)
+                {
+                    <div class="setrow"><span></span><span class="warn">@_missingChoice isn't there any more. Choose another folder.</span><span></span></div>
+                }
+                @if (status.State != VaultSyncState.NotSetUp)
+                {
+                    <div class="setrow">
+                        <span class="lbl">Last sync</span>
+                        @switch (status.State)
+                        {
+                            case VaultSyncState.Syncing:
+                                <span class="sync-state">Syncing…</span>
+                                break;
+                            case VaultSyncState.Synced when status.LastSyncAt is { } at:
+                                <span class="sync-state"><TimeAgo At="at" Capitalized /> · @Notes(status.NoteCount)</span>
+                                break;
+                            default:
+                                <span class="sync-state warn">@Problem(status)</span>
+                                break;
+                        }
+                        <button type="button" class="btn sm rebuild" disabled="@(status.State == VaultSyncState.Syncing)" @onclick="RebuildAsync">Rebuild vault</button>
+                    </div>
+                }
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    private IVaultApi? _vault;
+    private IFolderPicker? _picker;
+    private bool _choosing;
+    private string? _missingChoice;
+
+    protected override void OnInitialized()
+    {
+        _vault = Services.GetService<IVaultApi>();
+        _picker = Services.GetService<IFolderPicker>();
+        if (_vault is not null)
+        {
+            _vault.StatusChanged += OnChanged;
+        }
+    }
+
+    private async Task ChooseAsync()
+    {
+        _choosing = true;
+        try
+        {
+            if (await _picker!.PickFolderAsync() is { } folder)
+            {
+                _missingChoice = await _vault!.SetFolderAsync(folder) ? null : folder;
+            }
+        }
+        finally
+        {
+            _choosing = false;
+        }
+    }
+
+    private Task RebuildAsync() => _vault!.RebuildAsync();
+
+    private static string Notes(int count) =>
+        count == 1 ? "1 note" : $"{count.ToString("N0", CultureInfo.InvariantCulture)} notes";
+
+    private static string Problem(VaultStatusDto status) => status.Issue switch
+    {
+        VaultIssue.FolderMissing => "Folder not found. Reconnect its drive, or choose the folder again.",
+        _ => $"Couldn't write to the vault: {status.Detail}",
+    };
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_vault is not null)
+        {
+            _vault.StatusChanged -= OnChanged;
+        }
+    }
+}

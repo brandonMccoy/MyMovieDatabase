@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
+using MMDb.Application.Vault;
 using MMDb.Domain;
 using MMDb.Domain.Movies;
 using MMDb.Infrastructure;
@@ -26,12 +28,19 @@ internal sealed class TestShelf : IAsyncDisposable
             .AddSingleton<TimeProvider>(Clock)
             .AddShelfApplication()
             .AddShelfInfrastructure(FakeOnline.Settings(_sqlite));
+        services.Replace(ServiceDescriptor.Singleton<IVaultWriter>(Vault));
         _services = Online.ReplaceIn(services).BuildServiceProvider();
     }
 
     public FakeTimeProvider Clock { get; } = new(Start);
 
     public FakeOnline Online { get; } = new();
+
+    public FakeVault Vault { get; } = new();
+
+    public VaultStatus VaultStatus => _services.GetRequiredService<VaultMirror>().Status;
+
+    public ISettingStore Settings => _services.GetRequiredService<ISettingStore>();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -43,6 +52,14 @@ internal sealed class TestShelf : IAsyncDisposable
     }
 
     public Task<T> Movies<T>(Func<MovieCatalog, CancellationToken, Task<T>> use) => Use(use);
+
+    public Task<T> VaultAsync<T>(Func<VaultSync, CancellationToken, Task<T>> use) => Use(use);
+
+    public Task VaultAsync(Func<VaultSync, CancellationToken, Task> use) => Use<VaultSync, bool>(async (sync, ct) =>
+    {
+        await use(sync, ct);
+        return true;
+    });
 
     public Task<MovieLookupResult> LookupAsync(string query) => Use<MovieLookup, MovieLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
 

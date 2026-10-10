@@ -42,5 +42,12 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Covers:** downloaded at w500 and kept on the PC; the phone will get small thumbnails (size decided then, ~60 MB for 4,000 at w185). Films without one keep the gradient placeholder.
 - **TMDB key:** user secrets for now; the Settings screen's "Online databases" section comes later. Until a key is set, the search says how to add one and manual entry still works.
 
+## Milestone 3 (decided 2026-10-09)
+- **Vault folder:** set in Settings, which for now has only its Obsidian vault section as mocked (folder + Change, last sync + note count, Rebuild vault). The sidebar footer shows the vault's state ("Vault synced · just now") and the Settings link. A film's page shows its note (`Movies/Heat (1995).md`), which opens it in Obsidian.
+- **My notes:** kept. Text under `## My notes` survives saves and rebuilds; a removed film's note goes to the vault's `.trash/` if it has some.
+- **Covers:** copied into `Attachments/covers`; notes embed them and `Movies.base` has a cover card view.
+- **Links:** directors and cast are `[[links]]` in the note body (people notes aren't created); frontmatter keeps plain names.
+- **Status colors:** states are text, not green (green stays reserved for Digital); a failed write is amber.
+
 ## Open
 - None. Design phase complete (2026-10-08).

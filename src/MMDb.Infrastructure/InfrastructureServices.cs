@@ -5,9 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
+using MMDb.Application.Vault;
 using MMDb.Infrastructure.Covers;
 using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
+using MMDb.Infrastructure.Vault;
 
 namespace MMDb.Infrastructure;
 
@@ -31,7 +33,7 @@ public static class InfrastructureServices
     public static string SqliteConnectionString(string databasePath) =>
         new SqliteConnectionStringBuilder { DataSource = databasePath }.ToString();
 
-    /// <summary>Registers the SQLite database, the repositories over it, the cover folder and the online databases.</summary>
+    /// <summary>Registers the SQLite database, the repositories over it, the cover folder, the vault writer, settings and the online databases.</summary>
     public static IServiceCollection AddShelfInfrastructure(this IServiceCollection services, ShelfSettings settings)
     {
         // Singleton options so the lookup cache (used by long-lived HTTP handlers) can make its own contexts.
@@ -39,6 +41,8 @@ public static class InfrastructureServices
         services.AddScoped<IMovieRepository, EfMovieRepository>();
         services.AddSingleton<LookupCache>();
         services.AddSingleton<ICoverStore>(new FileCoverStore(settings.CoverDirectory));
+        services.AddSingleton<ISettingStore, SettingStore>();
+        services.AddSingleton<IVaultWriter>(sp => new FileVaultWriter(settings.CoverDirectory, sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton(settings.Tmdb);
 
         services.AddHttpClient<IMovieMetadata, TmdbClient>(http => Configure(http, "https://api.themoviedb.org/3/"))

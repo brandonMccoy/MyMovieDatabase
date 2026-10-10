@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject ShelfCounts Counts
+@inject IServiceProvider Services
 
 <IconSprite />
 <div class="window">
@@ -9,10 +10,36 @@
         <div>
             <div class="nav-label">Collection</div>
             <nav class="nav">
-                @* Every page so far is a movie page, so Movies matches them all. *@
-                <NavLink href="" Match="NavLinkMatch.Prefix">
+                <MoviesNavLink href="" Match="NavLinkMatch.Prefix">
                     <Icon Name="film" />Movies<span class="count">@Counts.Movies?.ToString("N0", CultureInfo.InvariantCulture)</span>
-                </NavLink>
+                </MoviesNavLink>
+            </nav>
+        </div>
+        <div class="side-foot">
+            @if (_vault is not null)
+            {
+                var status = _vault.Status;
+                <div class="vault-line @(status.State == VaultSyncState.Failed ? "warn" : null)">
+                    <Icon Name="obsidian" Class="i12 obsidian" />
+                    @switch (status.State)
+                    {
+                        case VaultSyncState.NotSetUp:
+                            <span>Vault not set up</span>
+                            break;
+                        case VaultSyncState.Syncing:
+                            <span>Vault syncing…</span>
+                            break;
+                        case VaultSyncState.Synced when status.LastSyncAt is { } at:
+                            <span>Vault synced · <TimeAgo At="at" /></span>
+                            break;
+                        default:
+                            <span>Vault not updated</span>
+                            break;
+                    }
+                </div>
+            }
+            <nav class="nav">
+                <NavLink href="settings"><Icon Name="gear" />Settings</NavLink>
             </nav>
         </div>
     </aside>
@@ -22,13 +49,28 @@
 </div>
 
 @code {
+    private IVaultApi? _vault;
+
     protected override async Task OnInitializedAsync()
     {
-        Counts.Changed += OnCountsChanged;
+        _vault = Services.GetService<IVaultApi>();
+        if (_vault is not null)
+        {
+            _vault.StatusChanged += OnChanged;
+        }
+
+        Counts.Changed += OnChanged;
         await Counts.RefreshAsync();
     }
 
-    private void OnCountsChanged() => InvokeAsync(StateHasChanged);
+    private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Counts.Changed -= OnCountsChanged;
+    public void Dispose()
+    {
+        Counts.Changed -= OnChanged;
+        if (_vault is not null)
+        {
+            _vault.StatusChanged -= OnChanged;
+        }
+    }
 }

@@ -9,7 +9,7 @@ public static class ShelfServices
 {
     /// <summary>
     /// Everything the PC needs to own the collection: use cases, the SQLite database, covers, the online
-    /// databases and an in-process <see cref="ICollectionApi"/> for the UI.
+    /// databases, the vault, and in-process <see cref="ICollectionApi"/> and <see cref="IVaultApi"/> for the UI.
     /// </summary>
     /// <param name="coverBaseUri">Where the UI loads stored covers from; see <see cref="CoverLinks"/>.</param>
     public static IServiceCollection AddShelf(this IServiceCollection services, ShelfSettings settings, Uri coverBaseUri) =>
@@ -17,5 +17,6 @@ public static class ShelfServices
             .AddShelfApplication()
             .AddShelfInfrastructure(settings)
             .AddSingleton(new CoverLinks(coverBaseUri))
-            .AddSingleton<ICollectionApi, InProcessCollectionApi>();
+            .AddSingleton<ICollectionApi, InProcessCollectionApi>()
+            .AddSingleton<IVaultApi, InProcessVaultApi>();
 }

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MMDb.UI;
 #if WINDOWS
 using Microsoft.Extensions.Configuration;
+using MMDb.Contracts;
 using MMDb.Infrastructure;
 using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
@@ -40,6 +41,7 @@ public static class MauiProgram
                 Tmdb = new TmdbSettings { ApiKey = builder.Configuration["Tmdb:ApiKey"] },
             },
             CoverFolder.BaseUri);
+        builder.Services.AddSingleton<IFolderPicker, WindowsFolderPicker>();
 #endif
 
 #if DEBUG
@@ -53,6 +55,9 @@ public static class MauiProgram
         DatabaseBackup.Run(databasePath, Path.Combine(dataDirectory, "backups"), TimeProvider.System);
         // Off the UI thread's synchronization context, so blocking here can't deadlock.
         Task.Run(() => app.Services.MigrateShelfDatabaseAsync()).GetAwaiter().GetResult();
+
+        // Catch the vault up in the background; how it went shows in the sidebar.
+        _ = Task.Run(() => app.Services.GetRequiredService<IVaultApi>().StartAsync());
 #endif
 
         return app;

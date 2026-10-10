@@ -2,6 +2,7 @@
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
 @inject ShelfCounts Counts
+@inject IServiceProvider Services
 
 <PageTitle>@(_movie?.Title ?? "Movie") · Shelf</PageTitle>
 
@@ -157,12 +158,21 @@ else if (_movie is not null)
                     }
                 }
             </div>
+            @if (_note is not null)
+            {
+                <div class="panel">
+                    <a class="vault" href="@_note.OpenUri.OriginalString" target="_blank" rel="noopener" title="Open in Obsidian">
+                        <Icon Name="obsidian" /><span>@_note.Path</span>
+                    </a>
+                </div>
+            }
         </div>
     </div>
 }
 
 @code {
     private MovieDto? _movie;
+    private VaultNoteDto? _note;
     private bool _loaded;
     private bool _menuOpen;
     private bool _confirmingDelete;
@@ -180,6 +190,7 @@ else if (_movie is not null)
     protected override async Task OnParametersSetAsync()
     {
         _movie = await Api.GetMovieAsync(Id);
+        _note = _movie is null ? null : Services.GetService<IVaultApi>()?.NoteFor(Id);
         _loaded = true;
     }
 

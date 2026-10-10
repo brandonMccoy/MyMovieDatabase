@@ -256,7 +256,36 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .btn.find { margin-top: 12px; width: 100%; justify-content: center; }
 
 /* ---------- Narrower windows ---------- */
+/* ---------- Sidebar footer ---------- */
+.side-foot { margin-top: auto; border-top: 1px solid var(--line-soft); padding-top: 14px; font-size: 12px; color: var(--muted); display: grid; gap: 6px; }
+.vault-line { display: flex; align-items: center; gap: 7px; padding: 0 10px; }
+.vault-line.warn { color: var(--accent); }
+.i12 { width: 12px; height: 12px; flex: none; }
+.obsidian { color: var(--obsidian); }
+.side-foot .nav a { font-size: 13px; color: var(--muted); }
+.side-foot .nav a.active { color: var(--text); }
+.side-foot .nav svg { width: 14px; height: 14px; }
+
+/* ---------- Settings ---------- */
+.settings { max-width: 860px; display: grid; gap: 16px; }
+.set { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 18px 20px; }
+.set h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.set .desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.setrow { display: grid; grid-template-columns: 170px 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.setrow:first-of-type { border-top: 0; }
+.setrow .lbl { color: var(--text-2); }
+.setrow .folder { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; font: 12.5px var(--mono); font-variant-ligatures: none; color: var(--text); overflow-wrap: anywhere; }
+.setrow .folder.unset { font-family: var(--font); color: var(--faint); }
+.sync-state { color: var(--text-2); font-size: 12.5px; }
+.warn { color: var(--accent); font-size: 12.5px; }
+
+/* ---------- Vault note (detail page) ---------- */
+.vault { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--text-2); text-decoration: none; overflow-wrap: anywhere; }
+.vault:hover span { color: var(--text); text-decoration: underline; }
+.vault svg { width: 14px; height: 14px; color: var(--obsidian); flex: none; }
+
 @media (max-width: 1100px) {
+  .setrow { grid-template-columns: 1fr; gap: 6px; }
   .detail { grid-template-columns: 180px 1fr; }
   .detail .poster { width: 180px; }
   .detail > :last-child { grid-column: 2; }

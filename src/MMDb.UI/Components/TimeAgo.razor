@@ -1,0 +1,27 @@
+@implements IDisposable
+@inject TimeProvider Clock
+@Text
+
+@code {
+    private ITimer? _timer;
+
+    [Parameter, EditorRequired] public DateTimeOffset At { get; set; }
+
+    /// <summary>"Just now" rather than "just now", to start a sentence.</summary>
+    [Parameter] public bool Capitalized { get; set; }
+
+    private string Text
+    {
+        get
+        {
+            var text = Ago.Describe(At, Clock.GetUtcNow(), Clock.LocalTimeZone);
+            return Capitalized ? char.ToUpperInvariant(text[0]) + text[1..] : text;
+        }
+    }
+
+    // "5 min ago" goes stale; redraw every minute.
+    protected override void OnInitialized() =>
+        _timer = Clock.CreateTimer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+
+    public void Dispose() => _timer?.Dispose();
+}

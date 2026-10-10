@@ -1,10 +1,11 @@
 using MMDb.Application.Metadata;
+using MMDb.Application.Vault;
 using MMDb.Domain.Movies;
 
 namespace MMDb.Application.Movies;
 
-/// <summary>Use cases for the movie collection: browse, add, edit, delete.</summary>
-public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore)
+/// <summary>Use cases for the movie collection: browse, add, edit, delete. Every change is mirrored into the vault.</summary>
+public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore, VaultMirror vault)
 {
     private readonly CoverKeeper _covers = new(posters, coverStore);
 
@@ -92,6 +93,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
         }
 
         _covers.Forget(movie);
+        await vault.MovieRemovedAsync(movie.Id, movies.ListAsync);
         return true;
     }
 
@@ -106,6 +108,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
             return new SaveMovieResult.Conflict();
         }
 
+        await vault.MovieSavedAsync(movie, movies.ListAsync);
         return new SaveMovieResult.Saved(movie);
     }
 }

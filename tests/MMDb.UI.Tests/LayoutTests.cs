@@ -33,7 +33,7 @@ public sealed class LayoutTests : ShelfTestContext
     [Fact]
     public void Only_built_screens_appear_in_the_sidebar()
     {
-        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0"]);
+        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Settings"]);
     }
 }
 

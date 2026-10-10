@@ -102,6 +102,21 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.ToTable("LookupCache", (string)null);
                 });
 
+            modelBuilder.Entity("MMDb.Infrastructure.Persistence.Setting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Settings", (string)null);
+                });
+
             modelBuilder.Entity("MMDb.Domain.Movies.Movie", b =>
                 {
                     b.OwnsMany("MMDb.Domain.Movies.MovieFormat", "Formats", b1 =>

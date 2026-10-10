@@ -19,7 +19,7 @@ Every change ships with tests. This doc says which kind of test goes where and w
 |---|---|
 | Test framework | **xUnit v3** on Microsoft.Testing.Platform (`global.json` sets the `dotnet test` runner) |
 | Assertions | **Shouldly** (FluentAssertions v8+ requires a commercial license) |
-| Snapshot/approval | **Verify** (vault markdown, API JSON shapes) |
+| Snapshot/approval | In-repo `Snapshot.Match` (vault markdown): compares with `Snapshots/*.verified.*`, leaves a `.received` file on a change. Verify was the plan, but its current versions stop the build until a project declares a sponsorship or fee exemption. |
 | Database | **SQLite** (in-memory with a kept-open connection, or temp file). Never the EF InMemory provider (Microsoft advises against it). |
 | HTTP API | **WebApplicationFactory** (`Microsoft.AspNetCore.Mvc.Testing`) |
 | External APIs | Fake `HttpMessageHandler` serving **recorded JSON fixtures** captured from the real APIs |

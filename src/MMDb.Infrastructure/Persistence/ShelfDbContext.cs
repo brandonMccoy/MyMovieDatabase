@@ -10,6 +10,8 @@ public sealed class ShelfDbContext(DbContextOptions<ShelfDbContext> options) : D
 
     internal DbSet<LookupCacheEntry> LookupCache => Set<LookupCacheEntry>();
 
+    internal DbSet<Setting> Settings => Set<Setting>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ShelfDbContext).Assembly);
 }
