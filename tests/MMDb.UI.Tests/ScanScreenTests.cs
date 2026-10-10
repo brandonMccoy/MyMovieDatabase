@@ -147,6 +147,30 @@ public sealed class ScanScreenTests : PhoneTestContext
     }
 
     [Fact]
+    public void The_camera_looks_for_a_comics_add_on_unless_only_films_are_scanned()
+    {
+        var page = RenderScan();
+        Scanner.ReadAddOns.ShouldBeTrue("Auto: it could be a comic");
+
+        page.FindAll(".type-switch button")[0].Click();
+        Scanner.ReadAddOns.ShouldBeFalse("Movie");
+
+        page.FindAll(".type-switch button")[1].Click();
+        Scanner.ReadAddOns.ShouldBeTrue("Comic");
+    }
+
+    [Fact]
+    public void A_comic_read_with_its_add_on_is_looked_up_as_that_issue()
+    {
+        var page = RenderScan();
+
+        Scanner.Read(TestComics.Saga7.Barcode!);
+
+        page.WaitForAssertion(() => Toast(page).ShouldBe("Saga #7 Tap to review"));
+        Queue.Items.ShouldHaveSingleItem().Code.ShouldBe(TestComics.Saga7.Barcode);
+    }
+
+    [Fact]
     public void The_keyboard_button_opens_typing_it_in_for_what_the_switch_says()
     {
         var page = RenderScan();

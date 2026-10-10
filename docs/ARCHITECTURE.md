@@ -154,9 +154,15 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 ## Barcode scanning
 
-- Library: `BarcodeScanning.Native.Maui` (Google ML Kit on Android). It's fast, but **ML Kit may not decode UPC 5-digit add-ons**.
+- Library: `BarcodeScanning.Native.Maui` (Google ML Kit on Android). It's fast, but **ML Kit does not read UPC add-ons** (checked on a phone, 2026-10-10: the main barcode is read, the add-on never).
 - The camera is a native view under the web view (`MainPage`); the scan screen keeps its background see-through and draws the reticle, switch and queue over it in HTML.
-- **Spike #1 (still open):** test add-on decoding on real comics with a phone. It could not be done in milestone 5: no phone was connected and the emulator can't run on the dev PC (no hypervisor driver). On the PC, a USB scanner or typing gives the 17 digits; `ComicBarcode` reads the add-on (issue, cover, printing). Fallback order: ZXing.Net with `UPC_EAN_EXTENSION` enabled, then a second targeted scan of the add-on, then let the user type the issue number. Until then a comic scanned without its add-on opens the comic search with the UPC, to add the issue number by hand.
+- **Add-ons (spike #1, done 2026-10-10):** Shelf reads them itself. When ML Kit finds a UPC or EAN, the frame it was read in is handed over as well (`CaptureNextFrame`), and `AddOnReader` (`MMDb.UI/Scanning`, plain C#, no camera needed to test it) looks just past either end of the barcode for a 2- or 5-digit add-on:
+  - ML Kit's box is only roughly on the barcode and often takes in part of the add-on, so each of 15 lines across the bars finds the barcode's own first and last bar by its build (59 runs, 95 bar widths, guards at the ends and in the middle).
+  - From there it reads outward: a blank gap, a start guard, the digits, a blank margin. The digits must fit the check that the choice of bar sets encodes; several lines have to agree (two for five digits, four for two digits, which are only loosely checked).
+  - Brightness is the red channel, as in a shop's scanner: on a red or yellow cover the bars would hardly stand out in green.
+  - `ProductReadings` turns frames into scans: a UPC with its add-on is one code at once; a UPC without one waits 0.6 s for a frame that shows it; a two-digit add-on counts once two frames agree; frames that miss the add-on after it was read aren't another product; a book's ISBN leaves its add-on (the price) out. In Movie mode none of this runs.
+  - ZXing.Net was tried first and did not read the add-on from a clear photo, so it is not used.
+  - Older comics: Metron often has no barcode for them (a 1980s DC newsstand UPC gave nothing at all), so they open on the search by series and issue; the barcode is kept for the copy.
 - Scanner sits behind `IBarcodeScanner` (in `MMDb.UI`), so UI and logic are testable with a fake; `CameraScanner` in the Android app implements it.
 
 ## PC ↔ phone communication
@@ -230,7 +236,7 @@ Each milestone ships with its tests (see [TESTING.md](TESTING.md)).
 
 ## Open risks
 
-1. Comic add-on barcode decoding on Android: still untested. Milestone 5 was built without a phone or a working emulator, so nothing of the Android app has run on a device yet: camera, see-through scan screen, secure storage, certificate pinning on Android and cover interception need a first run on a phone (see TESTING.md, *Phone hardware*).
+1. ~~Comic add-on barcode decoding on Android~~: done, see *Barcode scanning*. The app has run on a phone since 2026-10-10 (Galaxy S24 Ultra, Android 16); what is left of the first run is in TESTING.md, *Phone hardware*.
 2. ~~Whether Metron supports UPC lookup~~: it does (`upc`, `upc_starts_with`), checked in its source in milestone 4. Its fixtures are hand-written until a token is set up.
 3. UPC coverage for older DVDs is spotty, so manual search must be first-class.
 4. API terms: TMDB and Comic Vine are non-commercial/attribution-required. Fine for personal use; show attribution in About.

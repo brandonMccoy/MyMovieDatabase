@@ -115,6 +115,8 @@ public sealed class FakeScanner : IBarcodeScanner
 
     public int Stops { get; private set; }
 
+    public bool ReadAddOns { get; set; }
+
     public Task<ScannerStart> StartAsync(ScanTarget target, Action<string> onCode)
     {
         if (Answer == ScannerStart.Started)

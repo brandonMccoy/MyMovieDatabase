@@ -18,6 +18,7 @@
   <ItemGroup>
     <!-- The design-token and font tests read the real static assets. -->
     <None Include="..\..\src\MMDb.UI\wwwroot\**" LinkBase="wwwroot" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

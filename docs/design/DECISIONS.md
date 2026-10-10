@@ -83,5 +83,6 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Performance rule:** code for performance; don't load, fetch or store what a screen or feature doesn't use. The library list, search and the vault's index read a slim listing of each film without its credits; who is in the credits is searched in the database.
 
 ## Open
-- Add-on scan spike and mDNS discovery: need a real phone (see ARCHITECTURE.md).
+- ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
+- mDNS discovery: still to do, now that there is a real phone.
 - A scan queue that survives closing the app: with the offline queue in milestone 7.

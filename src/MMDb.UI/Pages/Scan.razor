@@ -14,7 +14,7 @@
     <div class="type-switch" role="group" aria-label="What you are scanning">
         @foreach (var mode in new[] { ScanMode.Movie, ScanMode.Comic, ScanMode.Auto })
         {
-            <button type="button" class="@(Queue.Mode == mode ? "on" : null)" aria-pressed="@Aria.Bool(Queue.Mode == mode)" @onclick="() => Queue.Mode = mode">@mode</button>
+            <button type="button" class="@(Queue.Mode == mode ? "on" : null)" aria-pressed="@Aria.Bool(Queue.Mode == mode)" @onclick="() => Use(mode)">@mode</button>
         }
     </div>
 
@@ -70,9 +70,17 @@
     {
         Queue.Changed += OnQueueChanged;
         _scanner = Services.GetService<IBarcodeScanner>();
+        Use(Queue.Mode);
         _start = _scanner is null
             ? ScannerStart.NoCamera
             : await _scanner.StartAsync(ScanTarget.Product, code => _ = InvokeAsync(() => Scanned(code)));
+    }
+
+    // Films have no add-on beside their barcode, so while only films are scanned the camera doesn't look for one.
+    private void Use(ScanMode mode)
+    {
+        Queue.Mode = mode;
+        _scanner?.ReadAddOns = mode != ScanMode.Movie;
     }
 
     private void Scanned(string code)

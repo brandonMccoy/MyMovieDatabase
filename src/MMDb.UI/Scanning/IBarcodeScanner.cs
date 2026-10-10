@@ -30,5 +30,12 @@ public interface IBarcodeScanner
     /// <param name="onCode">Called with the text of each code read, possibly many times for one barcode held in view.</param>
     Task<ScannerStart> StartAsync(ScanTarget target, Action<string> onCode);
 
+    /// <summary>
+    /// Whether to look for the add-on beside a product's UPC and report the two as one code (a comic's cover
+    /// has one; a film's case doesn't). A UPC read without one is then reported a moment later, in case a
+    /// later frame shows the add-on.
+    /// </summary>
+    bool ReadAddOns { get; set; }
+
     Task StopAsync();
 }
