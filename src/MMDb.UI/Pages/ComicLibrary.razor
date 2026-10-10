@@ -98,7 +98,7 @@
                             {
                                 <div class="issue missing" @key="'#' + entry.Number">
                                     <div class="poster"><span class="pt">Missing</span></div>
-                                    <div class="num">#@entry.Number</div>
+                                    <div class="num">#@entry.Number@(entry.Through is { } through ? $"–{through}" : "")</div>
                                 </div>
                             }
                             else

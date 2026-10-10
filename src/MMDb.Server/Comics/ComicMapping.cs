@@ -143,7 +143,7 @@ internal static class ComicMapping
         run.Year,
         run.Title,
         run.Publisher,
-        [.. run.Entries.Select(e => new RunEntryDto(e.Number, [.. e.Copies.Select(c => c.ToSummary(covers))]))],
+        [.. run.Entries.Select(e => new RunEntryDto(e.Number, [.. e.Copies.Select(c => c.ToSummary(covers))], e.Through))],
         run.OwnedCount,
         run.KnownCount);
 

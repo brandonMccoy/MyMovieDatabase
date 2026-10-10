@@ -39,7 +39,7 @@ public sealed class ComicShelfTests : IAsyncLifetime
             ("Saga (2012)", "Image", 2, 10),
         ]);
         var saga = shelf.Runs[1];
-        saga.Entries.Select(e => e.Number).ShouldBe(["1", "2", "3", "4", "5", "6", "7"]);
+        saga.Entries.Select(e => (e.Number, e.Through)).ShouldBe([("1", null), ("2", "6"), ("7", null)]);
         saga.Entries.Where(e => !e.IsMissing).Select(e => e.Copies.Count).ShouldBe([1, 2]);
     }
 
@@ -51,6 +51,17 @@ public sealed class ComicShelfTests : IAsyncLifetime
         var saga = (await _shelf.ListComicsAsync()).Runs.ShouldHaveSingleItem();
 
         saga.Entries.Select(e => (e.Number, e.IsMissing)).ShouldBe([("3", false), ("4", true), ("5", false)]);
+    }
+
+    [Fact]
+    public async Task Missing_issues_next_to_each_other_share_one_entry()
+    {
+        await AddAsync(TestComics.SagaIssue("1"), TestComics.SagaIssue("3"), TestComics.Saga7);
+
+        var saga = (await _shelf.ListComicsAsync()).Runs.ShouldHaveSingleItem();
+
+        saga.Entries.Select(e => (e.Number, e.Through, e.IsMissing)).ShouldBe(
+            [("1", null, false), ("2", null, true), ("3", null, false), ("4", "6", true), ("7", null, false)]);
     }
 
     [Fact]

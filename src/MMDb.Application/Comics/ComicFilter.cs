@@ -89,9 +89,28 @@ internal static class ComicFilter
             Year: copies[0].SeriesYear,
             Publisher: copies.Select(c => c.Publisher).OfType<string>().FirstOrDefault() ?? facts?.Publisher,
             MetronSeriesId: metronId,
-            Entries: [.. entries.OrderBy(e => e.Number, IssueNumber.Comparer)],
+            Entries: Collapse(entries.OrderBy(e => e.Number, IssueNumber.Comparer)),
             OwnedCount: ownedCount,
             KnownCount: knownCount);
+    }
+
+    // Missing issues next to each other become one entry: "#159–167".
+    private static List<RunEntry> Collapse(IEnumerable<RunEntry> entries)
+    {
+        var collapsed = new List<RunEntry>();
+        foreach (var entry in entries)
+        {
+            if (entry.IsMissing && collapsed is [.., { IsMissing: true } previous])
+            {
+                collapsed[^1] = previous with { Through = entry.Number };
+            }
+            else
+            {
+                collapsed.Add(entry);
+            }
+        }
+
+        return collapsed;
     }
 
     private static IEnumerable<Comic> Sort(IEnumerable<Comic> comics, ComicSort sort) => sort == ComicSort.RecentlyAdded

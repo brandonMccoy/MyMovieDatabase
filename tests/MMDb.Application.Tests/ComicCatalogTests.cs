@@ -214,7 +214,7 @@ public sealed class ComicCatalogTests : IAsyncLifetime
             r => r.Title.ShouldBe("Saga (2012)"),
             r => r.OwnedCount.ShouldBe(2),
             r => r.KnownCount.ShouldBe(7),
-            r => r.Entries.Select(e => (e.Number, e.IsMissing)).ShouldBe([("2", false), ("3", true), ("4", true), ("5", true), ("6", true), ("7", false)]));
+            r => r.Entries.Select(e => (e.Number, e.Through, e.IsMissing)).ShouldBe([("2", null, false), ("3", "6", true), ("7", null, false)]));
     }
 
     [Fact]

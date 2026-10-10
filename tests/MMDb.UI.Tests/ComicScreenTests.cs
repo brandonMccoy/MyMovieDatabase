@@ -52,7 +52,7 @@ public sealed class ComicLibraryTests : ShelfTestContext
         run.QuerySelector(".bar i")!.GetAttribute("style").ShouldBe("width:37.5%");
         run.QuerySelectorAll(".issue").Select(i => (Text(i.QuerySelector(".num")!), i.ClassList.Contains("missing"))).ShouldBe(
         [
-            ("#1KEY", false), ("#2", false), ("#3", true), ("#4", true), ("#5", true), ("#6", true), ("#7", false),
+            ("#1KEY", false), ("#2", false), ("#3–6", true), ("#7", false),
         ]);
         run.QuerySelector(".issue .sub2")!.TextContent.ShouldBe("First issue");
         Text(page.Find(".section-head .sub")).ShouldBe("3 issues · 1 series · 0 trades");

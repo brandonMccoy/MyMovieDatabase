@@ -130,7 +130,7 @@ public sealed record ComicSummaryDto
     public required DateTimeOffset CreatedAt { get; init; }
 }
 
-/// <param name="Entries">Issues owned, and missing between the first and last owned, in running order.</param>
+/// <param name="Entries">Issues owned, and missing between the first and last owned, in running order; missing issues next to each other share one entry.</param>
 /// <param name="OwnedCount">Issue numbers owned (variants count once).</param>
 /// <param name="KnownCount">Issues in the series according to Metron, if known.</param>
 public sealed record SeriesRunDto(
@@ -143,7 +143,8 @@ public sealed record SeriesRunDto(
     int? KnownCount);
 
 /// <param name="Copies">Every copy owned of the issue; empty if it is missing.</param>
-public sealed record RunEntryDto(string Number, IReadOnlyList<ComicSummaryDto> Copies)
+/// <param name="Through">For missing issues, the last of a range that starts at <paramref name="Number"/>; <see langword="null"/> for one issue.</param>
+public sealed record RunEntryDto(string Number, IReadOnlyList<ComicSummaryDto> Copies, string? Through = null)
 {
     public bool IsMissing => Copies.Count == 0;
 }

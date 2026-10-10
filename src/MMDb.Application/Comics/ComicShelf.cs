@@ -43,7 +43,7 @@ public enum ComicSort
 public sealed record ComicShelf(IReadOnlyList<SeriesRun> Runs, IReadOnlyList<Comic> Comics, ComicFacets Facets);
 
 /// <summary>A series' single issues, as owned and as missing.</summary>
-/// <param name="Entries">Owned issues, and the issues missing between the first and last owned, in running order.</param>
+/// <param name="Entries">Owned issues, and the issues missing between the first and last owned, in running order; missing issues next to each other share one entry.</param>
 /// <param name="OwnedCount">Issue numbers owned (variants count once).</param>
 /// <param name="KnownCount">Issues in the series according to Metron; <see langword="null"/> if it isn't known.</param>
 public sealed record SeriesRun(
@@ -60,7 +60,8 @@ public sealed record SeriesRun(
 }
 
 /// <param name="Copies">Every copy owned of this issue (variants, printings); empty if it is missing.</param>
-public sealed record RunEntry(string Number, IReadOnlyList<Comic> Copies)
+/// <param name="Through">For missing issues, the last of a range that starts at <paramref name="Number"/>; <see langword="null"/> for one issue.</param>
+public sealed record RunEntry(string Number, IReadOnlyList<Comic> Copies, string? Through = null)
 {
     public bool IsMissing => Copies.Count == 0;
 }
