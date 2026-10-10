@@ -1,8 +1,11 @@
-<span class="fmt @Formats.CssClass(Format)">@(Short ? Formats.ShortName(Format) : Formats.Name(Format))</span>
+<span class="fmt @Formats.CssClass(Format) @(Wanted ? "want-b" : null)">@(Short ? Formats.ShortName(Format) : Formats.Name(Format))</span>
 
 @code {
     [Parameter, EditorRequired] public MovieFormatKind Format { get; set; }
 
     /// <summary>"4K" instead of "4K UHD", for the small badges under grid posters.</summary>
     [Parameter] public bool Short { get; set; }
+
+    /// <summary>Dashed: the format is wanted, not owned.</summary>
+    [Parameter] public bool Wanted { get; set; }
 }

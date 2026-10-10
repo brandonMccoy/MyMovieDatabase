@@ -1,0 +1,109 @@
+@* Choosing the format a film is wanted on, and putting it on the wishlist. *@
+@inject ICollectionApi Api
+
+<div class="want-step">
+    <Poster Title="@Film.Title" Subtitle="@string.Join(" & ", Film.Directors)" ImageUrl="Film.PosterUrl" />
+    <div>
+        <h2 class="want-title">@Film.Title@if (Film.Year is { } year) {<span class="yr">@year</span>}</h2>
+        @if (Film.Directors.Count > 0)
+        {
+            <p class="small">@string.Join(" & ", Film.Directors)</p>
+        }
+
+        <div class="field">
+            <label id="want-format">Which format do you want?</label>
+            <div class="want-formats" role="radiogroup" aria-labelledby="want-format">
+                @foreach (var format in Formats.All)
+                {
+                    var owned = Owned.Contains(format);
+                    <button type="button" role="radio" class="want-format @(_format == format ? "on" : null)" aria-checked="@Aria.Bool(_format == format)"
+                            disabled="@owned" @onclick="() => _format = format">
+                        <FormatBadge Format="format" Wanted="!owned" />@if (owned) {<span class="small">Owned</span>}
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (Owned.Count > 0)
+        {
+            <p class="small upgrade-note">You own it on @Formats.Join(Owned), so this is an upgrade.</p>
+        }
+        @if (Wanted is { } wanted)
+        {
+            <p class="small wanted-note">It is on your wishlist for @Formats.Name(wanted). Choosing another format changes that.</p>
+        }
+
+        @if (_problem is not null)
+        {
+            <div class="problem" role="alert">@_problem</div>
+        }
+
+        <div class="want-actions">
+            <button type="button" class="btn primary" disabled="@(_format is null || _saving)" @onclick="SaveAsync"><Icon Name="heart" />@(Wanted is null ? "Add to wishlist" : "Update wishlist")</button>
+            <button type="button" class="btn ghost" @onclick="OnCancel">Back</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private MovieFormatKind? _format;
+    private bool _saving;
+    private string? _problem;
+
+    [Parameter, EditorRequired] public WishDraft Film { get; set; } = null!;
+
+    /// <summary>The formats the film is owned on: they can't be wanted.</summary>
+    [Parameter] public IReadOnlyList<MovieFormatKind> Owned { get; set; } = [];
+
+    /// <summary>The format it is on the wishlist for already.</summary>
+    [Parameter] public MovieFormatKind? Wanted { get; set; }
+
+    /// <summary>The format to start on, e.g. the one a scanned disc is.</summary>
+    [Parameter] public MovieFormatKind? Suggested { get; set; }
+
+    [Parameter, EditorRequired] public EventCallback<WishlistMovieDto> OnSaved { get; set; }
+
+    [Parameter, EditorRequired] public EventCallback OnCancel { get; set; }
+
+    protected override void OnInitialized() =>
+        _format = (Wanted ?? Suggested) is { } start && !Owned.Contains(start) ? start : null;
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _problem = null;
+        try
+        {
+            var response = await Api.WantMovieAsync(new()
+            {
+                Title = Film.Title,
+                Year = Film.Year,
+                Directors = Film.Directors,
+                TmdbId = Film.TmdbId,
+                TrailerYouTubeKey = Film.TrailerYouTubeKey,
+                PosterPath = Film.PosterPath,
+                Format = _format!.Value,
+            });
+
+            switch (response.Status)
+            {
+                case SaveStatus.Saved:
+                    await OnSaved.InvokeAsync(response.Movie!);
+                    break;
+                case SaveStatus.AlreadyOwned:
+                    _problem = $"You already own {Film.Title} on {Formats.Name(_format.Value)}.";
+                    break;
+                case SaveStatus.Invalid:
+                    _problem = string.Join(" ", response.Errors.Select(e => e.Message));
+                    break;
+                default:
+                    _problem = "The wishlist changed somewhere else just now. Try again.";
+                    break;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

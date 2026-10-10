@@ -1,0 +1,159 @@
+@page "/wishlist/comics/{Id:guid}"
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfDevice Device
+
+<PageTitle>@(_item?.DisplayName ?? "Wishlist") · Shelf</PageTitle>
+
+@* A comic on the wishlist, laid out like a comic in the collection. Read-only. *@
+<div class="topbar">
+    <a class="btn ghost back" href="@Home"><Icon Name="back" />Wishlist</a>
+</div>
+
+@if (_loaded && _item is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Not on your wishlist</h1>
+            <p>It was bought or removed.</p>
+            <a class="btn" href="@Home">Back to the wishlist</a>
+        </div>
+    </div>
+}
+else if (_item is not null)
+{
+    var collected = ComicText.IsCollected(_item.Format);
+    <div class="hero"><div class="backdrop" style="@PosterColors.Style(_item.Series ?? _item.DisplayName)"></div></div>
+    <div class="detail comic wish">
+        <div>
+            <Poster Title="@(_item.Series ?? _item.DisplayName)" Subtitle="@(collected || _item.Number is null ? null : "#" + _item.Number)" ImageUrl="_item.CoverUrl" />
+        </div>
+
+        <div>
+            <h1 class="title-lg">@_item.DisplayName</h1>
+            <div class="byline">@string.Join(" · ", Facts())</div>
+            @if (!collected && _comic?.Title is { } story)
+            {
+                <div class="story">@story</div>
+            }
+            @if (_comic is not null && _comic.Writers.Count + _comic.Artists.Count > 0)
+            {
+                <div class="credits">
+                    @if (_comic.Writers.Count > 0)
+                    {
+                        <div class="byline">Written by @Names(_comic.Writers)</div>
+                    }
+                    @if (_comic.Artists.Count > 0)
+                    {
+                        <div class="byline">Art by @Names(_comic.Artists)</div>
+                    }
+                </div>
+            }
+
+            <div class="actions">
+                <a class="btn primary got-it" href="comics/new?wish=@_item.Id">Got it</a>
+                <button type="button" class="btn ghost remove" @onclick="RemoveAsync">Remove from wishlist</button>
+            </div>
+
+            @if (_comic?.Summary is { } summary)
+            {
+                <p class="synopsis">@summary</p>
+            }
+            else if (_lookedUp && _comic is null)
+            {
+                <p class="notice no-details" role="status">@NoDetails</p>
+            }
+        </div>
+
+        <div>
+            <div class="panel">
+                <h3>On your wishlist</h3>
+                <div class="owned">
+                    <span>@ComicText.Name(_item.Format)</span>
+                    <span class="small">Added @_item.AddedAt.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture)</span>
+                </div>
+                @if (_item.FromMissing)
+                {
+                    <div class="copy from-missing">From missing issues</div>
+                }
+                @if (_comic?.Isbn is { } isbn)
+                {
+                    <div class="mono owned-code">ISBN @isbn</div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string Home = "wishlist?tab=comics";
+
+    private WishlistComicDto? _item;
+
+    // The comic as Metron or Open Library has it: what the wishlist doesn't keep (story, creators, cover date, summary).
+    private SaveComicRequest? _comic;
+    private LookupStatus? _lookup;
+    private bool _loaded;
+    private bool _lookedUp;
+
+    [Parameter] public Guid Id { get; set; }
+
+    private string Source => _item is not null && ComicText.IsCollected(_item.Format) ? "Open Library" : "Metron";
+
+    private string NoDetails => _lookup switch
+    {
+        LookupStatus.NotConfigured => $"{Source} isn't set up on this PC, so only what the wishlist keeps is shown.",
+        LookupStatus.Found or LookupStatus.NoMatches or LookupStatus.UnknownBarcode => $"{Source} has no entry for it, so only what the wishlist keeps is shown.",
+        _ => $"Couldn't reach {Source} for the story, creators and summary.",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        (_comic, _lookup, _lookedUp) = (null, null, false);
+        _item = await Api.GetWishlistComicAsync(Id);
+        _loaded = true;
+        if (_item is null)
+        {
+            return;
+        }
+
+        // What the wishlist keeps shows at once; the rest comes from Metron or Open Library when it answers.
+        StateHasChanged();
+        var found = await Api.LookupWishlistComicAsync(Id);
+        _lookup = found?.Status;
+        _comic = found?.Candidates.FirstOrDefault(c => c.Wish?.Id == Id)?.Details;
+        _lookedUp = true;
+    }
+
+    private async Task RemoveAsync()
+    {
+        await Api.RemoveWishlistComicAsync(Id);
+        Navigation.NavigateTo(Home);
+    }
+
+    // "Daredevil (1964) · Marvel · April 1982", or for a trade "Trade paperback · Image".
+    private IEnumerable<string> Facts()
+    {
+        if (ComicText.IsCollected(_item!.Format))
+        {
+            yield return ComicText.Name(_item.Format);
+        }
+        else if (_item.Series is { } series)
+        {
+            yield return _item.SeriesYear is { } year ? $"{series} ({year})" : series;
+        }
+
+        if (_item.Publisher is { } publisher)
+        {
+            yield return publisher;
+        }
+
+        if (_comic?.CoverDate is { } date)
+        {
+            yield return ComicText.LongMonthYear(date);
+        }
+    }
+
+    private static string Names(IReadOnlyList<string> names) =>
+        names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + " & " + names[^1];
+}

@@ -3,6 +3,7 @@ using System.Text;
 using MMDb.Domain;
 using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Infrastructure.Vault;
 
@@ -13,28 +14,34 @@ internal static class VaultFiles
     public const string Guide = "CLAUDE.md";
     public const string MoviesBase = "Movies.base";
     public const string ComicsBase = "Comics.base";
+    public const string WishlistBase = "Wishlist.base";
 
     /// <summary>Files Shelf may rewrite carry this; a version without it (the user's own) is left alone.</summary>
     public static bool IsManaged(string name, string text) => name switch
     {
         Guide => text.StartsWith(GuideMarker, StringComparison.Ordinal),
-        MoviesBase or ComicsBase => text.StartsWith(BaseMarker, StringComparison.Ordinal),
+        MoviesBase or ComicsBase or WishlistBase => text.StartsWith(BaseMarker, StringComparison.Ordinal),
         _ => text.StartsWith("---\nmanaged_by: mmdb\n", StringComparison.Ordinal),
     };
 
     /// <param name="movies">Each film with its note's name (no folder or extension).</param>
     /// <param name="series">Each run of single issues, with its series note's path (no extension).</param>
     /// <param name="collected">Each trade, hardcover and omnibus with its note's path (no extension).</param>
+    /// <param name="wantedFilms">Each film on the wishlist with its note's path (no extension).</param>
+    /// <param name="wantedComics">Each comic item on the wishlist with its note's path (no extension).</param>
     public static string RenderIndex(
         IReadOnlyList<(MovieListing Movie, string Note)> movies,
         IReadOnlyList<SeriesIndexEntry> series,
-        IReadOnlyList<(Comic Comic, string Note)> collected)
+        IReadOnlyList<(Comic Comic, string Note)> collected,
+        IReadOnlyList<(WishlistMovie Film, string Note)> wantedFilms,
+        IReadOnlyList<(WishlistComic Comic, string Note)> wantedComics)
     {
         var index = new StringBuilder();
         index.Append("---\nmanaged_by: mmdb\n---\n");
         index.Append("# Collection index\n\n");
         index.Append("Shelf writes this file. Movies: one line per film (note · directors · formats owned). ");
-        index.Append("Comics: one line per series (series note · publisher · issues owned · missing · key issues), then one line per trade, hardcover or omnibus.\n\n");
+        index.Append("Comics: one line per series (series note · publisher · issues owned · missing · key issues), then one line per trade, hardcover or omnibus. ");
+        index.Append("Wishlist: one line per film (wanted format · formats already owned) and per comic item not owned yet.\n\n");
 
         var count = movies.Count;
         index.Append("**Movies:** ").Append(Count(count)).Append(count == 1 ? " film" : " films");
@@ -51,6 +58,11 @@ internal static class VaultFiles
         index.Append("\n**Comics:** ").Append(Count(issues)).Append(issues == 1 ? " issue" : " issues")
             .Append(" · ").Append(Count(series.Count)).Append(" series")
             .Append(" · ").Append(Count(collected.Count)).Append(collected.Count == 1 ? " trade or hardcover" : " trades and hardcovers");
+        if (wantedFilms.Count + wantedComics.Count > 0)
+        {
+            index.Append("\n**Wishlist:** ").Append(Count(wantedFilms.Count)).Append(wantedFilms.Count == 1 ? " film" : " films")
+                .Append(" · ").Append(Count(wantedComics.Count)).Append(wantedComics.Count == 1 ? " comic" : " comics");
+        }
 
         index.Append("\n\n## Movies\n");
         foreach (var (movie, note) in movies.OrderBy(n => n.Note, StringComparer.InvariantCultureIgnoreCase).ThenBy(n => n.Note, StringComparer.Ordinal))
@@ -94,8 +106,34 @@ internal static class VaultFiles
             }
         }
 
+        if (wantedFilms.Count + wantedComics.Count > 0)
+        {
+            var owned = movies.Where(m => m.Movie.TmdbId is not null).ToLookup(m => m.Movie.TmdbId, m => m.Movie);
+            index.Append("\n## Wishlist\n");
+            foreach (var (film, note) in wantedFilms.OrderBy(w => w.Note, StringComparer.InvariantCultureIgnoreCase))
+            {
+                index.Append("- ").Append(Link(note, film.Year is { } year ? $"{film.Title} ({year.ToString(CultureInfo.InvariantCulture)})" : film.Title))
+                    .Append(" · film · wanted on ").Append(film.Format.DisplayName());
+                if (film.TmdbId is { } tmdbId && owned[tmdbId].SelectMany(m => m.Formats).Distinct().Order().ToList() is { Count: > 0 } formats)
+                {
+                    index.Append(" · own ").AppendJoin(", ", formats.Select(f => f.DisplayName()));
+                }
+
+                index.Append('\n');
+            }
+
+            foreach (var (comic, note) in wantedComics.OrderBy(w => w.Note, StringComparer.InvariantCultureIgnoreCase))
+            {
+                index.Append("- ").Append(Link(note, comic.DisplayName)).Append(" · comic · ").Append(WishNote.About(comic)).Append('\n');
+            }
+        }
+
         return index.ToString();
     }
+
+    // A link's shown text can't hold the characters that end it.
+    private static string Link(string note, string text) =>
+        $"[[{note}|{text.Replace("|", "-", StringComparison.Ordinal).Replace("[", "", StringComparison.Ordinal).Replace("]", "", StringComparison.Ordinal)}]]";
 
     private static string SeriesLine(SeriesIndexEntry run)
     {
@@ -146,6 +184,7 @@ internal static class VaultFiles
         - Open a film's note in `Movies/` only for what the index doesn't have: cast, crew, genres, runtime, rating, overview, barcodes, file paths, the user's own notes.
         - Everyone in a film's cast and crew is a `[[link]]` in its note; people have no notes of their own unless the user made one, so search the notes for `[[A Name]]` to find every film someone worked on. Writers, producers, cinematographers, composers and editors have a line each under the directors and are in the frontmatter; the rest of the crew is under `## Crew`, one line per job title.
         - A series' `_Series.md` lists every issue owned (each copy linked) and every issue missing. Open an issue's note for its creators, cover date, variant, barcode, summary and the user's notes.
+        - What the user wants but doesn't own is under `## Wishlist` at the end of the index: a film with the format wanted (and the formats owned, when it is an upgrade), a comic issue or a book. "Is X on my wishlist" and "what should I look for in a shop" are answered there.
         - To filter many notes on one field, search the frontmatter of `Movies/*.md` or `Comics/**/*.md` instead of opening the notes one by one.
 
         ## Layout
@@ -154,7 +193,8 @@ internal static class VaultFiles
         - `Comics/<Series> (<Year it began>)/_Series.md`: the series, its issues owned and missing.
         - `Comics/Trades & HCs/<Title>.md`: trades, hardcovers and omnibuses.
         - `Attachments/covers/`: cover images.
-        - `Movies.base`, `Comics.base`: Obsidian Bases views (covers, tables, recently added, key issues).
+        - `Wishlist/<Title> (<Year>) (wanted).md`, `Wishlist/<Series> <Issue> (wanted).md`: one note per film or comic the user wants and does not own yet. They are in the index under `## Wishlist`, never among the films or comics owned.
+        - `Movies.base`, `Comics.base`, `Wishlist.base`: Obsidian Bases views (covers, tables, recently added, key issues).
 
         ## Movie note frontmatter
         | Key | Type | Meaning |
@@ -204,6 +244,20 @@ internal static class VaultFiles
         | `cover` | link | the cover image |
         | `added` | date | when the copy was added to the collection |
 
+        ## Wishlist note frontmatter
+        | Key | Type | Meaning |
+        |---|---|---|
+        | `mmdb_id` | text | Shelf's id for the wishlist item |
+        | `managed_by` | text | always `mmdb` |
+        | `wishlist` | text | `movie` or `comic`: the note is something wanted, not owned |
+        | `title`, `year`, `directors`, `tmdb_id` | | a film, as in a movie note |
+        | `wanted_format` | text | the one format the film is wanted on |
+        | `owned_formats` | list | formats the film is owned on already (the wish is an upgrade) |
+        | `series`, `volume`, `issue`, `publisher`, `format`, `isbn` | | a comic, as in a comic note |
+        | `from_missing` | boolean | `true` if it was added from a series' missing issues |
+        | `cover` | link | the cover image |
+        | `added` | date | when it was put on the wishlist |
+
         `_Series.md` frontmatter: `series`, `volume`, `publisher`, `owned` (issue numbers owned; variants count once), `issues` (issues in the series according to Metron, if known), `metron_series_id`.
 
         Keys without a value are left out. Note bodies repeat the details with `[[links]]` to people (and from an issue to its series), the barcode of each disc or comic, and a link to the file of a digital copy.
@@ -211,7 +265,7 @@ internal static class VaultFiles
         ## Editing
         - Everything above `## My notes` is rewritten whenever the film or comic changes in Shelf. Text under `## My notes` is kept. `_Series.md` has no My notes: Shelf rewrites all of it.
         - To change the collection, use Shelf; new or renamed files in `Movies/` and `Comics/` are not read.
-        - When a film or comic is removed from Shelf its note is deleted, or moved to `.trash/` if it had text under `## My notes`.
+        - When a film or comic is removed from Shelf its note is deleted, or moved to `.trash/` if it had text under `## My notes`. The same happens to a wishlist note once the film or comic is bought: it then has a note in `Movies/` or `Comics/`.
         - Files without `managed_by: mmdb` are never touched.
 
         """).ReplaceLineEndings("\n");
@@ -273,6 +327,77 @@ internal static class VaultFiles
               - property: added
                 direction: DESC
             limit: 50
+
+        """).ReplaceLineEndings("\n");
+
+    public static readonly string WishlistBaseText = (BaseMarker + """
+         · Shelf rewrites this file. Change a view in Obsidian and Shelf leaves it alone from then on.
+        filters:
+          and:
+            - file.inFolder("Wishlist")
+            - 'managed_by == "mmdb"'
+        properties:
+          file.name:
+            displayName: Wanted
+          wanted_format:
+            displayName: Format wanted
+          owned_formats:
+            displayName: Owned on
+          directors:
+            displayName: Directors
+          year:
+            displayName: Year
+          publisher:
+            displayName: Publisher
+          volume:
+            displayName: Volume
+          issue:
+            displayName: Issue
+          format:
+            displayName: Format
+          added:
+            displayName: Added
+        views:
+          - type: cards
+            name: Covers
+            order:
+              - file.name
+              - wanted_format
+            sort:
+              - property: added
+                direction: DESC
+            image: note.cover
+            imageAspectRatio: 1.5
+          - type: table
+            name: Movies
+            filters:
+              and:
+                - 'wishlist == "movie"'
+            order:
+              - file.name
+              - year
+              - wanted_format
+              - owned_formats
+              - directors
+              - added
+            sort:
+              - property: added
+                direction: DESC
+          - type: table
+            name: Comics
+            filters:
+              and:
+                - 'wishlist == "comic"'
+            order:
+              - file.name
+              - publisher
+              - volume
+              - issue
+              - format
+              - added
+            sort:
+              - property: added
+                direction: DESC
 
         """).ReplaceLineEndings("\n");
 

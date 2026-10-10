@@ -20,8 +20,8 @@
 
     @if (_last is not null)
     {
-        <button type="button" class="toast" @onclick="() => Review(_last)" disabled="@(_last.State != ScanState.Ready)">
-            <Icon Name="@(_last.Kind == ProductKind.Comic ? "book" : "film")" />
+        <button type="button" class="toast @(_last.IsWanted ? "wish" : null)" @onclick="() => Review(_last)" disabled="@(_last.State != ScanState.Ready)">
+            <Icon Name="@(_last.IsWanted ? "heart" : _last.Kind == ProductKind.Comic ? "book" : "film")" />
             <span>
                 <b>@Headline(_last)</b>
                 <span class="ts">@Detail(_last)</span>
@@ -104,6 +104,7 @@
         ScanState.LookingUp => "Looking it up…",
         ScanState.Failed => "Couldn't ask the PC",
         _ when item.IsOwned => $"You already own {item.Title}",
+        _ when item.IsWanted => $"{item.Title} is on your wishlist",
         _ => item.Title ?? "Not found",
     };
 
@@ -111,6 +112,7 @@
     {
         ScanState.LookingUp => item.Code,
         ScanState.Failed => "It stays in the queue to try again.",
+        _ when item.Wish is { } wish => $"Wanted: {Formats.Name(wish.Format)} · tap to review",
         _ when !_lastWasNew => "Already scanned · tap to review",
         _ when item.Title is null => "Tap to search by title",
         _ => "Tap to review",

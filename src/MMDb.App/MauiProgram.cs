@@ -80,6 +80,9 @@ public static class MauiProgram
         // Catch the vault up in the background; how it went shows in the sidebar.
         _ = Task.Run(() => app.Services.GetRequiredService<IVaultApi>().StartAsync());
 
+        // Covers the wishlist is still missing (wanted while offline) are tried for again; they show up when they arrive.
+        _ = Task.Run(() => ((InProcessCollectionApi)app.Services.GetRequiredService<ICollectionApi>()).FetchMissingWishlistCoversAsync());
+
         // Listen for paired phones; Settings shows whether that worked. The PC's certificate is kept beside the database.
         _ = Task.Run(() => new PhoneHost(app.Services).StartAsync(Path.Combine(dataDirectory, "phone.pfx")));
 #endif

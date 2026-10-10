@@ -103,6 +103,10 @@
                                         }
                                     </span>
                                 }
+                                @if (candidate.Wish is { } wish)
+                                {
+                                    <span class="mo wished"><Icon Name="heart" />On your wishlist <FormatBadge Format="wish.Format" Short Wanted /></span>
+                                }
                             </span>
                         </button>
                     </li>

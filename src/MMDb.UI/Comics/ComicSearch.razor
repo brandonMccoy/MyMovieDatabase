@@ -86,6 +86,10 @@
                                 {
                                     <span class="mo">In your collection: @string.Join(", ", candidate.Owned.Select(OwnedName))</span>
                                 }
+                                @if (candidate.Wish is not null)
+                                {
+                                    <span class="mo wished"><Icon Name="heart" />On your wishlist</span>
+                                }
                             </span>
                         </button>
                     </li>

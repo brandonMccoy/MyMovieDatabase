@@ -2,6 +2,7 @@ using MMDb.Contracts;
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Wishlist;
 
 namespace MMDb.UI.Scanning;
 
@@ -60,6 +61,14 @@ public sealed class ScanItem
         { Comic.OwnedByCode: { } comic } => comic.DisplayName,
         _ => null,
     };
+
+    /// <summary>Set if the best match is a film on the wishlist.</summary>
+    public MovieWishDto? Wish => Response is { Movie.Candidates: [var film, ..] } ? film.Wish : null;
+
+    /// <summary>Set if the best match is a comic on the wishlist.</summary>
+    public ComicWishDto? ComicWish => Response is { Comic.Candidates: [var comic, ..] } ? comic.Wish : null;
+
+    public bool IsWanted => Wish is not null || ComicWish is not null;
 
     /// <summary>The collection already has this very barcode.</summary>
     public bool IsOwned =>

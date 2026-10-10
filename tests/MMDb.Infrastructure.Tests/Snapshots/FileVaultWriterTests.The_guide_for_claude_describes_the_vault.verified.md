@@ -8,6 +8,7 @@ This vault mirrors a physical collection of movies and comics kept in the Shelf 
 - Open a film's note in `Movies/` only for what the index doesn't have: cast, crew, genres, runtime, rating, overview, barcodes, file paths, the user's own notes.
 - Everyone in a film's cast and crew is a `[[link]]` in its note; people have no notes of their own unless the user made one, so search the notes for `[[A Name]]` to find every film someone worked on. Writers, producers, cinematographers, composers and editors have a line each under the directors and are in the frontmatter; the rest of the crew is under `## Crew`, one line per job title.
 - A series' `_Series.md` lists every issue owned (each copy linked) and every issue missing. Open an issue's note for its creators, cover date, variant, barcode, summary and the user's notes.
+- What the user wants but doesn't own is under `## Wishlist` at the end of the index: a film with the format wanted (and the formats owned, when it is an upgrade), a comic issue or a book. "Is X on my wishlist" and "what should I look for in a shop" are answered there.
 - To filter many notes on one field, search the frontmatter of `Movies/*.md` or `Comics/**/*.md` instead of opening the notes one by one.
 
 ## Layout
@@ -16,7 +17,8 @@ This vault mirrors a physical collection of movies and comics kept in the Shelf 
 - `Comics/<Series> (<Year it began>)/_Series.md`: the series, its issues owned and missing.
 - `Comics/Trades & HCs/<Title>.md`: trades, hardcovers and omnibuses.
 - `Attachments/covers/`: cover images.
-- `Movies.base`, `Comics.base`: Obsidian Bases views (covers, tables, recently added, key issues).
+- `Wishlist/<Title> (<Year>) (wanted).md`, `Wishlist/<Series> <Issue> (wanted).md`: one note per film or comic the user wants and does not own yet. They are in the index under `## Wishlist`, never among the films or comics owned.
+- `Movies.base`, `Comics.base`, `Wishlist.base`: Obsidian Bases views (covers, tables, recently added, key issues).
 
 ## Movie note frontmatter
 | Key | Type | Meaning |
@@ -66,6 +68,20 @@ This vault mirrors a physical collection of movies and comics kept in the Shelf 
 | `cover` | link | the cover image |
 | `added` | date | when the copy was added to the collection |
 
+## Wishlist note frontmatter
+| Key | Type | Meaning |
+|---|---|---|
+| `mmdb_id` | text | Shelf's id for the wishlist item |
+| `managed_by` | text | always `mmdb` |
+| `wishlist` | text | `movie` or `comic`: the note is something wanted, not owned |
+| `title`, `year`, `directors`, `tmdb_id` | | a film, as in a movie note |
+| `wanted_format` | text | the one format the film is wanted on |
+| `owned_formats` | list | formats the film is owned on already (the wish is an upgrade) |
+| `series`, `volume`, `issue`, `publisher`, `format`, `isbn` | | a comic, as in a comic note |
+| `from_missing` | boolean | `true` if it was added from a series' missing issues |
+| `cover` | link | the cover image |
+| `added` | date | when it was put on the wishlist |
+
 `_Series.md` frontmatter: `series`, `volume`, `publisher`, `owned` (issue numbers owned; variants count once), `issues` (issues in the series according to Metron, if known), `metron_series_id`.
 
 Keys without a value are left out. Note bodies repeat the details with `[[links]]` to people (and from an issue to its series), the barcode of each disc or comic, and a link to the file of a digital copy.
@@ -73,5 +89,5 @@ Keys without a value are left out. Note bodies repeat the details with `[[links]
 ## Editing
 - Everything above `## My notes` is rewritten whenever the film or comic changes in Shelf. Text under `## My notes` is kept. `_Series.md` has no My notes: Shelf rewrites all of it.
 - To change the collection, use Shelf; new or renamed files in `Movies/` and `Comics/` are not read.
-- When a film or comic is removed from Shelf its note is deleted, or moved to `.trash/` if it had text under `## My notes`.
+- When a film or comic is removed from Shelf its note is deleted, or moved to `.trash/` if it had text under `## My notes`. The same happens to a wishlist note once the film or comic is bought: it then has a note in `Movies/` or `Comics/`.
 - Files without `managed_by: mmdb` are never touched.

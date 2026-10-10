@@ -3,6 +3,7 @@ using MMDb.Application.Vault;
 using MMDb.Domain;
 using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Infrastructure.Vault;
 
@@ -16,6 +17,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
     public const string MoviesFolder = "Movies";
     public const string ComicsFolder = "Comics";
     public const string CollectedFolder = "Comics/Trades & HCs";
+    public const string WishlistFolder = "Wishlist";
     public const string CoversFolder = "Attachments/covers";
     private const string TrashFolder = ".trash";
 
@@ -29,7 +31,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
         GuardAsync(folder, async () =>
         {
             var notes = Scan(folder);
-            var keep = content.Movies.Select(m => m.Id).Concat(content.Comics.Select(c => c.Id)).ToHashSet();
+            var keep = content.Movies.Select(m => m.Id).Concat(content.Comics.Select(c => c.Id)).Concat(Wanted(content)).ToHashSet();
             foreach (var gone in notes.Keys.Where(id => !keep.Contains(id)).ToList())
             {
                 await RemoveNoteAsync(folder, notes, gone, cancellationToken);
@@ -46,6 +48,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
                 await WriteComicNoteAsync(folder, notes, comic, cancellationToken);
             }
 
+            await WriteWishNotesAsync(folder, notes, content, cancellationToken);
             RemoveStrayCovers(folder, keep);
             await WriteSharedFilesAsync(folder, notes, content, cancellationToken);
         });
@@ -71,6 +74,20 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
         {
             var notes = Known(folder, id);
             await RemoveNoteAsync(folder, notes, id, cancellationToken);
+            await WriteSharedFilesAsync(folder, notes, content, cancellationToken);
+        });
+
+    public Task WriteWishlistAsync(string folder, VaultContent content, CancellationToken cancellationToken = default) =>
+        GuardAsync(folder, async () =>
+        {
+            var notes = Known(folder);
+            var wanted = Wanted(content).ToHashSet();
+            foreach (var gone in notes.Where(n => IsIn(n.Value, WishlistFolder) && !wanted.Contains(n.Key)).Select(n => n.Key).ToList())
+            {
+                await RemoveNoteAsync(folder, notes, gone, cancellationToken);
+            }
+
+            await WriteWishNotesAsync(folder, notes, content, cancellationToken);
             await WriteSharedFilesAsync(folder, notes, content, cancellationToken);
         });
 
@@ -106,6 +123,24 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
         }
     }
 
+    private static IEnumerable<Guid> Wanted(VaultContent content) => content.WantedMovies.Select(m => m.Id).Concat(content.WantedComics.Select(c => c.Id));
+
+    private static bool IsIn(string note, string notesFolder) => note.StartsWith(notesFolder + "/", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The notes known for this folder; read from disk if it's new.</summary>
+    private Dictionary<Guid, string> Known(string folder)
+    {
+        lock (_lock)
+        {
+            if (_knownFolder == folder)
+            {
+                return _notes;
+            }
+        }
+
+        return Scan(folder);
+    }
+
     /// <summary>The notes known for this folder; read from disk if it's new, or if this note has gone missing.</summary>
     private Dictionary<Guid, string> Known(string folder, Guid id)
     {
@@ -125,6 +160,7 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
         var notes = new Dictionary<Guid, string>();
         AddNotes(folder, notes, MoviesFolder, SearchOption.TopDirectoryOnly);
         AddNotes(folder, notes, ComicsFolder, SearchOption.AllDirectories);
+        AddNotes(folder, notes, WishlistFolder, SearchOption.TopDirectoryOnly);
 
         lock (_lock)
         {
@@ -169,6 +205,30 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
         var series = ($"{seriesFolder}/{Path.GetFileNameWithoutExtension(ComicNote.SeriesNoteName)}", SeriesTitle(comic));
         return WriteNoteAsync(folder, notes, comic, seriesFolder, NoteNames.ForIssue(comic.Series!, comic.Number!, comic.Variant, comic.Printing),
             (cover, myNotes) => ComicNote.Render(comic, cover, series, myNotes, clock.LocalTimeZone), cancellationToken);
+    }
+
+    /// <summary>
+    /// Ends every wishlist note's name, so a film wanted on a better format never shares a name with its own
+    /// note in <c>Movies</c> (a link by name alone would then mean either).
+    /// </summary>
+    public const string WantedSuffix = " (wanted)";
+
+    // Oldest first, so whatever had a name first keeps it. A film wanted on another format than it is owned on says so.
+    private async Task WriteWishNotesAsync(string folder, Dictionary<Guid, string> notes, VaultContent content, CancellationToken cancellationToken)
+    {
+        var owned = content.Movies.Where(m => m.TmdbId is not null).ToLookup(m => m.TmdbId);
+        foreach (var film in content.WantedMovies.OrderBy(m => m.CreatedAt).ThenBy(m => m.Id))
+        {
+            IReadOnlyList<MediaFormat> formats = film.TmdbId is { } tmdbId ? [.. owned[tmdbId].SelectMany(m => m.Formats).Distinct().Order()] : [];
+            await WriteNoteAsync(folder, notes, film, WishlistFolder, NoteNames.For(film.Title, film.Year) + WantedSuffix,
+                (cover, myNotes) => WishNote.Render(film, formats, cover, myNotes, clock.LocalTimeZone), cancellationToken);
+        }
+
+        foreach (var comic in content.WantedComics.OrderBy(c => c.CreatedAt).ThenBy(c => c.Id))
+        {
+            await WriteNoteAsync(folder, notes, comic, WishlistFolder, NoteNames.Clean(comic.DisplayName) + WantedSuffix,
+                (cover, myNotes) => WishNote.Render(comic, cover, myNotes, clock.LocalTimeZone), cancellationToken);
+        }
     }
 
     private static string SeriesTitle(Comic comic) => comic.SeriesYear is { } year ? $"{comic.Series} ({year})" : comic.Series!;
@@ -376,10 +436,20 @@ internal sealed partial class FileVaultWriter(string coverDirectory, TimeProvide
 
         RemoveEmptiedSeries(folder, runs.Select(r => r.Folder).ToHashSet(StringComparer.OrdinalIgnoreCase));
 
-        await WriteSharedFileAsync(folder, VaultFiles.Index, VaultFiles.RenderIndex(movies, [.. runs.Select(r => r.Entry)], collected), cancellationToken);
+        var wantedFilms = content.WantedMovies
+            .Where(m => notes.ContainsKey(m.Id))
+            .Select(m => (m, WithoutExtension(notes[m.Id])))
+            .ToList();
+        var wantedComics = content.WantedComics
+            .Where(c => notes.ContainsKey(c.Id))
+            .Select(c => (c, WithoutExtension(notes[c.Id])))
+            .ToList();
+
+        await WriteSharedFileAsync(folder, VaultFiles.Index, VaultFiles.RenderIndex(movies, [.. runs.Select(r => r.Entry)], collected, wantedFilms, wantedComics), cancellationToken);
         await WriteSharedFileAsync(folder, VaultFiles.Guide, VaultFiles.GuideText, cancellationToken);
         await WriteSharedFileAsync(folder, VaultFiles.MoviesBase, VaultFiles.MoviesBaseText, cancellationToken);
         await WriteSharedFileAsync(folder, VaultFiles.ComicsBase, VaultFiles.ComicsBaseText, cancellationToken);
+        await WriteSharedFileAsync(folder, VaultFiles.WishlistBase, VaultFiles.WishlistBaseText, cancellationToken);
     }
 
     // A series folder with no issues left loses its series note, and the folder too once nothing else is in it.

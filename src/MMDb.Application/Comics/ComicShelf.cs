@@ -61,7 +61,8 @@ public sealed record SeriesRun(
 
 /// <param name="Copies">Every copy owned of this issue (variants, printings); empty if it is missing.</param>
 /// <param name="Through">For missing issues, the last of a range that starts at <paramref name="Number"/>; <see langword="null"/> for one issue.</param>
-public sealed record RunEntry(string Number, IReadOnlyList<Comic> Copies, string? Through = null)
+/// <param name="Wanted">For missing issues: they are on the wishlist. Wanted and unwanted issues never share an entry.</param>
+public sealed record RunEntry(string Number, IReadOnlyList<Comic> Copies, string? Through = null, bool Wanted = false)
 {
     public bool IsMissing => Copies.Count == 0;
 }

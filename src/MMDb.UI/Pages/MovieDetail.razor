@@ -104,40 +104,10 @@ else if (_movie is not null)
             @switch (_tab)
             {
                 case Tab.Cast:
-                    @if (_movie.Cast.Count == 0)
-                    {
-                        <p class="small">No cast added.</p>
-                    }
-                    else
-                    {
-                        <div class="cast">
-                            @foreach (var person in _movie.Cast)
-                            {
-                                <div class="person"><div class="avatar">@Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Character</div></div></div>
-                            }
-                        </div>
-                    }
+                    <CastList Cast="_movie.Cast" />
                     break;
                 case Tab.Crew:
-                    @if (_movie.Directors.Count == 0 && _movie.Crew.Count == 0)
-                    {
-                        <p class="small">No crew added.</p>
-                    }
-                    else
-                    {
-                        @foreach (var department in Departments())
-                        {
-                            <section class="dept" aria-label="@department.Name">
-                                <div class="eyebrow">@department.Name</div>
-                                <div class="cast">
-                                    @foreach (var person in department.People)
-                                    {
-                                        <div class="person"><div class="avatar">@Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Jobs</div></div></div>
-                                    }
-                                </div>
-                            </section>
-                        }
-                    }
+                    <CrewList Directors="_movie.Directors" Crew="_movie.Crew" />
                     break;
                 case Tab.Details:
                     <dl class="kv">
@@ -191,8 +161,6 @@ else if (_movie is not null)
     private bool _confirmingDelete;
     private Tab _tab = Tab.Cast;
 
-    private const string Directing = "Directing";
-
     private enum Tab
     {
         Cast,
@@ -237,20 +205,8 @@ else if (_movie is not null)
 
     private string Directors(string separator) => string.Join(separator, _movie!.Directors);
 
-    // The directors lead the Directing department; someone with several jobs in a department is shown once.
-    private IEnumerable<(string Name, IEnumerable<(string Name, string Jobs)> People)> Departments() =>
-        _movie!.Directors.Select(d => new CrewMemberDto(d, "Director", Directing))
-            .Concat(_movie.Crew)
-            .GroupBy(c => c.Department ?? "Other")
-            .Select(department => (
-                department.Key,
-                department.GroupBy(c => c.Name).Select(person => (person.Key, string.Join(", ", person.Select(c => c.Job))))));
-
     // "A", "A & B", "A, B & C"
     private static string Separator(int index, int count) => index == 0 ? "" : index == count - 1 ? " & " : ", ";
-
-    private static string Initials(string name) =>
-        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
 
     private static string MonthYear(DateTimeOffset at) => at.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture);
 

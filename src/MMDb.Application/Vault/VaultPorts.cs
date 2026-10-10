@@ -32,6 +32,14 @@ public interface IVaultWriter
     /// <exception cref="VaultUnavailableException">The folder is missing or can't be written.</exception>
     Task RemoveAsync(string folder, Guid id, VaultContent content, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Brings the <c>Wishlist</c> folder in line with the wishlist: a note per wanted film and comic, none for what
+    /// is no longer wanted, then the shared files.
+    /// </summary>
+    /// <param name="content">The whole collection and wishlist as they are now.</param>
+    /// <exception cref="VaultUnavailableException">The folder is missing or can't be written.</exception>
+    Task WriteWishlistAsync(string folder, VaultContent content, CancellationToken cancellationToken = default);
+
     /// <returns>The note relative to the vault (<c>Movies/Heat (1995).md</c>), if one has been written.</returns>
     string? NoteOf(string folder, Guid id);
 }

@@ -1,0 +1,22 @@
+@* A film's cast in billing order, each with the part played. *@
+@if (Cast.Count == 0)
+{
+    <p class="small">No cast added.</p>
+}
+else
+{
+    <div class="cast">
+        @foreach (var person in Cast)
+        {
+            <div class="person"><div class="avatar">@Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Character</div></div></div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<CastMemberDto> Cast { get; set; } = [];
+
+    /// <summary>"AP" for Al Pacino: what stands in for a portrait.</summary>
+    public static string Initials(string name) =>
+        string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(word => char.ToUpperInvariant(word[0])));
+}

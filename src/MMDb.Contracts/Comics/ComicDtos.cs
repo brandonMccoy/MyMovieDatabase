@@ -140,11 +140,13 @@ public sealed record SeriesRunDto(
     string? Publisher,
     IReadOnlyList<RunEntryDto> Entries,
     int OwnedCount,
-    int? KnownCount);
+    int? KnownCount,
+    int? MetronSeriesId = null);
 
 /// <param name="Copies">Every copy owned of the issue; empty if it is missing.</param>
 /// <param name="Through">For missing issues, the last of a range that starts at <paramref name="Number"/>; <see langword="null"/> for one issue.</param>
-public sealed record RunEntryDto(string Number, IReadOnlyList<ComicSummaryDto> Copies, string? Through = null)
+/// <param name="Wanted">For missing issues: they are on the wishlist.</param>
+public sealed record RunEntryDto(string Number, IReadOnlyList<ComicSummaryDto> Copies, string? Through = null, bool Wanted = false)
 {
     public bool IsMissing => Copies.Count == 0;
 }
@@ -235,6 +237,9 @@ public sealed record ComicLookupResponse
     /// <summary>The copy in the collection with this very barcode or ISBN.</summary>
     public ComicSummaryDto? OwnedByCode { get; init; }
 
+    /// <summary>The wishlist item the lookup was for ("Got it"); also set when the lookup found nothing or failed.</summary>
+    public Wishlist.ComicWishDto? Wish { get; init; }
+
     /// <summary>For the failure statuses: "Metron" or "Open Library".</summary>
     public string? FailedService { get; init; }
 }
@@ -254,4 +259,7 @@ public sealed record ComicCandidateDto
 
     /// <summary>This very copy (same cover and printing) is already in the collection.</summary>
     public bool IsOwned { get; init; }
+
+    /// <summary>Set if the issue or book is on the wishlist.</summary>
+    public Wishlist.ComicWishDto? Wish { get; init; }
 }

@@ -16,6 +16,9 @@
                 <NavLink href="comics" Match="NavLinkMatch.Prefix">
                     <Icon Name="book" />Comics<span class="count">@Counts.Comics?.ToString("N0", CultureInfo.InvariantCulture)</span>
                 </NavLink>
+                <NavLink href="wishlist" Match="NavLinkMatch.Prefix">
+                    <Icon Name="heart" />Wishlist<span class="count">@Counts.Wishlist?.ToString("N0", CultureInfo.InvariantCulture)</span>
+                </NavLink>
             </nav>
         </div>
         <div class="side-foot">

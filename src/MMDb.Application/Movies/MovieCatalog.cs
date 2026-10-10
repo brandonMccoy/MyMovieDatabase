@@ -1,12 +1,18 @@
 using MMDb.Application.Covers;
 using MMDb.Application.Metadata;
 using MMDb.Application.Vault;
+using MMDb.Application.Wishlist;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Application.Movies;
 
-/// <summary>Use cases for the movie collection: browse, add, edit, delete. Every change is mirrored into the vault.</summary>
-public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore, VaultMirror vault, VaultContentSource content)
+/// <summary>
+/// Use cases for the movie collection: browse, add, edit, delete. Every change is mirrored into the vault.
+/// A film saved on the format it was wanted on leaves the wishlist.
+/// </summary>
+public sealed class MovieCatalog(
+    IMovieRepository movies, IWishlistRepository wishlist, TimeProvider clock, IPosterSource posters, ICoverStore coverStore, VaultMirror vault, VaultContentSource content)
 {
     private readonly CoverKeeper _covers = new(coverStore);
 
@@ -108,6 +114,12 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
 
     private async Task<SaveMovieResult> SaveAsync(Movie movie, CancellationToken cancellationToken)
     {
+        // Off the wishlist in the same write that saves the film: the repositories share one unit of work.
+        var granted = (await wishlist.FindMoviesForAsync(movie.TmdbId is { } tmdbId ? [tmdbId] : [], cancellationToken))
+            .Where(wish => wish.IsFor(movie.Details) && movie.Owns(wish.Format))
+            .ToList();
+        granted.ForEach(wishlist.Remove);
+
         try
         {
             var poster = movie.PosterPath;
@@ -123,7 +135,13 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
             return new SaveMovieResult.Conflict();
         }
 
+        granted.ForEach(_covers.Forget);
         await vault.MovieSavedAsync(movie, content);
+        if (granted.Count > 0)
+        {
+            await vault.WishlistChangedAsync(content);
+        }
+
         return new SaveMovieResult.Saved(movie);
     }
 }

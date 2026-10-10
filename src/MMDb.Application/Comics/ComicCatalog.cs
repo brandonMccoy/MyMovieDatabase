@@ -4,6 +4,7 @@ using MMDb.Application.Covers;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
+using MMDb.Application.Wishlist;
 using MMDb.Domain.Comics;
 
 namespace MMDb.Application.Comics;
@@ -11,9 +12,11 @@ namespace MMDb.Application.Comics;
 /// <summary>
 /// Use cases for the comic collection: browse, add, edit, delete. Saving a copy downloads its cover, fetches
 /// its series' issue list from Metron when that is missing or a week old, and mirrors the change into the vault.
+/// A copy saved takes the issue or book off the wishlist.
 /// </summary>
 public sealed class ComicCatalog(
     IComicRepository comics,
+    IWishlistRepository wishlist,
     TimeProvider clock,
     IComicMetadata metron,
     ICoverSource coverSource,
@@ -28,7 +31,11 @@ public sealed class ComicCatalog(
         comics.FindAsync(id, cancellationToken);
 
     public async Task<ComicShelf> ListAsync(ComicQuery query, CancellationToken cancellationToken = default) =>
-        ComicFilter.Apply(await comics.ListAsync(cancellationToken), await comics.ListSeriesAsync(cancellationToken), query);
+        ComicFilter.Apply(
+            await comics.ListAsync(cancellationToken),
+            await comics.ListSeriesAsync(cancellationToken),
+            query,
+            query.View == ComicView.Series ? await wishlist.ListComicsAsync(cancellationToken) : []);
 
     /// <summary>The run a single issue belongs to, with every issue owned and missing; <see langword="null"/> for a collected edition.</summary>
     public async Task<SeriesRun?> RunOfAsync(Comic comic, CancellationToken cancellationToken = default)
@@ -42,7 +49,7 @@ public sealed class ComicCatalog(
         var run = all.Where(c => !c.Format.IsCollected()
             && string.Equals(c.Series, comic.Series, StringComparison.OrdinalIgnoreCase)
             && c.SeriesYear == comic.SeriesYear).ToList();
-        var shelf = ComicFilter.Apply(run, await comics.ListSeriesAsync(cancellationToken), new ComicQuery());
+        var shelf = ComicFilter.Apply(run, await comics.ListSeriesAsync(cancellationToken), new ComicQuery(), await wishlist.ListComicsAsync(cancellationToken));
         return shelf.Runs.SingleOrDefault();
     }
 
@@ -146,6 +153,9 @@ public sealed class ComicCatalog(
 
     private async Task<SaveComicResult> SaveAsync(Comic comic, CancellationToken cancellationToken)
     {
+        // Off the wishlist in the same write that saves the copy: the repositories share one unit of work.
+        var granted = (await wishlist.LoadComicsAsync(cancellationToken)).Where(wish => wish.IsFor(comic.Details)).ToList();
+        granted.ForEach(wishlist.Remove);
         try
         {
             var url = comic.CoverUrl;
@@ -161,8 +171,14 @@ public sealed class ComicCatalog(
             return new SaveComicResult.Conflict();
         }
 
+        granted.ForEach(_covers.Forget);
         await RefreshSeriesAsync(comic, cancellationToken);
         await vault.ComicSavedAsync(comic, content);
+        if (granted.Count > 0)
+        {
+            await vault.WishlistChangedAsync(content);
+        }
+
         return new SaveComicResult.Saved(comic);
     }
 

@@ -1,0 +1,73 @@
+@page "/wishlist/comics/new"
+@using MMDb.UI.Comics
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+
+<PageTitle>Add to wishlist · Shelf</PageTitle>
+
+@* The same search as Add comic; a comic has no format to choose, so the match picked goes straight on the wishlist. *@
+<div class="topbar">
+    <a class="btn ghost back" href="@Home"><Icon Name="back" />Wishlist</a>
+</div>
+
+<div class="content">
+    <div class="section-head">
+        <h1>Add to wishlist</h1>
+    </div>
+    @if (_problem is not null)
+    {
+        <div class="problem" role="alert">
+            <span>@_problem</span>
+            @if (_owned is not null)
+            {
+                <a class="btn sm" href="comics/@_owned.Id">Open @_owned.DisplayName</a>
+            }
+        </div>
+    }
+    <ComicSearch State="_search" OnPick="WantAsync" />
+</div>
+
+@code {
+    private const string Home = "wishlist?tab=comics";
+
+    private readonly ComicSearchState _search = new();
+    private string? _problem;
+    private ComicSummaryDto? _owned;
+
+    private async Task WantAsync(ComicCandidateDto candidate)
+    {
+        _problem = null;
+        _owned = null;
+        var comic = candidate.Details;
+        var response = await Api.WantComicAsync(new()
+        {
+            Format = comic.Format,
+            Series = comic.Series,
+            SeriesYear = comic.SeriesYear,
+            Number = comic.Number,
+            Title = comic.Title,
+            Publisher = comic.Publisher,
+            Isbn = comic.Isbn,
+            MetronId = comic.MetronId,
+            MetronSeriesId = comic.MetronSeriesId,
+            CoverSource = comic.CoverSource,
+        });
+
+        switch (response.Status)
+        {
+            case SaveStatus.Saved:
+                Navigation.NavigateTo(Home, replace: true);
+                break;
+            case SaveStatus.AlreadyOwned:
+                _owned = response.Owned;
+                _problem = $"You already own {candidate.DisplayName}.";
+                break;
+            case SaveStatus.Invalid:
+                _problem = string.Join(" ", response.Errors.Select(e => e.Message));
+                break;
+            default:
+                _problem = "The wishlist changed somewhere else just now. Try again.";
+                break;
+        }
+    }
+}

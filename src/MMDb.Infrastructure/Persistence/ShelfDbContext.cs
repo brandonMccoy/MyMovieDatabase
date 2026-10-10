@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MMDb.Domain.Comics;
 using MMDb.Domain.Devices;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Infrastructure.Persistence;
 
@@ -15,6 +16,10 @@ public sealed class ShelfDbContext(DbContextOptions<ShelfDbContext> options) : D
     public DbSet<ComicSeries> ComicSeries => Set<ComicSeries>();
 
     public DbSet<PairedDevice> PairedDevices => Set<PairedDevice>();
+
+    public DbSet<WishlistMovie> WishlistMovies => Set<WishlistMovie>();
+
+    public DbSet<WishlistComic> WishlistComics => Set<WishlistComic>();
 
     internal DbSet<LookupCacheEntry> LookupCache => Set<LookupCacheEntry>();
 

@@ -35,8 +35,9 @@ public sealed class PhoneLayoutTests : PhoneTestContext
         app.FindAll(".bnav a").Select(a => (a.GetAttribute("href"), Text(a), a.ClassList.Contains("on"))).ShouldBe(
         [
             ("", "Movies", true),
-            ("scan", "", false),
             ("comics", "Comics", false),
+            ("scan", "", false),
+            ("wishlist", "Wishlist", false),
         ]);
         app.Find(".bnav a.scan").GetAttribute("aria-label").ShouldBe("Scan");
         Link.Checks.ShouldBe(1);
@@ -51,11 +52,22 @@ public sealed class PhoneLayoutTests : PhoneTestContext
         app.FindAll(".bnav a.on").ShouldHaveSingleItem().TextContent.Trim().ShouldBe("Comics");
     }
 
+    [Fact]
+    public void The_bottom_bar_marks_the_wishlist_when_there()
+    {
+        var app = RenderApp<WishlistPage>("wishlist");
+
+        app.WaitForElement(".appbar");
+        app.FindAll(".bnav a.on").ShouldHaveSingleItem().TextContent.Trim().ShouldBe("Wishlist");
+    }
+
     [Theory]
     [InlineData("scan")]
     [InlineData("scan/review")]
     [InlineData("movies/new")]
     [InlineData("comics/new")]
+    [InlineData("wishlist/movies/new")]
+    [InlineData("wishlist/comics/new")]
     public void Scanning_and_reviewing_fill_the_screen_without_the_bottom_bar(string location)
     {
         var app = RenderApp<PhoneLink>(location);

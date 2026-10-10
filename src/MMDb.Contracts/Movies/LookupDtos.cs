@@ -1,3 +1,5 @@
+using MMDb.Contracts.Wishlist;
+
 namespace MMDb.Contracts.Movies;
 
 public enum LookupStatus
@@ -46,6 +48,9 @@ public sealed record MovieLookupResponse
 
     public MovieSummaryDto? OwnedByBarcode { get; init; }
 
+    /// <summary>The wishlist item the lookup was for ("Got it"); also set when the lookup itself failed.</summary>
+    public MovieWishDto? Wish { get; init; }
+
     /// <summary>For the failure statuses: which online database it was, "TMDB" or "UPCitemdb".</summary>
     public string? FailedService { get; init; }
 }
@@ -85,4 +90,7 @@ public sealed record MovieCandidateDto
 
     /// <summary>The film in the collection linked to the same TMDB entry, if there is one.</summary>
     public MovieSummaryDto? Owned { get; init; }
+
+    /// <summary>Set if the film is on the wishlist: the item and the format wanted.</summary>
+    public MovieWishDto? Wish { get; init; }
 }

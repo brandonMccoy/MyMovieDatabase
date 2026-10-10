@@ -6,9 +6,11 @@ using MMDb.Application.Devices;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
+using MMDb.Application.Wishlist;
 using MMDb.Domain;
 using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 using MMDb.Infrastructure;
 using MMDb.Testing;
 
@@ -84,6 +86,21 @@ internal sealed class TestShelf : IAsyncDisposable
     public Task<ComicShelf> ListComicsAsync(ComicQuery? query = null) => Comics((catalog, ct) => catalog.ListAsync(query ?? new(), ct));
 
     public Task<MovieLookupResult> LookupAsync(string query) => Use<MovieLookup, MovieLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
+
+    public Task<T> Wishlist<T>(Func<WishlistCatalog, CancellationToken, Task<T>> use) => Use(use);
+
+    /// <summary>Puts a film on the wishlist, which must be accepted, and returns the item.</summary>
+    public async Task<WishlistMovie> WantAsync(MovieDetails film, MediaFormat format)
+    {
+        var result = await Wishlist((wishlist, ct) => wishlist.WantMovieAsync(TestMovies.Wanted(film, format), ct));
+        return result.ShouldBeOfType<WantMovieResult.Saved>().Film.Item;
+    }
+
+    public Task<WishlistContents> WishlistAsync(string? search = null) => Wishlist((wishlist, ct) => wishlist.ListAsync(search, ct));
+
+    public Task<MovieLookupResult?> LookupWishAsync(Guid id) => Use<MovieLookup, MovieLookupResult?>((lookup, ct) => lookup.LookupWishAsync(id, ct));
+
+    public Task<ComicLookupResult?> LookupWishComicAsync(Guid id) => Use<ComicLookup, ComicLookupResult?>((lookup, ct) => lookup.LookupWishAsync(id, ct));
 
     private async Task<T> Use<TService, T>(Func<TService, CancellationToken, Task<T>> use)
         where TService : notnull

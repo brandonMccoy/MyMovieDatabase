@@ -24,12 +24,17 @@ public sealed class ShelfCounts : IDisposable
     /// <summary>Comic copies: single issues, trades, hardcovers and omnibuses.</summary>
     public int? Comics { get; private set; }
 
+    /// <summary>Films and comic items on the wishlist.</summary>
+    public int? Wishlist { get; private set; }
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         _wanted = true;
         Movies = (await _api.ListMoviesAsync(new(), cancellationToken)).Facets.FilmCount;
         var comics = (await _api.ListComicsAsync(new(), cancellationToken)).Facets;
         Comics = comics.IssueCount + comics.CollectedCount;
+        var wishlist = await _api.ListWishlistAsync(cancellationToken: cancellationToken);
+        Wishlist = wishlist.MovieCount + wishlist.ComicCount;
         Changed?.Invoke();
     }
 

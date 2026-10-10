@@ -5,6 +5,7 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Wishlist;
 using MMDb.Server;
 using MMDb.UI.Scanning;
 
@@ -173,6 +174,28 @@ internal sealed class LinkedApi(ICollectionApi pc, FakePcLink link) : ICollectio
     public Task<ComicLookupResponse> LookupComicAsync(string query, CancellationToken cancellationToken = default) => Up().LookupComicAsync(query, cancellationToken);
 
     public Task<ScanResponse> LookupScanAsync(ScanRequest request, CancellationToken cancellationToken = default) => Up().LookupScanAsync(request, cancellationToken);
+
+    public Task<WishlistResponse> ListWishlistAsync(string? search = null, CancellationToken cancellationToken = default) => Up().ListWishlistAsync(search, cancellationToken);
+
+    public Task<WishlistMovieDto?> GetWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetWishlistMovieAsync(id, cancellationToken);
+
+    public Task<WishlistComicDto?> GetWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetWishlistComicAsync(id, cancellationToken);
+
+    public Task<WantMovieResponse> ChangeWishlistFormatAsync(Guid id, MovieFormatKind format, CancellationToken cancellationToken = default) => Up().ChangeWishlistFormatAsync(id, format, cancellationToken);
+
+    public Task<WantMovieResponse> WantMovieAsync(WantMovieRequest request, CancellationToken cancellationToken = default) => Up().WantMovieAsync(request, cancellationToken);
+
+    public Task<bool> RemoveWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().RemoveWishlistMovieAsync(id, cancellationToken);
+
+    public Task<MovieLookupResponse?> LookupWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().LookupWishlistMovieAsync(id, cancellationToken);
+
+    public Task<WantComicResponse> WantComicAsync(WantComicRequest request, CancellationToken cancellationToken = default) => Up().WantComicAsync(request, cancellationToken);
+
+    public Task<WantComicResponse> WantMissingIssuesAsync(WantMissingRequest request, CancellationToken cancellationToken = default) => Up().WantMissingIssuesAsync(request, cancellationToken);
+
+    public Task<bool> RemoveWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().RemoveWishlistComicAsync(id, cancellationToken);
+
+    public Task<ComicLookupResponse?> LookupWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().LookupWishlistComicAsync(id, cancellationToken);
 
     private ICollectionApi Up()
     {

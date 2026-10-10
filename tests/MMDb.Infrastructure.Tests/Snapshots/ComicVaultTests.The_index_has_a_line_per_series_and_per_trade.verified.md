@@ -3,7 +3,7 @@ managed_by: mmdb
 ---
 # Collection index
 
-Shelf writes this file. Movies: one line per film (note · directors · formats owned). Comics: one line per series (series note · publisher · issues owned · missing · key issues), then one line per trade, hardcover or omnibus.
+Shelf writes this file. Movies: one line per film (note · directors · formats owned). Comics: one line per series (series note · publisher · issues owned · missing · key issues), then one line per trade, hardcover or omnibus. Wishlist: one line per film (wanted format · formats already owned) and per comic item not owned yet.
 
 **Movies:** 1 film · Blu-ray 1
 **Comics:** 4 issues · 2 series · 1 trade or hardcover

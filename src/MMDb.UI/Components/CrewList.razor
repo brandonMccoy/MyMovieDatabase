@@ -1,0 +1,36 @@
+@* A film's crew by department. The directors lead Directing; someone with several jobs in a department is shown once. *@
+@if (Directors.Count == 0 && Crew.Count == 0)
+{
+    <p class="small">No crew added.</p>
+}
+else
+{
+    @foreach (var department in Departments())
+    {
+        <section class="dept" aria-label="@department.Name">
+            <div class="eyebrow">@department.Name</div>
+            <div class="cast">
+                @foreach (var person in department.People)
+                {
+                    <div class="person"><div class="avatar">@CastList.Initials(person.Name)</div><div><div class="n">@person.Name</div><div class="r">@person.Jobs</div></div></div>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private const string Directing = "Directing";
+
+    [Parameter, EditorRequired] public IReadOnlyList<string> Directors { get; set; } = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<CrewMemberDto> Crew { get; set; } = [];
+
+    private IEnumerable<(string Name, IEnumerable<(string Name, string Jobs)> People)> Departments() =>
+        Directors.Select(d => new CrewMemberDto(d, "Director", Directing))
+            .Concat(Crew)
+            .GroupBy(c => c.Department ?? "Other")
+            .Select(department => (
+                department.Key,
+                department.GroupBy(c => c.Name).Select(person => (person.Key, string.Join(", ", person.Select(c => c.Job))))));
+}

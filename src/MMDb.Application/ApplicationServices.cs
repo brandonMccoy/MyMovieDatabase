@@ -5,6 +5,7 @@ using MMDb.Application.Devices;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
+using MMDb.Application.Wishlist;
 
 namespace MMDb.Application;
 
@@ -19,6 +20,7 @@ public static class ApplicationServices
         services.AddScoped<ComicCatalog>();
         services.AddScoped<ComicLookup>();
         services.AddScoped<ScanLookup>();
+        services.AddScoped<WishlistCatalog>();
         services.AddSingleton<PairingDesk>();
         services.AddScoped<DeviceAccess>();
         services.AddScoped<VaultContentSource>();

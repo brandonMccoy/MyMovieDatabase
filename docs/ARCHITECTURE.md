@@ -52,7 +52,7 @@ The PC owns all data and does all metadata lookups (API keys live only on the PC
 ```
 MyMovieDatabase.slnx
 src/
-  MMDb.Domain/          Entities (Movie, Comic, WishlistItem), value objects
+  MMDb.Domain/          Entities (Movie, Comic, WishlistMovie, WishlistComic), value objects
                         (Upc, ComicBarcode, Isbn), validation. No dependencies.
   MMDb.Application/     Use cases (LookupBarcode, SearchMetadata, AddMovie,
                         AddComic, UpdateX, Wishlist ops, Query). Defines ports:
@@ -98,7 +98,8 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - **Comic** (one row per copy: each variant or printing owned is its own row): `Format` (single issue / trade paperback / hardcover / omnibus), `Series`, `SeriesYear` (the year it began, which tells volumes apart: Daredevil (1964)), `Number` (text: "181", "½", "1.MU"; a trade's volume number), `Title` (a trade's title or an issue's story title), `Variant`, `Printing`, `Publisher`, `CoverDate`, `Writers`, `Artists`, `Summary`, `Upc` + `UpcSupplement` (the 5-digit add-on), `Isbn`, `MetronId`, `MetronSeriesId`, `IsKeyIssue`, `KeyNote` (e.g. "1st Elektra"), `CoverUrl` (where the cover was downloaded from).
 - **ComicSeries**: `MetronId`, `Name`, `YearBegan`, `Publisher`, `IssueNumbers` (every issue Metron lists), `FetchedAt` — powers "N of M" and missing issues. Fetched when an issue of the series is saved and the copy kept is missing or a week old.
 - **PairedDevice**: `Id`, `Name`, `TokenHash` (SHA-256 of the phone's token), `PairedAt`, `LastSeenAt`.
-- **WishlistItem**: `ProductType`, the same descriptive fields (nullable), `Priority`, `MaxPrice`, `Notes`, `AcquiredAt` (moving an item to the collection links the two).
+- **WishlistMovie** (one row per film wanted): `Title`, `Year`, `Directors`, `TmdbId?`, `TrailerYouTubeKey`, `PosterPath`, `Format` (the one format wanted), cover. Only what the list shows and what finds the film again; "Got it" fetches the rest from TMDB. No priority, price or notes.
+- **WishlistComic** (one row per issue or book wanted): `Format`, `Series`, `SeriesYear`, `Number`, `Title`, `Publisher`, `Isbn`, `MetronId?`, `MetronSeriesId?`, `CoverUrl`, `FromMissing`. Which cover or printing doesn't matter.
 - **LookupCache**: provider + request (API key stripped) → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble. Kept 30 days (TMDB search results: 1 day). Only successful answers are kept; for UPCitemdb that includes "unknown barcode".
 
 ## Adding a product: scan → review → accept
@@ -114,9 +115,11 @@ Movies and comics are **separate tables and separate screens**; they share only 
    - **Movies:** if the TMDB id already exists, the review screen says so, and Accept adds the new format to the existing film. If that format is already owned, it reports a duplicate.
    - **Comics:** the same copy (same UPC and add-on, same ISBN, or the same Metron issue, variant and printing) is turned down as already owned; another variant or printing is a copy of its own.
 
-**Wishlist match:** every lookup also checks the wishlist and returns `wishlistMatch` with the candidates. The phone shows an alert over the camera as soon as it arrives, and the review screen repeats it. Accepting removes the matched wishlist item, or for a partial match asks first.
-- Movies match by `TmdbId`. *Full match* = the wanted format was scanned. *Partial* = same film, different format (e.g. wanted 4K, scanned DVD).
-- Comics match by `MetronId`, else series + year + issue (+ variant if set).
+**Wishlist match:** every lookup also checks the wishlist: each candidate carries `wish` if it is wanted (`MovieMatch.Wanted`, `ComicMatch.Wanted`). The phone shows an alert over the camera as soon as it arrives, and the review screen repeats it.
+- Movies match by `TmdbId`; a wish entered without one matches by title and year (`WishlistMovie.IsFor`). Saving a film on the wanted format removes the wish, in the same database write as the film (`MovieCatalog`). Saved on another format, the wish stays unless the review screen's "Keep it on the wishlist" is switched off.
+- Comics match by Metron series (else series name and starting year) and issue number, a book by ISBN (else title); any cover or printing counts (`WishlistComic.IsFor`). Saving a copy takes the issue or book off the wishlist (`ComicCatalog`).
+- **Got it:** `LookupWishlistMovieAsync` / `LookupWishlistComicAsync` return the wish's TMDB or Metron entry as an ordinary lookup, so the review screen opens on it. A wishlist item's own page uses the same lookup for what the wishlist doesn't keep (overview, credits, summary); the lookup cache makes reopening it free.
+- **Missing issues:** the library's missing tiles ("#159–167") have "+ Wishlist"; `WantMissingIssuesAsync` takes the numbers from the series' issue list and adds each issue as an item of its own (they have no Metron entry or cover until bought). Tiles say "On wishlist" where they are (`RunEntry.Wanted`); wanted and unwanted issues never share a tile.
 - **Away from home:** the phone can't reach the PC, so it matches the scanned barcode against barcodes in its cached collection and wishlist. If that finds nothing, it calls UPCitemdb directly over mobile data (free tier, no key) and fuzzy-matches the product title against cached wishlist titles. The result is marked "likely" and the scan joins the queue for a proper lookup at home.
 
 **Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue (`ScanInbox`, kept while the app is open; it is persisted with the offline queue in milestone 7) for review, one by one, in the same editor the PC uses.
@@ -189,7 +192,8 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
   Comics/<Series> (<Year>)/<Series> <Issue>.md   one per copy: "Saga 7 (Cover B).md"; no # (links can't hold it)
   Comics/<Series> (<Year>)/_Series.md   issues owned (linked) and missing
   Comics/Trades & HCs/<Title>.md
-  Wishlist/<…>.md
+  Wishlist/<Title> (<Year>) (wanted).md, <Series> <Issue> (wanted).md   one per wishlist item; "(wanted)" keeps the name
+                                apart from the note of the same film owned on another format
   Attachments/covers/<id>-<file>   copies of the covers
   .trash/                       removed notes that had text under "My notes"
   Movies.base  Comics.base  Wishlist.base  (Obsidian Bases views)
@@ -227,7 +231,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 3. Vault writer + `CLAUDE.md` + Bases.
 4. Comics (Metron, Open Library by ISBN), on the PC.
 5. Server API + pairing + Android app with scanner. (The add-on scan spike and mDNS wait for a real phone.)
-6. Wishlist + wishlist match on scan.
+6. Wishlist + wishlist match on scan. (Done 2026-10-10; the "likely" match away from home comes with milestone 7.)
 6b. Digital folder import + watch folder.
 7. Offline cache/queue on phone.
 8. Stats screen.

@@ -82,6 +82,27 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Vault note:** everyone in the cast and crew is a `[[link]]` (people get no notes of their own). Writers, producers, executive producers, cinematographers, composers and editors have a line each under the directors and a frontmatter list; the rest of the crew is under `## Crew`, a line per job title. Frontmatter `cast` keeps the ten top-billed. Measured on 1,990 films (419,000 links to 176,000 people) in Obsidian 1.13.7: reopening the vault 4.5 s instead of 2.5 s, local graphs smooth, the global graph unusable (about 7 fps). Accepted: the global graph isn't used.
 - **Performance rule:** code for performance; don't load, fetch or store what a screen or feature doesn't use. The library list, search and the vault's index read a slim listing of each film without its credits; who is in the credits is searched in the database.
 
+## Milestone 6 (decided 2026-10-10)
+- **Wishlist item:** the film or comic, what is wanted and when it was added. No priority, price or notes.
+- **One wanted format per film:** a film is on the wishlist once, for one format (the mockup's two dashed badges on one row are dropped).
+- **Adding:** "Add to wishlist" uses the same search as Add movie / Add comic; picking a match asks only for the wanted format. Also the heart on the review screen (a scan goes to the wishlist instead of the collection) and "+ Wishlist" on a series' missing tiles.
+- **Missing issues:** "+ Wishlist" on a gap tile ("#159–167") adds every issue of the gap, each as an item of its own, so each can be bought, matched on a scan or dropped by itself. (First built as one item per gap; changed 2026-10-10 after trying it.)
+- **Got it:** opens the normal review screen with the wanted format switched on; saving moves it to the collection.
+- **Match on scan:** as mocked, the amber banner over the camera and on the review screen. A film scanned on another format than the wanted one asks whether to keep it on the wishlist.
+- **Phone:** everything the PC does: the Wishlist tab (browse, search), Add to wishlist by search, Got it, remove, the heart on the review screen.
+- **Vault:** `Wishlist/` notes and `Wishlist.base`.
+- **Later:** the "likely" match away from home comes with the offline copy (milestone 7).
+
+Settled while building it (2026-10-10):
+- **Wishlist screen:** rows as mocked, plus an × to remove an item at once (no confirmation: wanting it again takes seconds). The count reads "N items". "Add to wishlist" adds a film on the Movies tab and a comic on the Comics tab.
+- **Comics need no format step:** a comic picked from the search goes straight on the wishlist.
+- **The heart:** on the phone it sits left of the save button, as mocked; on the PC it is "To wishlist" in the top bar. For a film it asks for the format (the scanned disc's format is suggested).
+- **Another format than wanted:** the banner on the review screen has "Keep it on the wishlist for 4K UHD", switched on; switching it off removes the wish when saving.
+- **Missing tiles:** "On wishlist" in place of "+ Wishlist" once wanted; a tile splits where the wishlist starts or stops. The issues added get their covers from Metron's list of the series' issues.
+- **Item pages:** a wishlist row's cover and title open the item's own page, laid out like a film's or a comic's page and read-only (the missing tiles in a series don't link anywhere). It shows what TMDB or Metron knows (overview, cast and crew; story, creators, summary), fetched when the page opens. A film's page has a "Format wanted" panel where the format can be changed; formats already owned can't be chosen.
+- **Late covers:** each time the PC starts, covers the wishlist is still missing are tried for again.
+- **Not built:** the mockup's "Key issue" tag on a wishlist row (key issues are marked by hand on comics owned; a wish has no editor).
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

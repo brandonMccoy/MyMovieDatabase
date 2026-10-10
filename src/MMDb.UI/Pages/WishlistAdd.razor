@@ -1,0 +1,32 @@
+@page "/wishlist/movies/new"
+@using MMDb.UI.Movies
+@inject NavigationManager Navigation
+
+<PageTitle>Add to wishlist · Shelf</PageTitle>
+
+@* The same search as Add movie; a match picked is only asked for the format wanted. *@
+<div class="topbar">
+    <a class="btn ghost back" href="wishlist"><Icon Name="back" />Wishlist</a>
+</div>
+
+<div class="content">
+    <div class="section-head">
+        <h1>Add to wishlist</h1>
+    </div>
+    @if (_picked is null)
+    {
+        <MovieSearch State="_search" OnPick="candidate => _picked = candidate" />
+    }
+    else
+    {
+        <WantMovie Film="WishDraft.From(_picked)" Owned="_picked.Owned?.Formats ?? []" Wanted="_picked.Wish?.Format" Suggested="_search.Barcode?.Format"
+                   OnSaved="_ => Navigation.NavigateTo(Home, replace: true)" OnCancel="() => _picked = null" />
+    }
+</div>
+
+@code {
+    private const string Home = "wishlist";
+
+    private readonly MovieSearchState _search = new();
+    private MovieCandidateDto? _picked;
+}

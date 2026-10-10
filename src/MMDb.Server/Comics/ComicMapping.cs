@@ -4,6 +4,7 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Domain.Comics;
 using MMDb.Server.Movies;
+using MMDb.Server.Wishlist;
 
 namespace MMDb.Server.Comics;
 
@@ -143,9 +144,10 @@ internal static class ComicMapping
         run.Year,
         run.Title,
         run.Publisher,
-        [.. run.Entries.Select(e => new RunEntryDto(e.Number, [.. e.Copies.Select(c => c.ToSummary(covers))], e.Through))],
+        [.. run.Entries.Select(e => new RunEntryDto(e.Number, [.. e.Copies.Select(c => c.ToSummary(covers))], e.Through, e.Wanted))],
         run.OwnedCount,
-        run.KnownCount);
+        run.KnownCount,
+        run.MetronSeriesId);
 
     public static ComicListResponse ToContract(this ComicShelf shelf, CoverLinks covers) => new(
         [.. shelf.Runs.Select(r => r.ToContract(covers))],
@@ -185,9 +187,11 @@ internal static class ComicMapping
             CoverUrl = Uri.TryCreate(m.Details.CoverUrl, UriKind.Absolute, out var cover) ? cover : null,
             Owned = [.. m.Owned.Select(c => c.ToSummary(covers))],
             IsOwned = m.IsOwned,
+            Wish = m.Wanted?.ToWish(),
         })],
         Barcode = result.Barcode,
         OwnedByCode = result.OwnedByCode?.ToSummary(covers),
+        Wish = result.Wish?.ToWish(),
         FailedService = result.FailedService,
     };
 }

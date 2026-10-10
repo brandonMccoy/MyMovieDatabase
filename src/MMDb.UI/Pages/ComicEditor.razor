@@ -24,6 +24,10 @@
     }
     @if (_form is not null && _mode == Mode.Edit && !Device.IsPhone)
     {
+        @if (IsNew && _gotIt is null)
+        {
+            <button type="button" class="btn ghost to-wishlist" disabled="@(!_form.CanSave || _saving)" @onclick="WishAsync"><Icon Name="heart" />To wishlist</button>
+        }
         <a class="btn ghost" href="@BackHref">Cancel</a>
         <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add comic" : "Save changes")</button>
     }
@@ -99,6 +103,17 @@ else if (_form is not null)
                 <div class="review-bar">
                     <span class="src">@(_candidateIndex == 0 ? "Best match · " : "From ")@Source</span>
                     <button type="button" class="link-btn" @onclick="() => _mode = Mode.Search">@NotItLabel</button>
+                </div>
+            }
+
+            @if (IsNew && Wanted is not null)
+            {
+                <div class="wish-hit">
+                    <Icon Name="heart" />
+                    <div>
+                        <span class="wh"><b>On your wishlist</b></span>
+                        <div class="ts">Saving removes it from your wishlist.</div>
+                    </div>
                 </div>
             }
 
@@ -258,6 +273,10 @@ else if (_form is not null)
 {
     @* On the phone the save button sits under the thumb, as mocked. *@
     <div class="sticky">
+        @if (IsNew && _gotIt is null)
+        {
+            <button type="button" class="btn to-wishlist" aria-label="Send to wishlist instead" disabled="@(!_form.CanSave || _saving)" @onclick="WishAsync"><Icon Name="heart" /></button>
+        }
         <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add comic" : "Save changes")</button>
     </div>
 }
@@ -292,16 +311,28 @@ else if (_form is not null)
     private ScanItem? _scan;
     private Guid? _openedScan;
 
+    // The wishlist item being bought ("Got it"): the editor opens on the issue or book.
+    private ComicWishDto? _gotIt;
+    private Guid? _openedWish;
+
     [Parameter] public Guid? Id { get; set; }
 
     /// <summary>A scan from the phone's queue to review.</summary>
     [SupplyParameterFromQuery(Name = "scan")] public Guid? Scan { get; set; }
 
+    /// <summary>A comic on the wishlist that has been bought.</summary>
+    [SupplyParameterFromQuery(Name = "wish")] public Guid? Wish { get; set; }
+
     private bool IsNew => Id is null;
 
-    private string BackHref => _scan is not null ? "scan" : IsNew ? "comics" : $"comics/{Id}";
+    private string BackHref => _scan is not null ? "scan" : _gotIt is not null ? WishlistHref : IsNew ? "comics" : $"comics/{Id}";
 
-    private string BackLabel => _scan is not null ? "Scan" : IsNew || _original is null ? "Comics" : _original.DisplayName;
+    private string BackLabel => _scan is not null ? "Scan" : _gotIt is not null ? "Wishlist" : IsNew || _original is null ? "Comics" : _original.DisplayName;
+
+    private const string WishlistHref = "wishlist?tab=comics";
+
+    /// <summary>The wishlist item for the comic on screen: the one the match picked is, or without a match the one being bought.</summary>
+    private ComicWishDto? Wanted => _candidate is not null ? _candidate.Wish : _gotIt;
 
     private string Source => _candidate is { } c && ComicText.IsCollected(c.Details.Format) ? "Open Library" : "Metron";
 
@@ -329,9 +360,10 @@ else if (_form is not null)
         if (IsNew)
         {
             _mode = Mode.Search;
-            if (!_loaded || Scan != _openedScan)
+            if (!_loaded || Scan != _openedScan || Wish != _openedWish)
             {
                 OpenScan();
+                await OpenWishAsync();
             }
         }
         else
@@ -363,6 +395,25 @@ else if (_form is not null)
             {
                 Pick(best);
             }
+        }
+    }
+
+    private async Task OpenWishAsync()
+    {
+        _openedWish = Wish;
+        _gotIt = null;
+        if (Wish is not { } id || await Api.LookupWishlistComicAsync(id) is not { } found)
+        {
+            return;
+        }
+
+        _gotIt = found.Wish;
+        _search.Query = $"{found.Wish?.Series} {found.Wish?.SeriesYear} {found.Wish?.Number}".Replace("  ", " ", StringComparison.Ordinal).Trim();
+        _search.SearchedFor = found.Wish?.DisplayName;
+        _search.Response = found;
+        if (found is { Status: LookupStatus.Found, Candidates: [var best, ..] })
+        {
+            Pick(best);
         }
     }
 
@@ -416,6 +467,10 @@ else if (_form is not null)
                 _form.Barcode = code;
             }
         }
+        else if (_gotIt is { Series: { } series } wish && _form.Series.Length == 0)
+        {
+            (_form.Series, _form.SeriesYear, _form.Number) = (series, wish.SeriesYear, wish.Number ?? "");
+        }
         else if (_search.SearchedFor is { } typed && _form.Series.Length == 0)
         {
             _form.Series = typed;
@@ -424,6 +479,56 @@ else if (_form is not null)
         _candidate = null;
         _baseline = null;
         _mode = Mode.Edit;
+    }
+
+    // The heart: the comic goes on the wishlist instead of into the collection.
+    private async Task WishAsync()
+    {
+        _saving = true;
+        _problem = null;
+        _alreadyOwned = null;
+        try
+        {
+            var comic = _form!.ToRequest();
+            var response = await Api.WantComicAsync(new()
+            {
+                Format = comic.Format,
+                Series = comic.Series,
+                SeriesYear = comic.SeriesYear,
+                Number = comic.Number,
+                Title = comic.Title,
+                Publisher = comic.Publisher,
+                Isbn = comic.Isbn,
+                MetronId = comic.MetronId,
+                MetronSeriesId = comic.MetronSeriesId,
+                CoverSource = comic.CoverSource,
+            });
+
+            switch (response.Status)
+            {
+                case SaveStatus.Saved:
+                    if (_scan is not null)
+                    {
+                        Queue.Remove(_scan.Id);
+                    }
+
+                    Navigation.NavigateTo(_scan is not null && Queue.Items.Count > 0 ? "scan/review" : WishlistHref, replace: true);
+                    return;
+                case SaveStatus.Invalid:
+                    _errors = response.Errors.GroupBy(e => e.Field).ToDictionary(g => g.Key, g => string.Join(" ", g.Select(e => e.Message)));
+                    break;
+                case SaveStatus.AlreadyOwned:
+                    _problem = $"You already own {response.Owned!.DisplayName}.";
+                    break;
+                default:
+                    _problem = "The wishlist changed somewhere else just now. Try again.";
+                    break;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void FindOnMetron()

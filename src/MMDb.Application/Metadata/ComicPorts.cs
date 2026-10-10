@@ -19,7 +19,16 @@ public interface IComicMetadata
     /// <returns><see langword="null"/> if the database has no such series.</returns>
     /// <exception cref="MetadataException">The database could not be asked.</exception>
     Task<SeriesFacts?> GetSeriesAsync(int metronSeriesId, CancellationToken cancellationToken = default);
+
+    /// <summary>Every issue of a series as its list shows it: enough to name an issue and show its cover.</summary>
+    /// <returns>Empty if the database has no such series.</returns>
+    /// <exception cref="MetadataException">The database could not be asked.</exception>
+    Task<IReadOnlyList<IssueListing>> ListIssuesAsync(int metronSeriesId, CancellationToken cancellationToken = default);
 }
+
+/// <param name="Number">As the database writes it; compare after <see cref="IssueNumber.Normalize"/>.</param>
+/// <param name="CoverUrl">Where the regular cover can be downloaded, if the database has one.</param>
+public sealed record IssueListing(int MetronId, string Number, string? CoverUrl);
 
 /// <summary>Port: an online book database, for collected editions found by ISBN (Open Library).</summary>
 public interface IBookMetadata

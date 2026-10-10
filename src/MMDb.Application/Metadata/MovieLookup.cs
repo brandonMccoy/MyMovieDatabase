@@ -1,6 +1,8 @@
 using MMDb.Application.Movies;
+using MMDb.Application.Wishlist;
 using MMDb.Domain;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Application.Metadata;
 
@@ -8,7 +10,7 @@ namespace MMDb.Application.Metadata;
 /// Finds a film online from what was typed or scanned: a title (optionally with a year) or a UPC.
 /// Nothing is saved; the user reviews a match and then adds it through <see cref="MovieCatalog"/>.
 /// </summary>
-public sealed class MovieLookup(IMovieMetadata metadata, IBarcodeLookup barcodes, IMovieRepository movies)
+public sealed class MovieLookup(IMovieMetadata metadata, IBarcodeLookup barcodes, IMovieRepository movies, IWishlistRepository wishlist)
 {
     /// <summary>At most this many matches are fetched in full and returned.</summary>
     public const int MaxMatches = 8;
@@ -30,6 +32,31 @@ public sealed class MovieLookup(IMovieMetadata metadata, IBarcodeLookup barcodes
         catch (MetadataException ex)
         {
             return new() { Outcome = LookupOutcome.Failed, Problem = ex.Problem, FailedService = ex.Service, Upc = Upc.TryParse(query, out var upc) ? upc : null };
+        }
+    }
+
+    /// <summary>
+    /// Looks up a film on the wishlist that has been bought ("Got it"): its TMDB entry, or for a wish entered
+    /// without one, a search for its title.
+    /// </summary>
+    /// <returns><see langword="null"/> if it isn't on the wishlist (any more).</returns>
+    public async Task<MovieLookupResult?> LookupWishAsync(Guid wishId, CancellationToken cancellationToken = default)
+    {
+        if (await wishlist.FindMovieAsync(wishId, cancellationToken) is not { } wish)
+        {
+            return null;
+        }
+
+        try
+        {
+            var matches = wish.TmdbId is { } tmdbId
+                ? await MatchesAsync([tmdbId], cancellationToken)
+                : await SearchAsync(wish.Title, wish.Year, wish.Title, cancellationToken);
+            return Found(matches) with { Wish = wish };
+        }
+        catch (MetadataException ex)
+        {
+            return new() { Outcome = LookupOutcome.Failed, Problem = ex.Problem, FailedService = ex.Service, Wish = wish };
         }
     }
 
@@ -67,11 +94,17 @@ public sealed class MovieLookup(IMovieMetadata metadata, IBarcodeLookup barcodes
             ids = await metadata.SearchAsync(fallback, null, cancellationToken);
         }
 
-        var top = ids.Distinct().Take(MaxMatches).ToList();
-        var details = await Task.WhenAll(top.Select(id => metadata.GetAsync(id, cancellationToken)));
-        var owned = (await movies.ListByTmdbIdsAsync(top, cancellationToken)).ToLookup(m => m.TmdbId);
+        return await MatchesAsync([.. ids.Distinct().Take(MaxMatches)], cancellationToken);
+    }
 
-        return [.. details.OfType<MovieDetails>().Select(d => new MovieMatch(d, owned[d.TmdbId].FirstOrDefault()))];
+    // Each film in full, with what the collection and the wishlist have of it.
+    private async Task<IReadOnlyList<MovieMatch>> MatchesAsync(IReadOnlyCollection<int> tmdbIds, CancellationToken cancellationToken)
+    {
+        var details = await Task.WhenAll(tmdbIds.Select(id => metadata.GetAsync(id, cancellationToken)));
+        var owned = (await movies.ListByTmdbIdsAsync(tmdbIds, cancellationToken)).ToLookup(m => m.TmdbId);
+        var wanted = await wishlist.FindMoviesForAsync(tmdbIds, cancellationToken);
+
+        return [.. details.OfType<MovieDetails>().Select(d => new MovieMatch(d, owned[d.TmdbId].FirstOrDefault(), wanted.FirstOrDefault(w => w.IsFor(d))))];
     }
 
     private static MovieLookupResult Found(IReadOnlyList<MovieMatch> matches) =>
@@ -114,10 +147,14 @@ public sealed record MovieLookupResult
 
     public Movie? OwnedByBarcode { get; init; }
 
+    /// <summary>The wishlist item the lookup was for (see <see cref="MovieLookup.LookupWishAsync"/>).</summary>
+    public WishlistMovie? Wish { get; init; }
+
     public MetadataProblem? Problem { get; init; }
 
     public string? FailedService { get; init; }
 }
 
 /// <param name="Owned">The film in the collection with the same TMDB id, if there is one.</param>
-public sealed record MovieMatch(MovieDetails Details, MovieListing? Owned);
+/// <param name="Wanted">The wishlist item for this film, if it is on the wishlist.</param>
+public sealed record MovieMatch(MovieDetails Details, MovieListing? Owned, WishlistMovie? Wanted = null);

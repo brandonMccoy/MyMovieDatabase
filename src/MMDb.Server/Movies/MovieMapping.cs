@@ -4,6 +4,7 @@ using MMDb.Contracts.Movies;
 using MMDb.Domain;
 using MMDb.Domain.Movies;
 using MMDb.Infrastructure.Metadata;
+using MMDb.Server.Wishlist;
 
 namespace MMDb.Server.Movies;
 
@@ -137,6 +138,7 @@ internal static class MovieMapping
         ProductTitle = result.ProductTitle,
         Format = result.Format?.ToContract(),
         OwnedByBarcode = result.OwnedByBarcode?.ToSummary(covers),
+        Wish = result.Wish?.ToWish(),
         FailedService = result.FailedService,
     };
 
@@ -157,5 +159,6 @@ internal static class MovieMapping
         PosterUrl = match.Details.PosterPath is { } poster ? TmdbImages.Url(poster, TmdbImages.PreviewSize) : null,
         ThumbnailUrl = match.Details.PosterPath is { } thumb ? TmdbImages.Url(thumb, TmdbImages.ThumbnailSize) : null,
         Owned = match.Owned?.ToSummary(covers),
+        Wish = match.Wanted?.ToWish(),
     };
 }

@@ -1,5 +1,6 @@
 using MMDb.Domain;
 using MMDb.Domain.Movies;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Testing;
 
@@ -43,6 +44,18 @@ internal static class TestMovies
     public static MovieDetails HeatAndDustOnTmdb => new() { Title = "Heat and Dust", Year = 1983, TmdbId = 42113, Directors = ["James Ivory"] };
 
     public static MovieDetails Titled(string title, int? year = null) => new() { Title = title, Year = year };
+
+    /// <summary>The film as it is put on the wishlist.</summary>
+    public static WantedMovie Wanted(MovieDetails film, MediaFormat format) => new()
+    {
+        Title = film.Title,
+        Year = film.Year,
+        Directors = film.Directors,
+        TmdbId = film.TmdbId,
+        TrailerYouTubeKey = film.TrailerYouTubeKey,
+        PosterPath = film.PosterPath,
+        Format = format,
+    };
 
     public static FormatDetails[] On(params MediaFormat[] formats) => [.. formats.Select(f => new FormatDetails(f))];
 }

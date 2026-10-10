@@ -6,6 +6,7 @@ using MMDb.Contracts;
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Wishlist;
 
 namespace MMDb.Client;
 
@@ -79,6 +80,39 @@ public sealed class HttpCollectionApi(PcLink pc) : ICollectionApi
         using var response = await pc.SendAsync(HttpMethod.Post, "scans", content, cancellationToken);
         return await ReadAsync<ScanResponse>(response, cancellationToken);
     }
+
+    public Task<WishlistResponse> ListWishlistAsync(string? search = null, CancellationToken cancellationToken = default) =>
+        GetAsync<WishlistResponse>("wishlist" + Query(("search", search)), cancellationToken);
+
+    public Task<WishlistMovieDto?> GetWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) =>
+        FindAsync<WishlistMovieDto>($"wishlist/movies/{id}", cancellationToken);
+
+    public Task<WishlistComicDto?> GetWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) =>
+        FindAsync<WishlistComicDto>($"wishlist/comics/{id}", cancellationToken);
+
+    public Task<WantMovieResponse> ChangeWishlistFormatAsync(Guid id, MovieFormatKind format, CancellationToken cancellationToken = default) =>
+        SaveAsync<WantMovieResponse>(HttpMethod.Put, $"wishlist/movies/{id}/format", new ChangeWishFormatRequest(format), cancellationToken);
+
+    public Task<WantMovieResponse> WantMovieAsync(WantMovieRequest request, CancellationToken cancellationToken = default) =>
+        SaveAsync<WantMovieResponse>(HttpMethod.Post, "wishlist/movies", request, cancellationToken);
+
+    public Task<bool> RemoveWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"wishlist/movies/{id}", cancellationToken);
+
+    public Task<MovieLookupResponse?> LookupWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) =>
+        FindAsync<MovieLookupResponse>($"wishlist/movies/{id}/lookup", cancellationToken);
+
+    public Task<WantComicResponse> WantComicAsync(WantComicRequest request, CancellationToken cancellationToken = default) =>
+        SaveAsync<WantComicResponse>(HttpMethod.Post, "wishlist/comics", request, cancellationToken);
+
+    public Task<WantComicResponse> WantMissingIssuesAsync(WantMissingRequest request, CancellationToken cancellationToken = default) =>
+        SaveAsync<WantComicResponse>(HttpMethod.Post, "wishlist/comics/missing", request, cancellationToken);
+
+    public Task<bool> RemoveWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"wishlist/comics/{id}", cancellationToken);
+
+    public Task<ComicLookupResponse?> LookupWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) =>
+        FindAsync<ComicLookupResponse>($"wishlist/comics/{id}/lookup", cancellationToken);
 
     private async Task<T> GetAsync<T>(string path, CancellationToken cancellationToken)
     {

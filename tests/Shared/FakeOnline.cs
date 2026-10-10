@@ -124,20 +124,27 @@ internal sealed class FakePosters : IPosterSource
 {
     public bool Offline { get; set; }
 
-    public List<string> Fetched { get; } = [];
+    private readonly List<string> _fetched = [];
+
+    public IReadOnlyList<string> Fetched { get { lock (_fetched) { return [.. _fetched]; } } }
 
     public static byte[] ImageFor(string posterPath) => System.Text.Encoding.UTF8.GetBytes("image of " + posterPath);
 
     public Task<byte[]?> FetchAsync(string posterPath, CancellationToken cancellationToken = default)
     {
-        Fetched.Add(posterPath);
+        lock (_fetched)
+        {
+            _fetched.Add(posterPath);
+        }
+
         return Task.FromResult(Offline ? null : ImageFor(posterPath));
     }
 }
 
 internal sealed class FakeCoverStore : ICoverStore
 {
-    public Dictionary<string, byte[]> Files { get; } = [];
+    /// <summary>Covers may be saved several at a time.</summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> Files { get; } = new();
 
     public Task SaveAsync(string name, byte[] image, CancellationToken cancellationToken = default)
     {
@@ -147,7 +154,7 @@ internal sealed class FakeCoverStore : ICoverStore
 
     public Task<byte[]?> ReadAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult(Files.GetValueOrDefault(name));
 
-    public void Delete(string name) => Files.Remove(name);
+    public void Delete(string name) => Files.TryRemove(name, out _);
 }
 
 /// <summary>Finds issues the way Metron does: by exact barcode, barcode prefix, or series words, year and number.</summary>
@@ -200,6 +207,16 @@ internal sealed class FakeMetron : IComicMetadata
         ThrowIfFailing();
         Interlocked.Increment(ref _seriesFetches);
         return Task.FromResult(_series.GetValueOrDefault(metronSeriesId));
+    }
+
+    /// <summary>The issues added with <see cref="Add"/> that belong to the series.</summary>
+    public Task<IReadOnlyList<IssueListing>> ListIssuesAsync(int metronSeriesId, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        IReadOnlyList<IssueListing> issues = [.. _issues
+            .Where(i => i.Details.MetronSeriesId == metronSeriesId)
+            .Select(i => new IssueListing(i.Details.MetronId!.Value, i.Details.Number!, i.Details.CoverUrl))];
+        return Task.FromResult(issues);
     }
 
     private static bool Matches(IssueFacts issue, IssueSearch search)
@@ -263,13 +280,19 @@ internal sealed class FakeComicCovers : ICoverSource
 {
     public bool Offline { get; set; }
 
-    public List<string> Fetched { get; } = [];
+    private readonly List<string> _fetched = [];
+
+    public IReadOnlyList<string> Fetched { get { lock (_fetched) { return [.. _fetched]; } } }
 
     public static byte[] ImageFor(string url) => System.Text.Encoding.UTF8.GetBytes("image of " + url);
 
     public Task<byte[]?> FetchAsync(string url, CancellationToken cancellationToken = default)
     {
-        Fetched.Add(url);
+        lock (_fetched)
+        {
+            _fetched.Add(url);
+        }
+
         return Task.FromResult(Offline ? null : ImageFor(url));
     }
 }

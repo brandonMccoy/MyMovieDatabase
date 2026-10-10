@@ -9,6 +9,7 @@ using MMDb.Application.Devices;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
+using MMDb.Application.Wishlist;
 using MMDb.Infrastructure.Covers;
 using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
@@ -46,6 +47,7 @@ public static partial class InfrastructureServices
         services.AddScoped<IMovieRepository, EfMovieRepository>();
         services.AddScoped<IComicRepository, EfComicRepository>();
         services.AddScoped<IDeviceRepository, EfDeviceRepository>();
+        services.AddScoped<IWishlistRepository, EfWishlistRepository>();
         services.AddSingleton<LookupCache>();
         services.AddSingleton<ICoverStore>(new FileCoverStore(settings.CoverDirectory));
         services.AddSingleton<ISettingStore, SettingStore>();

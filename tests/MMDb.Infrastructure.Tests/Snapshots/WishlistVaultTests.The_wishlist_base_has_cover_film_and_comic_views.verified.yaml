@@ -1,0 +1,67 @@
+# managed_by: mmdb · Shelf rewrites this file. Change a view in Obsidian and Shelf leaves it alone from then on.
+filters:
+  and:
+    - file.inFolder("Wishlist")
+    - 'managed_by == "mmdb"'
+properties:
+  file.name:
+    displayName: Wanted
+  wanted_format:
+    displayName: Format wanted
+  owned_formats:
+    displayName: Owned on
+  directors:
+    displayName: Directors
+  year:
+    displayName: Year
+  publisher:
+    displayName: Publisher
+  volume:
+    displayName: Volume
+  issue:
+    displayName: Issue
+  format:
+    displayName: Format
+  added:
+    displayName: Added
+views:
+  - type: cards
+    name: Covers
+    order:
+      - file.name
+      - wanted_format
+    sort:
+      - property: added
+        direction: DESC
+    image: note.cover
+    imageAspectRatio: 1.5
+  - type: table
+    name: Movies
+    filters:
+      and:
+        - 'wishlist == "movie"'
+    order:
+      - file.name
+      - year
+      - wanted_format
+      - owned_formats
+      - directors
+      - added
+    sort:
+      - property: added
+        direction: DESC
+  - type: table
+    name: Comics
+    filters:
+      and:
+        - 'wishlist == "comic"'
+    order:
+      - file.name
+      - publisher
+      - volume
+      - issue
+      - format
+      - added
+    sort:
+      - property: added
+        direction: DESC

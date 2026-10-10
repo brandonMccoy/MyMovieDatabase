@@ -48,6 +48,10 @@ internal sealed class FakeVault : IVaultWriter
     public Task RemoveAsync(string folder, Guid id, VaultContent content, CancellationToken cancellationToken = default) =>
         Record($"remove {_notes.GetValueOrDefault(id, id.ToString())}", () => _notes.Remove(id));
 
+    /// <summary>Recorded as "wishlist (2 wanted)".</summary>
+    public Task WriteWishlistAsync(string folder, VaultContent content, CancellationToken cancellationToken = default) =>
+        Record($"wishlist ({content.WantedMovies.Count + content.WantedComics.Count} wanted)", () => { });
+
     public string? NoteOf(string folder, Guid id)
     {
         lock (_lock)

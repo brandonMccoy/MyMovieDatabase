@@ -150,6 +150,26 @@ public sealed class MetronClientTests
     }
 
     [Fact]
+    public async Task A_series_issue_list_gives_each_issues_entry_and_cover_across_pages()
+    {
+        var http = Serving(
+            ("/api/issue/?series_id=1234", "metron/series-1234-issues-page1.json"),
+            ("/api/issue/?page=2&series_id=1234", "metron/series-1234-issues-page2.json"));
+
+        var issues = await Client(http).ListIssuesAsync(1234, Ct);
+
+        issues.ShouldBe(
+        [
+            new(4515, "1", null),
+            new(4516, "2", "https://static.metron.cloud/media/issue/2019/12/10/saga-2.jpg"),
+            new(4517, "3", null),
+            new(4521, "7", null),
+        ]);
+        http.Requests.Count.ShouldBe(2);
+        (await Client(Serving()).ListIssuesAsync(1, Ct)).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task An_unknown_issue_or_series_is_null()
     {
         var http = Serving();

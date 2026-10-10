@@ -55,17 +55,26 @@ internal sealed class MetronClient(HttpClient http, MetronSettings settings) : I
             return null;
         }
 
-        var numbers = new List<string>();
+        var issues = await ListIssuesAsync(metronSeriesId, cancellationToken);
+        return new SeriesFacts(series.Name ?? "", series.YearBegan, series.Publisher?.Name, [.. issues.Select(i => i.Number)]);
+    }
+
+    public async Task<IReadOnlyList<IssueListing>> ListIssuesAsync(int metronSeriesId, CancellationToken cancellationToken = default)
+    {
+        var issues = new List<IssueListing>();
         string? next = string.Create(CultureInfo.InvariantCulture, $"issue/?series_id={metronSeriesId}");
         for (var pages = 0; next is not null && pages < MaxPages; pages++)
         {
             var page = await GetAsync<Page<IssueSummary>>(next, cancellationToken);
-            numbers.AddRange((page?.Results ?? []).Select(r => r.Number).OfType<string>());
+            issues.AddRange((page?.Results ?? []).Where(r => r.Number is not null).Select(r => new IssueListing(r.Id, r.Number!, Https(r.Image))));
             next = page?.Next;
         }
 
-        return new SeriesFacts(series.Name ?? "", series.YearBegan, series.Publisher?.Name, numbers);
+        return issues;
     }
+
+    private static string? Https(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri.AbsoluteUri : null;
 
     private static void Append(StringBuilder query, string key, string? value)
     {
@@ -105,7 +114,7 @@ internal sealed class MetronClient(HttpClient http, MetronSettings settings) : I
 
     private sealed record Page<T>(string? Next, List<T>? Results);
 
-    private sealed record IssueSummary(int Id, string? Number);
+    private sealed record IssueSummary(int Id, string? Number, string? Image = null);
 
     private sealed record Named(int Id, string? Name);
 
@@ -190,8 +199,5 @@ internal sealed class MetronClient(HttpClient http, MetronSettings settings) : I
                 .Where(c => !string.IsNullOrWhiteSpace(c.Creator) && (c.Role ?? []).Any(r => r.Name is not null && roles.Contains(r.Name)))
                 .Select(c => c.Creator!.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)];
-
-        private static string? Https(string? url) =>
-            Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps ? uri.AbsoluteUri : null;
     }
 }

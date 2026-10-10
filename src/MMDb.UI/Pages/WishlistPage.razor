@@ -1,0 +1,199 @@
+@page "/wishlist"
+@implements IDisposable
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfDevice Device
+
+<PageTitle>Wishlist · Shelf</PageTitle>
+
+@if (Device.IsPhone)
+{
+    <div class="appbar"><h1 class="ttl">Wishlist</h1><a class="right" href="@AddHref" aria-label="Add to wishlist"><Icon Name="plus" /></a></div>
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search wishlist…" Label="Search wishlist" />
+    </div>
+}
+else
+{
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search wishlist…" Label="Search wishlist" />
+        <div class="spacer"></div>
+        <a class="btn primary" href="@AddHref"><Icon Name="plus" />Add to wishlist</a>
+    </div>
+}
+
+<div class="content">
+    @if (!Device.IsPhone)
+    {
+        <div class="section-head">
+            <h1>Wishlist</h1>
+            @if (_list is not null)
+            {
+                var items = _list.MovieCount + _list.ComicCount;
+                <span class="sub">@items.ToString("N0", CultureInfo.InvariantCulture) @(items == 1 ? "item" : "items")</span>
+            }
+        </div>
+    }
+
+    @if (_list is null)
+    {
+        @* Loading: in-process this is a blink, so no spinner. *@
+    }
+    else
+    {
+        @* Movies and comics are on separate tabs, as mocked. *@
+        <div class="subtabs" role="tablist">
+            <a role="tab" class="@(ShowComics ? null : "on")" aria-selected="@Aria.Bool(!ShowComics)" href="@TabHref(null)">Movies<span class="n">@_list.MovieCount</span></a>
+            <a role="tab" class="@(ShowComics ? "on" : null)" aria-selected="@Aria.Bool(ShowComics)" href="@TabHref(ComicsTab)">Comics<span class="n">@_list.ComicCount</span></a>
+        </div>
+
+        @if ((ShowComics ? _list.ComicCount : _list.MovieCount) == 0)
+        {
+            <div class="empty">
+                @if (ShowComics)
+                {
+                    <h2>No comics on your wishlist</h2>
+                    <p>Search for an issue or a book you want, or use “+ Wishlist” on a series' missing issues.</p>
+                }
+                else
+                {
+                    <h2>No films on your wishlist</h2>
+                    <p>Films you want to buy wait here until you get them.</p>
+                }
+                <a class="btn primary" href="@AddHref"><Icon Name="plus" />Add to wishlist</a>
+            </div>
+        }
+        else if ((ShowComics ? _list.Comics.Count : _list.Movies.Count) == 0)
+        {
+            <div class="empty">
+                <h2>Nothing matches</h2>
+                <p>No @(ShowComics ? "comic" : "film") on your wishlist matches this search.</p>
+                <a class="btn" href="@TabHref(Tab, keepSearch: false)">Clear search</a>
+            </div>
+        }
+        else if (ShowComics)
+        {
+            <div class="wl comics">
+                @foreach (var comic in _list.Comics)
+                {
+                    <div class="wl-row" @key="comic.Id">
+                        <a class="wl-cover" href="wishlist/comics/@comic.Id" aria-label="@comic.DisplayName"><Poster Title="@comic.DisplayName" ImageUrl="comic.CoverUrl" /></a>
+                        <div class="wl-text">
+                            <div class="wl-title"><a href="wishlist/comics/@comic.Id">@comic.DisplayName</a></div>
+                            <div class="wl-sub">@About(comic)</div>
+                        </div>
+                        <div class="want">
+                            @if (comic.FromMissing)
+                            {
+                                <span class="wl-tag dim">From missing issues</span>
+                            }
+                        </div>
+                        <div class="wl-sub wl-added">@Added(comic.AddedAt)</div>
+                        <div class="wl-actions">
+                            <a class="btn sm got-it" href="comics/new?wish=@comic.Id">Got it</a>
+                            <button type="button" class="btn sm ghost icon" aria-label="Remove @comic.DisplayName from the wishlist" @onclick="() => Api.RemoveWishlistComicAsync(comic.Id)"><Icon Name="x" /></button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="wl">
+                @foreach (var movie in _list.Movies)
+                {
+                    <div class="wl-row" @key="movie.Id">
+                        <a class="wl-cover" href="wishlist/movies/@movie.Id" aria-label="@movie.Title"><Poster Title="@movie.Title" ImageUrl="movie.CoverUrl" /></a>
+                        <div class="wl-text">
+                            <div class="wl-title"><a href="wishlist/movies/@movie.Id">@movie.Title</a>@if (movie.Year is { } year) {<span class="yr">@year</span>}</div>
+                            <div class="wl-sub">@string.Join(" & ", movie.Directors)</div>
+                        </div>
+                        <div class="want">
+                            <FormatBadge Format="movie.Format" Wanted />
+                            @if (movie.OwnedFormats.Count > 0)
+                            {
+                                <span class="wl-tag">Upgrade · own @Formats.Join(movie.OwnedFormats)</span>
+                            }
+                        </div>
+                        <div class="wl-sub wl-added">@Added(movie.AddedAt)</div>
+                        <div class="wl-actions">
+                            <a class="btn sm icon" href="@movie.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener" aria-label="Trailer for @movie.Title"><Icon Name="yt" Class="yt" /></a>
+                            <a class="btn sm got-it" href="movies/new?wish=@movie.Id">Got it</a>
+                            <button type="button" class="btn sm ghost icon" aria-label="Remove @movie.Title from the wishlist" @onclick="() => Api.RemoveWishlistMovieAsync(movie.Id)"><Icon Name="x" /></button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const string ComicsTab = "comics";
+
+    private WishlistResponse? _list;
+    private CancellationTokenSource? _loading;
+
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    /// <summary><c>comics</c> for the Comics tab; anything else is Movies.</summary>
+    [SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }
+
+    private bool ShowComics => string.Equals(Tab, ComicsTab, StringComparison.OrdinalIgnoreCase);
+
+    private string AddHref => ShowComics ? "wishlist/comics/new" : "wishlist/movies/new";
+
+    protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
+
+    // Something was wanted, bought or removed (here, on another screen or on a phone): show it.
+    private void OnCollectionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        // Typing fires a load per keystroke; only the newest one may update the page.
+        _loading?.Cancel();
+        _loading?.Dispose();
+        _loading = new CancellationTokenSource();
+        var token = _loading.Token;
+
+        try
+        {
+            var list = await Api.ListWishlistAsync(Q, token);
+            if (!token.IsCancellationRequested)
+            {
+                _list = list;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void Search(string text) =>
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter("q", string.IsNullOrWhiteSpace(text) ? null : text), replace: true);
+
+    private string TabHref(string? tab, bool keepSearch = true) => Navigation.ToBaseRelativePath(Navigation.GetUriWithQueryParameters(
+        new Dictionary<string, object?> { ["tab"] = string.IsNullOrEmpty(tab) ? null : tab, ["q"] = keepSearch ? Q : null }));
+
+    private static string Added(DateTimeOffset at) => "Added " + at.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture);
+
+    // "Image · 2012 series", "Image Comics · Trade paperback".
+    private static string About(WishlistComicDto comic) => string.Join(" · ", new[]
+    {
+        comic.Publisher,
+        ComicText.IsCollected(comic.Format) ? ComicText.Name(comic.Format) : comic.SeriesYear is { } year ? $"{year} series" : null,
+    }.OfType<string>());
+
+    public void Dispose()
+    {
+        Api.Changed -= OnCollectionChanged;
+        _loading?.Cancel();
+        _loading?.Dispose();
+    }
+}

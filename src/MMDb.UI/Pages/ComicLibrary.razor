@@ -124,6 +124,15 @@ else
                                 <div class="issue missing" @key="'#' + entry.Number">
                                     <div class="poster"><span class="pt">Missing</span></div>
                                     <div class="num">#@entry.Number@(entry.Through is { } through ? $"–{through}" : "")</div>
+                                    @if (entry.Wanted)
+                                    {
+                                        <div class="sub2 wanted">On wishlist</div>
+                                    }
+                                    else if (run.MetronSeriesId is { } seriesId)
+                                    {
+                                        <button type="button" class="link-btn sub2 want-missing" aria-label="@WantLabel(run, entry)"
+                                                @onclick="() => Api.WantMissingIssuesAsync(new(seriesId, entry.Number, entry.Through))">+ Wishlist</button>
+                                    }
                                 </div>
                             }
                             else
@@ -173,6 +182,9 @@ else
     private ComicShelfKind SelectedShelf => Enum.TryParse<ComicShelfKind>(Shelf, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : ComicShelfKind.Series;
 
     private ComicSortOrder SelectedSort => Enum.TryParse<ComicSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : ComicSortOrder.Series;
+
+    private static string WantLabel(SeriesRunDto run, RunEntryDto missing) =>
+        $"Add {run.Name} #{missing.Number}{(missing.Through is { } last ? $"–{last}" : "")} to the wishlist";
 
     protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
 

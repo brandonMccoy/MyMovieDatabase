@@ -1,0 +1,230 @@
+@page "/wishlist/movies/{Id:guid}"
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfDevice Device
+
+<PageTitle>@(_item?.Title ?? "Wishlist") · Shelf</PageTitle>
+
+@* A film on the wishlist, laid out like a film in the collection. Nothing can be edited but the format wanted. *@
+<div class="topbar">
+    <a class="btn ghost back" href="@Home"><Icon Name="back" />Wishlist</a>
+</div>
+
+@if (_loaded && _item is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Not on your wishlist</h1>
+            <p>It was bought or removed.</p>
+            <a class="btn" href="@Home">Back to the wishlist</a>
+        </div>
+    </div>
+}
+else if (_item is not null)
+{
+    <div class="hero"><div class="backdrop" style="@PosterColors.Style(_item.Title)"></div></div>
+    <div class="detail wish">
+        <div>
+            <Poster Title="@_item.Title" Subtitle="@string.Join(" & ", _item.Directors)" ImageUrl="_item.CoverUrl" />
+        </div>
+
+        <div>
+            <div class="fmts">
+                <FormatBadge Format="_item.Format" Wanted />
+                @if (_item.OwnedFormats.Count > 0)
+                {
+                    <span class="wl-tag">Upgrade · own @Formats.Join(_item.OwnedFormats)</span>
+                }
+            </div>
+            <h1 class="title-lg">@_item.Title@if (_item.Year is { } year) {<span class="yr">@year</span>}</h1>
+            @if (_item.Directors.Count > 0)
+            {
+                <div class="byline">Directed by @for (var i = 0; i < _item.Directors.Count; i++)
+                    {
+                        @Separator(i, _item.Directors.Count)<b>@_item.Directors[i]</b>
+                    }</div>
+            }
+            @if (_film is not null)
+            {
+                <div class="meta-row">
+                    @if (_film.Rating is not null)
+                    {
+                        <span class="rating">@_film.Rating</span>
+                    }
+                    @foreach (var (part, index) in MetaParts(_film).Select((p, i) => (p, i)))
+                    {
+                        @if (index > 0)
+                        {
+                            <span class="sep"></span>
+                        }
+                        <span>@part</span>
+                    }
+                </div>
+            }
+            <div class="actions">
+                <a class="btn primary got-it" href="movies/new?wish=@_item.Id">Got it</a>
+                <a class="btn" href="@_item.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="play" />Watch trailer</a>
+                <button type="button" class="btn ghost remove" @onclick="RemoveAsync">Remove from wishlist</button>
+            </div>
+
+            @if (_film is not null)
+            {
+                @if (_film.Overview is not null)
+                {
+                    <p class="synopsis">@_film.Overview</p>
+                }
+
+                <div class="tabs" role="tablist">
+                    @foreach (var tab in Enum.GetValues<Tab>())
+                    {
+                        <button type="button" role="tab" class="@(_tab == tab ? "on" : "")" aria-selected="@Aria.Bool(_tab == tab)" @onclick="() => _tab = tab">@tab</button>
+                    }
+                </div>
+                @if (_tab == Tab.Cast)
+                {
+                    <CastList Cast="_film.Cast" />
+                }
+                else
+                {
+                    <CrewList Directors="_film.Directors" Crew="_film.Crew" />
+                }
+            }
+            else if (_lookedUp)
+            {
+                <p class="notice no-details" role="status">@NoDetails</p>
+            }
+        </div>
+
+        <div>
+            <div class="panel wanted-format">
+                <h3>Format wanted</h3>
+                <div role="radiogroup" aria-label="Format wanted">
+                    @foreach (var format in Formats.All)
+                    {
+                        var owned = _item.OwnedFormats.Contains(format);
+                        var wanted = _item.Format == format;
+                        <div class="format-row">
+                            <button type="button" role="radio" class="fmt-toggle @(wanted ? "on" : "")" aria-checked="@Aria.Bool(wanted)" disabled="@(owned || _saving)" @onclick="() => WantOnAsync(format)">
+                                <FormatBadge Format="format" Wanted="wanted" /><span class="small">@(wanted ? "Wanted" : owned ? "Owned" : "")</span>
+                            </button>
+                        </div>
+                    }
+                </div>
+                @if (_problem is not null)
+                {
+                    <div class="problem" role="alert">@_problem</div>
+                }
+            </div>
+            <div class="panel">
+                <div class="owned">
+                    <span>On your wishlist</span>
+                    <span class="small">Added @_item.AddedAt.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string Home = "wishlist";
+
+    private WishlistMovieDto? _item;
+
+    // The film as TMDB has it: what the wishlist doesn't keep (overview, cast, crew, runtime, rating, genres).
+    private MovieCandidateDto? _film;
+    private LookupStatus? _lookup;
+    private bool _loaded;
+    private bool _lookedUp;
+    private bool _saving;
+    private string? _problem;
+    private Tab _tab = Tab.Cast;
+
+    private enum Tab
+    {
+        Cast,
+        Crew,
+    }
+
+    [Parameter] public Guid Id { get; set; }
+
+    private string NoDetails => _lookup switch
+    {
+        LookupStatus.NotConfigured => "TMDB isn't set up on this PC, so only what the wishlist keeps is shown.",
+        LookupStatus.Found or LookupStatus.NoMatches => "TMDB has no entry for this film, so only what the wishlist keeps is shown.",
+        _ => "Couldn't reach TMDB for the overview, cast and crew.",
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        (_film, _lookup, _lookedUp, _problem) = (null, null, false, null);
+        _item = await Api.GetWishlistMovieAsync(Id);
+        _loaded = true;
+        if (_item is null)
+        {
+            return;
+        }
+
+        // What the wishlist keeps shows at once; the rest comes from TMDB when it answers.
+        StateHasChanged();
+        var found = await Api.LookupWishlistMovieAsync(Id);
+        _lookup = found?.Status;
+        _film = found?.Candidates.FirstOrDefault(c => c.Wish?.Id == Id);
+        _lookedUp = true;
+    }
+
+    private async Task WantOnAsync(MovieFormatKind format)
+    {
+        if (format == _item!.Format)
+        {
+            return;
+        }
+
+        _saving = true;
+        _problem = null;
+        try
+        {
+            var response = await Api.ChangeWishlistFormatAsync(Id, format);
+            switch (response.Status)
+            {
+                case SaveStatus.Saved:
+                    _item = response.Movie;
+                    break;
+                case SaveStatus.AlreadyOwned:
+                    _problem = $"You already own {_item.Title} on {Formats.Name(format)}.";
+                    break;
+                case SaveStatus.NotFound:
+                    _item = null;
+                    break;
+                default:
+                    _problem = "The wishlist changed somewhere else just now. Try again.";
+                    break;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        await Api.RemoveWishlistMovieAsync(Id);
+        Navigation.NavigateTo(Home);
+    }
+
+    private static IEnumerable<string> MetaParts(MovieCandidateDto film)
+    {
+        if (film.RuntimeMinutes is { } minutes)
+        {
+            yield return $"{minutes} min";
+        }
+
+        foreach (var genre in film.Genres)
+        {
+            yield return genre;
+        }
+    }
+
+    // "A", "A & B", "A, B & C"
+    private static string Separator(int index, int count) => index == 0 ? "" : index == count - 1 ? " & " : ", ";
+}

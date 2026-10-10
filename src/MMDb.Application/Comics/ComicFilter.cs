@@ -1,5 +1,6 @@
 using System.Globalization;
 using MMDb.Domain.Comics;
+using MMDb.Domain.Wishlist;
 
 namespace MMDb.Application.Comics;
 
@@ -10,7 +11,8 @@ internal static class ComicFilter
     private static readonly CompareInfo Compare = CultureInfo.InvariantCulture.CompareInfo;
     private static readonly StringComparer Names = StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
 
-    public static ComicShelf Apply(IReadOnlyList<Comic> all, IReadOnlyList<ComicSeries> series, ComicQuery query)
+    /// <param name="wanted">The comics on the wishlist: a run's missing issues that are wanted say so.</param>
+    public static ComicShelf Apply(IReadOnlyList<Comic> all, IReadOnlyList<ComicSeries> series, ComicQuery query, IReadOnlyList<WishlistComic> wanted)
     {
         var singles = all.Where(c => !c.Format.IsCollected()).ToList();
         var facets = new ComicFacets(
@@ -28,7 +30,7 @@ internal static class ComicFilter
 
         return query.View switch
         {
-            ComicView.Series => new ComicShelf([.. Runs(matching.Where(c => !c.Format.IsCollected()), series, query.Sort, showMissing: terms.Length == 0)], [], facets),
+            ComicView.Series => new ComicShelf([.. Runs(matching.Where(c => !c.Format.IsCollected()), series, wanted, query.Sort, showMissing: terms.Length == 0)], [], facets),
             ComicView.Issues => new ComicShelf([], [.. Sort(matching.Where(c => !c.Format.IsCollected()), query.Sort)], facets),
             ComicView.Collected => new ComicShelf([], [.. Sort(matching.Where(c => c.Format.IsCollected()), query.Sort)], facets),
             _ => new ComicShelf([], [.. Sort(matching.Where(c => c.IsKeyIssue), query.Sort)], facets),
@@ -38,15 +40,16 @@ internal static class ComicFilter
     private static (string, int?) RunKey(Comic comic) => ((comic.Series ?? "").ToUpperInvariant(), comic.SeriesYear);
 
     // While searching, only what matched is shown: a run's gaps would be every issue that didn't.
-    private static IEnumerable<SeriesRun> Runs(IEnumerable<Comic> singles, IReadOnlyList<ComicSeries> known, ComicSort sort, bool showMissing)
+    private static IEnumerable<SeriesRun> Runs(IEnumerable<Comic> singles, IReadOnlyList<ComicSeries> known, IReadOnlyList<WishlistComic> wanted, ComicSort sort, bool showMissing)
     {
+        var wantedIssues = wanted.Where(w => !w.Format.IsCollected()).ToList();
         var byMetronId = known.ToDictionary(s => s.MetronId);
         var runs = singles.GroupBy(RunKey).Select(group =>
         {
             var copies = group.ToList();
             var metronId = copies.Select(c => c.MetronSeriesId).OfType<int>().GroupBy(id => id).OrderByDescending(g => g.Count()).Select(g => (int?)g.Key).FirstOrDefault();
             var facts = metronId is { } id ? byMetronId.GetValueOrDefault(id) : null;
-            return (Run: Run(copies, facts, metronId, showMissing), Latest: copies.Max(c => c.CreatedAt));
+            return (Run: Run(copies, facts, metronId, wantedIssues, showMissing), Latest: copies.Max(c => c.CreatedAt));
         });
 
         return sort == ComicSort.RecentlyAdded
@@ -54,7 +57,7 @@ internal static class ComicFilter
             : runs.Select(r => r.Run).OrderBy(r => SortName(r.Name), Names).ThenBy(r => r.Year);
     }
 
-    private static SeriesRun Run(List<Comic> copies, ComicSeries? facts, int? metronId, bool showMissing)
+    private static SeriesRun Run(List<Comic> copies, ComicSeries? facts, int? metronId, List<WishlistComic> wanted, bool showMissing)
     {
         // The spelling most copies use names the run.
         var name = copies.GroupBy(c => c.Series!, StringComparer.Ordinal).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).First().Key;
@@ -75,7 +78,7 @@ internal static class ComicFilter
                 {
                     if (!owned.ContainsKey(numbers[i]))
                     {
-                        entries.Add(new RunEntry(numbers[i], []));
+                        entries.Add(new RunEntry(numbers[i], [], Wanted: wanted.Exists(w => w.IsIssue(metronId, name, copies[0].SeriesYear, numbers[i]))));
                     }
                 }
             }
@@ -94,13 +97,13 @@ internal static class ComicFilter
             KnownCount: knownCount);
     }
 
-    // Missing issues next to each other become one entry: "#159–167".
+    // Missing issues next to each other become one entry: "#159–167". Where the wishlist starts or stops, so does the entry.
     private static List<RunEntry> Collapse(IEnumerable<RunEntry> entries)
     {
         var collapsed = new List<RunEntry>();
         foreach (var entry in entries)
         {
-            if (entry.IsMissing && collapsed is [.., { IsMissing: true } previous])
+            if (entry.IsMissing && collapsed is [.., { IsMissing: true } previous] && previous.Wanted == entry.Wanted)
             {
                 collapsed[^1] = previous with { Through = entry.Number };
             }

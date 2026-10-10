@@ -45,8 +45,9 @@
         {
             <nav class="bnav" aria-label="Sections">
                 <NavLink href="" class="@(IsMovies ? "on" : null)" ActiveClass=""><Icon Name="film" /><span>Movies</span></NavLink>
-                <a href="scan" class="scan" aria-label="Scan"><span class="scanbtn"><Icon Name="scan" /></span></a>
                 <NavLink href="comics" class="@(IsComics ? "on" : null)" ActiveClass=""><Icon Name="book" /><span>Comics</span></NavLink>
+                <a href="scan" class="scan" aria-label="Scan"><span class="scanbtn"><Icon Name="scan" /></span></a>
+                <NavLink href="wishlist" class="@(IsWishlist ? "on" : null)" ActiveClass=""><Icon Name="heart" /><span>Wishlist</span></NavLink>
             </nav>
         }
     }
@@ -59,6 +60,8 @@
     private string Path => new Uri(Navigation.Uri).AbsolutePath.Trim('/');
 
     private bool IsComics => Path == "comics" || Path.StartsWith("comics/", StringComparison.Ordinal);
+
+    private bool IsWishlist => Path == "wishlist" || Path.StartsWith("wishlist/", StringComparison.Ordinal);
 
     private bool IsMovies => Path.Length == 0 || Path == "movies" || Path.StartsWith("movies/", StringComparison.Ordinal);
 

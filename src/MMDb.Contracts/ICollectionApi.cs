@@ -1,6 +1,7 @@
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Wishlist;
 
 namespace MMDb.Contracts;
 
@@ -52,4 +53,39 @@ public interface ICollectionApi
 
     /// <summary>Looks a scanned barcode up as a film or a comic, whichever the code is, without saving anything.</summary>
     Task<ScanResponse> LookupScanAsync(ScanRequest request, CancellationToken cancellationToken = default);
+
+    /// <param name="search">Words to look for in titles, directors and years; <see langword="null"/> lists everything.</param>
+    Task<WishlistResponse> ListWishlistAsync(string? search = null, CancellationToken cancellationToken = default);
+
+    /// <returns><see langword="null"/> if it isn't on the wishlist.</returns>
+    Task<WishlistMovieDto?> GetWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <returns><see langword="null"/> if it isn't on the wishlist.</returns>
+    Task<WishlistComicDto?> GetWishlistComicAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Wants a film already on the wishlist on another format.</summary>
+    Task<WantMovieResponse> ChangeWishlistFormatAsync(Guid id, MovieFormatKind format, CancellationToken cancellationToken = default);
+
+    /// <summary>Puts a film on the wishlist. A film already on it stays one item, now wanted on this format.</summary>
+    Task<WantMovieResponse> WantMovieAsync(WantMovieRequest request, CancellationToken cancellationToken = default);
+
+    /// <returns><see langword="false"/> if it wasn't on the wishlist.</returns>
+    Task<bool> RemoveWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Looks a film on the wishlist up online to add it to the collection ("Got it"), without saving anything.</summary>
+    /// <returns><see langword="null"/> if it isn't on the wishlist.</returns>
+    Task<MovieLookupResponse?> LookupWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Puts an issue or a collected edition on the wishlist. Something already wanted stays as it is.</summary>
+    Task<WantComicResponse> WantComicAsync(WantComicRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Puts every issue of a run missing from a series on the wishlist, each as an item of its own.</summary>
+    Task<WantComicResponse> WantMissingIssuesAsync(WantMissingRequest request, CancellationToken cancellationToken = default);
+
+    /// <returns><see langword="false"/> if it wasn't on the wishlist.</returns>
+    Task<bool> RemoveWishlistComicAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Looks a comic on the wishlist up online to add it to the collection ("Got it"), without saving anything.</summary>
+    /// <returns><see langword="null"/> if it isn't on the wishlist.</returns>
+    Task<ComicLookupResponse?> LookupWishlistComicAsync(Guid id, CancellationToken cancellationToken = default);
 }

@@ -34,18 +34,19 @@ public sealed class LayoutTests : ShelfTestContext
     public async Task The_sidebar_counts_follow_what_is_saved_elsewhere_such_as_from_a_phone()
     {
         var layout = RenderLayout();
-        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["0", "0"]));
+        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["0", "0", "0"]));
 
         await SeedAsync(Heat);
         await SeedComicAsync(MMDb.Testing.TestComics.Saga7);
+        await Api.WantMovieAsync(new() { Title = "Dune", Year = 2021, Format = Contracts.Movies.MovieFormatKind.Uhd4K }, Ct);
 
-        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["1", "1"]));
+        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["1", "1", "1"]));
     }
 
     [Fact]
     public void Only_built_screens_appear_in_the_sidebar()
     {
-        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Comics0", "Settings"]);
+        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Comics0", "Wishlist0", "Settings"]);
     }
 }
 

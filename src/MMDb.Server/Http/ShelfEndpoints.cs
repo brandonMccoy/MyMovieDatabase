@@ -5,6 +5,7 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Wishlist;
 using MMDb.Domain.Devices;
 using MMDb.Server.Phone;
 
@@ -54,6 +55,28 @@ public static class ShelfEndpoints
             Saved(await api.UpdateComicAsync(id, version, request, ct), r => r.Status));
         paired.MapDelete("/comics/{id:guid}", async Task<Results<NoContent, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
             await api.DeleteComicAsync(id, ct) ? TypedResults.NoContent() : TypedResults.NotFound());
+
+        paired.MapGet("/wishlist", (string? search, ICollectionApi api, CancellationToken ct) => api.ListWishlistAsync(search, ct));
+        paired.MapPost("/wishlist/movies", async (WantMovieRequest request, ICollectionApi api, CancellationToken ct) =>
+            Saved(await api.WantMovieAsync(request, ct), r => r.Status));
+        paired.MapGet("/wishlist/movies/{id:guid}", async Task<Results<Ok<WishlistMovieDto>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.GetWishlistMovieAsync(id, ct) is { } movie ? TypedResults.Ok(movie) : TypedResults.NotFound());
+        paired.MapPut("/wishlist/movies/{id:guid}/format", async (Guid id, ChangeWishFormatRequest request, ICollectionApi api, CancellationToken ct) =>
+            Saved(await api.ChangeWishlistFormatAsync(id, request.Format, ct), r => r.Status));
+        paired.MapGet("/wishlist/comics/{id:guid}", async Task<Results<Ok<WishlistComicDto>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.GetWishlistComicAsync(id, ct) is { } comic ? TypedResults.Ok(comic) : TypedResults.NotFound());
+        paired.MapDelete("/wishlist/movies/{id:guid}", async Task<Results<NoContent, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.RemoveWishlistMovieAsync(id, ct) ? TypedResults.NoContent() : TypedResults.NotFound());
+        paired.MapGet("/wishlist/movies/{id:guid}/lookup", async Task<Results<Ok<MovieLookupResponse>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.LookupWishlistMovieAsync(id, ct) is { } found ? TypedResults.Ok(found) : TypedResults.NotFound());
+        paired.MapPost("/wishlist/comics", async (WantComicRequest request, ICollectionApi api, CancellationToken ct) =>
+            Saved(await api.WantComicAsync(request, ct), r => r.Status));
+        paired.MapPost("/wishlist/comics/missing", async (WantMissingRequest request, ICollectionApi api, CancellationToken ct) =>
+            Saved(await api.WantMissingIssuesAsync(request, ct), r => r.Status));
+        paired.MapDelete("/wishlist/comics/{id:guid}", async Task<Results<NoContent, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.RemoveWishlistComicAsync(id, ct) ? TypedResults.NoContent() : TypedResults.NotFound());
+        paired.MapGet("/wishlist/comics/{id:guid}/lookup", async Task<Results<Ok<ComicLookupResponse>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
+            await api.LookupWishlistComicAsync(id, ct) is { } found ? TypedResults.Ok(found) : TypedResults.NotFound());
 
         paired.MapPost("/scans", (ScanRequest request, ICollectionApi api, CancellationToken ct) => api.LookupScanAsync(request, ct));
         paired.MapGet("/covers/{name}", CoverAsync);

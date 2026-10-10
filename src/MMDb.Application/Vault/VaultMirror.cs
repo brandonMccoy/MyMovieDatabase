@@ -85,6 +85,10 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
     internal Task ComicSavedAsync(Comic comic, VaultContentSource source) =>
         ChangeAsync((folder, all) => writer.WriteComicAsync(folder, comic, all), source);
 
+    /// <summary>Something was put on the wishlist, taken off it, or changed on it.</summary>
+    internal Task WishlistChangedAsync(VaultContentSource source) =>
+        ChangeAsync((folder, all) => writer.WriteWishlistAsync(folder, all), source);
+
     /// <summary>A film or comic was deleted.</summary>
     internal Task RemovedAsync(Guid id, VaultContentSource source) =>
         ChangeAsync((folder, all) => writer.RemoveAsync(folder, id, all), source);
