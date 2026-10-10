@@ -45,6 +45,8 @@ public sealed class AddMovieLookupTests : ShelfTestContext
     private static void ToggleFormat(IRenderedComponent<MovieEditor> page, string name) =>
         page.FindAll(".fmt-toggle").Single(t => t.QuerySelector(".fmt")!.TextContent == name).Click();
 
+    private static string? SearchBox(IRenderedComponent<MovieEditor> page) => page.Find(".lookup-bar input").GetAttribute("value");
+
     private static string Notice(IRenderedComponent<MovieEditor> page) => Text(page.WaitForElement(".notice"));
 
     // The text as read on screen: runs of whitespace from the markup collapse to one space.
@@ -177,7 +179,7 @@ public sealed class AddMovieLookupTests : ShelfTestContext
     }
 
     [Fact]
-    public void A_barcode_without_a_format_goes_to_the_first_disc_switched_on()
+    public void A_barcode_whose_product_names_no_format_is_not_kept()
     {
         TmdbKnowsTheHeats();
         Online.Barcodes.Add(HeatUpc, "Heat (1995)");
@@ -187,10 +189,82 @@ public sealed class AddMovieLookupTests : ShelfTestContext
 
         page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
         ToggleFormat(page, "Blu-ray");
-        ToggleFormat(page, "DVD");
 
+        page.Find("input[aria-label='Blu-ray UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void After_a_barcode_the_search_goes_on_by_the_title_its_product_names()
+    {
+        TmdbKnowsTheHeats();
+        Online.Barcodes.Add(HeatUpc, "Heat (1995) [4K UHD + Blu-ray]");
+        var page = RenderAdd();
+
+        Search(page, HeatUpc);
+
+        Matches(page).Count.ShouldBe(1);
+        SearchBox(page).ShouldBe("Heat");
+    }
+
+    [Fact]
+    public void A_barcode_tmdb_has_no_film_for_is_kept_for_the_match_found_by_title()
+    {
+        TmdbKnowsTheHeats();
+        Online.Barcodes.Add(HeatUpc, "Heet Collectors Tin [Blu-ray]");
+        var page = RenderAdd();
+
+        Search(page, HeatUpc);
+
+        Notice(page).ShouldBe(
+            "No films found on TMDB for “Heet Collectors Tin [Blu-ray]”. Check the title and search again; the match you pick gets the UPC on Blu-ray.");
+        SearchBox(page).ShouldBe("Heet Collectors Tin");
+
+        Search(page, "heat");
+        Matches(page).Count.ShouldBe(3);
+        Text(page.Find(".code-chip")).ShouldBe($"UPC {HeatUpc} · kept for Blu-ray");
+        Pick(page, 0);
+
+        page.FindAll(".fmt-toggle.on .fmt").Select(f => f.TextContent).ShouldBe(["Blu-ray"]);
         page.Find("input[aria-label='Blu-ray UPC']").GetAttribute("value").ShouldBe(HeatUpc);
+    }
+
+    [Fact]
+    public void A_barcode_with_a_title_but_no_format_fills_the_search_and_is_not_kept()
+    {
+        TmdbKnowsTheHeats();
+        Online.Barcodes.Add(HeatUpc, "Heet Collectors Tin");
+        var page = RenderAdd();
+
+        Search(page, HeatUpc);
+
+        Notice(page).ShouldBe("No films found on TMDB for “Heet Collectors Tin”. Check the title and search again.");
+        SearchBox(page).ShouldBe("Heet Collectors Tin");
+
+        Search(page, "heat");
+        Matches(page).Count.ShouldBe(3);
+        page.FindAll(".code-chip").ShouldBeEmpty();
+        Pick(page, 0);
+
+        page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
+        ToggleFormat(page, "DVD");
         page.Find("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void Looking_up_another_barcode_lets_go_of_the_one_kept()
+    {
+        TmdbKnowsTheHeats();
+        Online.Barcodes.Add(HeatUpc, "Heet Collectors Tin [Blu-ray]");
+        var page = RenderAdd();
+        Search(page, HeatUpc);
+        Notice(page).ShouldStartWith("No films found");
+
+        Search(page, "036000291452");
+        page.WaitForAssertion(() => Notice(page).ShouldStartWith("This barcode isn't in UPCitemdb."));
+        Search(page, "heat");
+        Pick(page, 0);
+
+        page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
     }
 
     [Fact]
@@ -230,17 +304,48 @@ public sealed class AddMovieLookupTests : ShelfTestContext
     }
 
     [Fact]
-    public void An_unknown_barcode_says_so_and_manual_entry_keeps_the_upc()
+    public void An_unknown_barcode_says_so_leaves_the_search_blank_and_is_not_kept()
+    {
+        TmdbKnowsTheHeats();
+        var page = RenderAdd();
+
+        Search(page, HeatUpc);
+
+        Notice(page).ShouldBe("This barcode isn't in UPCitemdb. Search for the title instead.");
+        SearchBox(page).ShouldBeNullOrEmpty();
+
+        Search(page, "heat");
+        Pick(page, 0);
+        page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
+        ToggleFormat(page, "DVD");
+        page.Find("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void Manual_entry_after_an_unknown_barcode_starts_blank()
     {
         var page = RenderAdd();
         Search(page, HeatUpc);
-
         Notice(page).ShouldContain("isn't in UPCitemdb");
+
         page.Find(".lookup-foot button").Click();
         ToggleFormat(page, "DVD");
 
-        page.Find("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBe(HeatUpc);
+        page.Find("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
         page.Find("#title").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public void Manual_entry_after_a_barcode_with_a_format_switches_it_on_with_the_upc()
+    {
+        Online.Barcodes.Add(HeatUpc, "Some Home Movie [DVD]");
+        var page = RenderAdd();
+        Search(page, HeatUpc);
+        Notice(page).ShouldStartWith("No films found");
+
+        page.Find(".lookup-foot button").Click();
+
+        page.WaitForElement("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBe(HeatUpc);
     }
 
     [Fact]

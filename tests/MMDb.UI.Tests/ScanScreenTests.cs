@@ -329,6 +329,69 @@ public sealed class ScanReviewTests : PhoneTestContext
     }
 
     [Fact]
+    public async Task A_scan_tmdb_has_no_film_for_opens_on_a_search_for_its_title_and_the_match_picked_gets_the_barcode()
+    {
+        Online.Barcodes.Add(UnknownUpc, "Heet Collectors Tin [Blu-ray]");
+        var item = await ScanAsync(UnknownUpc);
+        var page = ReviewFilm(item);
+
+        page.WaitForElement(".lookup-bar input").GetAttribute("value").ShouldBe("Heet Collectors Tin");
+        Text(page.Find(".code-chip")).ShouldBe($"UPC {UnknownUpc} · Heet Collectors Tin [Blu-ray]");
+
+        page.Find(".lookup-bar input").Input("heat");
+        page.Find("form.lookup-bar").Submit();
+        page.WaitForElement(".match").Click();
+
+        page.WaitForElement("#title").GetAttribute("value").ShouldBe("Heat");
+        page.FindAll(".fmt-toggle.on .fmt").Select(f => f.TextContent).ShouldBe(["Blu-ray"]);
+        page.Find("input[aria-label='Blu-ray UPC']").GetAttribute("value").ShouldBe(UnknownUpc);
+
+        page.Find(".sticky .btn.primary").Click();
+
+        page.WaitForAssertion(() => RelativeLocation.ShouldBe(""));
+        var saved = await Api.GetMovieAsync((await Api.ListMoviesAsync(new(), Ct)).Movies.ShouldHaveSingleItem().Id, Ct);
+        saved!.Formats.Select(f => (f.Format, f.Upc)).ShouldBe([(MovieFormatKind.BluRay, UnknownUpc)]);
+        Queue.Items.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_scan_nobody_knows_opens_on_a_blank_search_and_its_barcode_is_not_kept()
+    {
+        var item = await ScanAsync(UnknownUpc);
+        var page = ReviewFilm(item);
+
+        page.WaitForElement(".lookup-bar input").GetAttribute("value").ShouldBeNullOrEmpty();
+
+        page.Find(".lookup-bar input").Input("heat");
+        page.Find("form.lookup-bar").Submit();
+        page.WaitForElement(".match").Click();
+
+        page.WaitForElement("#title").GetAttribute("value").ShouldBe("Heat");
+        page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
+        page.FindAll(".fmt-toggle").First(t => t.QuerySelector(".fmt")!.TextContent == "DVD").Click();
+        page.Find("input[aria-label='DVD UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task A_scan_whose_product_names_a_title_but_no_format_fills_the_search_and_drops_the_barcode()
+    {
+        Online.Barcodes.Add(UnknownUpc, "Heet Collectors Tin");
+        var item = await ScanAsync(UnknownUpc);
+        var page = ReviewFilm(item);
+
+        page.WaitForElement(".lookup-bar input").GetAttribute("value").ShouldBe("Heet Collectors Tin");
+
+        page.Find(".lookup-bar input").Input("heat");
+        page.Find("form.lookup-bar").Submit();
+        page.WaitForElement(".match").Click();
+
+        page.WaitForElement("#title");
+        page.FindAll(".fmt-toggle.on").ShouldBeEmpty();
+        page.FindAll(".fmt-toggle").First(t => t.QuerySelector(".fmt")!.TextContent == "Blu-ray").Click();
+        page.Find("input[aria-label='Blu-ray UPC']").GetAttribute("value").ShouldBeNullOrEmpty();
+    }
+
+    [Fact]
     public async Task A_film_scanned_as_a_comic_can_be_looked_up_as_a_film_instead()
     {
         Queue.Mode = ScanMode.Comic;

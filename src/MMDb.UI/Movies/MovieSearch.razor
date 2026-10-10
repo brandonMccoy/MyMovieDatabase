@@ -22,20 +22,28 @@
         {
             <span class="code-chip"><Icon Name="scan" />UPC @response.Upc@if (response.ProductName is not null) {<span> · @response.ProductName</span>}</span>
         }
+        else if (State.Barcode is { } kept)
+        {
+            <span class="code-chip kept"><Icon Name="scan" />UPC @kept.Upc · kept for @Formats.Name(kept.Format)</span>
+        }
 
         @switch (response.Status)
         {
             case LookupStatus.NoMatches:
                 <p class="notice" role="status">
                     No films found on TMDB for “@(response.ProductName ?? State.SearchedFor)”.
-                    @if (response.Upc is not null)
+                    @if (State.Barcode is { } held && response.Upc is not null)
                     {
-                        <span>Try the title instead; the UPC is kept for the format you pick.</span>
+                        <span>Check the title and search again; the match you pick gets the UPC on @Formats.Name(held.Format).</span>
+                    }
+                    else if (response.Upc is not null)
+                    {
+                        <span>Check the title and search again.</span>
                     }
                 </p>
                 break;
             case LookupStatus.UnknownBarcode:
-                <p class="notice" role="status">This barcode isn't in UPCitemdb. Search for the title instead; the UPC is kept for the format you pick.</p>
+                <p class="notice" role="status">This barcode isn't in UPCitemdb. Search for the title instead.</p>
                 break;
             case LookupStatus.BarcodeOwned when response.OwnedByBarcode is { } owned:
                 <p class="notice owned-barcode" role="status">
@@ -142,8 +150,7 @@
         _searching = true;
         try
         {
-            State.Response = await Api.LookupMovieAsync(query);
-            State.SearchedFor = query;
+            State.Answer(query, await Api.LookupMovieAsync(query));
         }
         finally
         {

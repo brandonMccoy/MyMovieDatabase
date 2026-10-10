@@ -35,7 +35,7 @@ internal sealed class CameraScanner : IBarcodeScanner
 
         _onCode = onCode;
         _camera.BarcodeSymbologies = target == ScanTarget.PairingCode ? BarcodeFormats.QRCode : ProductCodes;
-        _camera.IsVisible = true;
+        _camera.Opacity = 1;
         _camera.PauseScanning = false;
         _camera.CameraEnabled = true;
         return ScannerStart.Started;
@@ -47,7 +47,7 @@ internal sealed class CameraScanner : IBarcodeScanner
         if (_camera is not null)
         {
             _camera.CameraEnabled = false;
-            _camera.IsVisible = false;
+            _camera.Opacity = 0;
         }
     });
 

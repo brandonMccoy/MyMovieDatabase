@@ -272,8 +272,6 @@ else if (_form is not null)
     private MovieCandidateDto? _candidate;
     private int _candidateIndex;
 
-    // A scanned UPC whose format the barcode database didn't say: it goes to the first disc switched on.
-    private string? _pendingUpc;
     private bool _loaded;
     private bool _saving;
     private string? _problem;
@@ -353,12 +351,10 @@ else if (_form is not null)
         _form = null;
         _candidate = null;
         _baseline = null;
-        _pendingUpc = null;
         _search = new();
         if (_scan?.Response?.Movie is { } found)
         {
-            _search.Query = _search.SearchedFor = _scan.Code;
-            _search.Response = found;
+            _search.Answer(_scan.Code, found);
             if (found is { Status: LookupStatus.Found, Candidates: [var best, ..] })
             {
                 Pick(best);
@@ -428,20 +424,12 @@ else if (_form is not null)
         _mode = Mode.Edit;
     }
 
+    // The UPC goes on the format its product names. Without a format there is no telling which disc it is for.
     private void UseScannedBarcode()
     {
-        if (_search.Response is not { Upc: { } upc } response)
-        {
-            return;
-        }
-
-        if (response.Format is { } format)
+        if (_search.Barcode is var (upc, format))
         {
             _form!.Formats[format] = new FormatRow { Owned = true, Upc = Formats.IsDisc(format) ? upc : null };
-        }
-        else
-        {
-            _pendingUpc = upc;
         }
     }
 
@@ -449,11 +437,6 @@ else if (_form is not null)
     {
         var row = _form!.Formats[format];
         row.Owned = !row.Owned;
-        if (row.Owned && Formats.IsDisc(format) && string.IsNullOrEmpty(row.Upc) && _pendingUpc is { } upc)
-        {
-            row.Upc = upc;
-            _pendingUpc = null;
-        }
     }
 
     private void FindOnTmdb()

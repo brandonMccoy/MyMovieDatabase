@@ -38,6 +38,9 @@ public sealed record MovieLookupResponse
     /// <summary>The barcode database's name for the product, e.g. "Heat [Blu-ray]".</summary>
     public string? ProductName { get; init; }
 
+    /// <summary>The film's title as read from the product name, e.g. "Heat": what to search on with.</summary>
+    public string? ProductTitle { get; init; }
+
     /// <summary>The format the product name gives, if any.</summary>
     public MovieFormatKind? Format { get; init; }
 

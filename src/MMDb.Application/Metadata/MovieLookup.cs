@@ -49,7 +49,13 @@ public sealed class MovieLookup(IMovieMetadata metadata, IBarcodeLookup barcodes
 
         var product = RetailTitle.Parse(names[0]);
         var matches = await SearchAsync(product.Title, product.Year, product.Title, cancellationToken);
-        return Found(matches) with { Upc = upc, ProductName = names[0], Format = product.Format };
+        return Found(matches) with
+        {
+            Upc = upc,
+            ProductName = names[0],
+            ProductTitle = product.Title.Length > 0 ? product.Title : null,
+            Format = product.Format,
+        };
     }
 
     // A trailing year may be part of the title ("Blade Runner 2049"), so no hits with it means try without.
@@ -99,6 +105,9 @@ public sealed record MovieLookupResult
 
     /// <summary>The barcode database's name for the product, e.g. "Heat [Blu-ray]".</summary>
     public string? ProductName { get; init; }
+
+    /// <summary>The film's title as read from the product name, e.g. "Heat": what to search on with.</summary>
+    public string? ProductTitle { get; init; }
 
     /// <summary>The format the product name gives, if any.</summary>
     public MediaFormat? Format { get; init; }

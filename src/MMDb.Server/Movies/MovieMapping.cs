@@ -134,6 +134,7 @@ internal static class MovieMapping
         Candidates = [.. result.Matches.Select(m => m.ToCandidate(covers))],
         Upc = result.Upc?.Value,
         ProductName = result.ProductName,
+        ProductTitle = result.ProductTitle,
         Format = result.Format?.ToContract(),
         OwnedByBarcode = result.OwnedByBarcode?.ToSummary(covers),
         FailedService = result.FailedService,

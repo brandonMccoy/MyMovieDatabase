@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- No backups: the token that pairs this phone with the PC stays on this phone. -->
-    <application android:allowBackup="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
+    <!-- No backups: the token that pairs this phone with the PC stays on this phone.
+         enableOnBackInvokedCallback off: Back then reaches the web view as a key press, and the web view goes to
+         the screen before (leaving the app from the first one). With it on, Android 16 sends Back past the web
+         view and every Back leaves the app. -->
+    <application android:allowBackup="false" android:enableOnBackInvokedCallback="false" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true"></application>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />

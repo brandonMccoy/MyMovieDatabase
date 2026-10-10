@@ -262,6 +262,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
 
         response.Upc.ShouldBe("786936894424");
         response.ProductName.ShouldBe("Heat [Blu-ray]");
+        response.ProductTitle.ShouldBe("Heat");
         response.Format.ShouldBe(MovieFormatKind.BluRay);
         response.Candidates.ShouldHaveSingleItem().Owned.ShouldBeNull();
     }

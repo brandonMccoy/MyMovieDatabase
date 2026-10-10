@@ -111,6 +111,7 @@ public sealed class MovieLookupTests
         result.Outcome.ShouldBe(LookupOutcome.Found);
         result.Upc.ShouldBe(Upc.Parse("786936894424"));
         result.ProductName.ShouldBe("Heat (1995) [4K UHD + Blu-ray]");
+        result.ProductTitle.ShouldBe("Heat");
         result.Format.ShouldBe(MediaFormat.Uhd4K);
         result.Matches.ShouldHaveSingleItem().Details.TmdbId.ShouldBe(949);
         shelf.Online.Tmdb.Searches.ShouldBe([("Heat", 1995)]);
@@ -125,11 +126,13 @@ public sealed class MovieLookupTests
 
         result.Outcome.ShouldBe(LookupOutcome.UnknownBarcode);
         result.Upc.ShouldBe(Upc.Parse("036000291452"));
+        result.ProductTitle.ShouldBeNull();
+        result.Format.ShouldBeNull();
         shelf.Online.Tmdb.Searches.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task A_barcode_with_no_film_on_tmdb_keeps_the_product_name()
+    public async Task A_barcode_with_no_film_on_tmdb_keeps_the_product_name_and_the_title_and_format_read_from_it()
     {
         await using var shelf = await ShelfWithHeatsAsync();
         shelf.Online.Barcodes.Add("036000291452", "Some Documentary [DVD]");
@@ -138,6 +141,7 @@ public sealed class MovieLookupTests
 
         result.Outcome.ShouldBe(LookupOutcome.NoMatches);
         result.ProductName.ShouldBe("Some Documentary [DVD]");
+        result.ProductTitle.ShouldBe("Some Documentary");
         result.Format.ShouldBe(MediaFormat.Dvd);
     }
 

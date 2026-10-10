@@ -16,10 +16,11 @@ public partial class MainPage : ContentPage
             }
         };
 #elif ANDROID
-        // The camera sits behind the web view; the scan screen leaves its background see-through.
+        // The camera sits behind the web view; the scan screen leaves its background see-through. Off, it is
+        // see-through rather than hidden: a view that starts hidden is never given a size when it is shown.
         var camera = new BarcodeScanning.CameraView
         {
-            IsVisible = false,
+            Opacity = 0,
             CameraEnabled = false,
             VibrationOnDetected = false,
             CaptureQuality = BarcodeScanning.CaptureQuality.High,
