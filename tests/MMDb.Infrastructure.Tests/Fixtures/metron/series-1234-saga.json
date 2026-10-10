@@ -1,0 +1,26 @@
+{
+  "id": 1234,
+  "name": "Saga",
+  "sort_name": "Saga",
+  "volume": 1,
+  "series_type": {
+    "id": 13,
+    "name": "Ongoing Series"
+  },
+  "status": "Ongoing",
+  "publisher": {
+    "id": 9,
+    "name": "Image"
+  },
+  "imprint": null,
+  "year_began": 2012,
+  "year_end": null,
+  "desc": "",
+  "issue_count": 4,
+  "genres": [],
+  "associated": [],
+  "cv_id": 49901,
+  "gcd_id": 66123,
+  "resource_url": "https://metron.cloud/series/saga-2012/",
+  "modified": "2024-03-02T10:11:12.000000-05:00"
+}

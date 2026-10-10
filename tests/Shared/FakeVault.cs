@@ -1,4 +1,5 @@
 using MMDb.Application.Vault;
+using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
 
 namespace MMDb.Testing;
@@ -12,32 +13,42 @@ internal sealed class FakeVault : IVaultWriter
 
     public VaultProblem? FailWith { get; set; }
 
-    /// <summary>"sync C:\vault (2 films)", "write Heat", "remove Heat".</summary>
+    /// <summary>"sync C:\vault (2 films)", "sync C:\vault (2 films, 1 comics)", "write Heat", "write Saga #7", "remove Movies/Heat (1995).md".</summary>
     public IReadOnlyList<string> Calls { get { lock (_lock) { return [.. _calls]; } } }
 
     public static string NoteFor(Movie movie) => $"Movies/{movie.Title} ({movie.Year}).md";
 
-    public Task SyncAsync(string folder, IReadOnlyList<Movie> movies, CancellationToken cancellationToken = default) =>
-        Record($"sync {folder} ({movies.Count} films)", () =>
+    public static string NoteFor(Comic comic) => $"Comics/{comic.Series} ({comic.SeriesYear})/{comic.Series} {comic.Number}.md";
+
+    public Task SyncAsync(string folder, VaultContent content, CancellationToken cancellationToken = default) =>
+        Record($"sync {folder} ({content.Movies.Count} films{(content.Comics.Count > 0 ? $", {content.Comics.Count} comics" : "")})", () =>
         {
             _notes.Clear();
-            foreach (var movie in movies)
+            foreach (var movie in content.Movies)
             {
                 _notes[movie.Id] = NoteFor(movie);
             }
+
+            foreach (var comic in content.Comics)
+            {
+                _notes[comic.Id] = NoteFor(comic);
+            }
         });
 
-    public Task WriteMovieAsync(string folder, Movie movie, IReadOnlyList<Movie> movies, CancellationToken cancellationToken = default) =>
+    public Task WriteMovieAsync(string folder, Movie movie, VaultContent content, CancellationToken cancellationToken = default) =>
         Record($"write {movie.Title}", () => _notes[movie.Id] = NoteFor(movie));
 
-    public Task RemoveMovieAsync(string folder, Guid movieId, IReadOnlyList<Movie> movies, CancellationToken cancellationToken = default) =>
-        Record($"remove {_notes.GetValueOrDefault(movieId, movieId.ToString())}", () => _notes.Remove(movieId));
+    public Task WriteComicAsync(string folder, Comic comic, VaultContent content, CancellationToken cancellationToken = default) =>
+        Record($"write {comic.DisplayName}", () => _notes[comic.Id] = NoteFor(comic));
 
-    public string? NoteOf(string folder, Guid movieId)
+    public Task RemoveAsync(string folder, Guid id, VaultContent content, CancellationToken cancellationToken = default) =>
+        Record($"remove {_notes.GetValueOrDefault(id, id.ToString())}", () => _notes.Remove(id));
+
+    public string? NoteOf(string folder, Guid id)
     {
         lock (_lock)
         {
-            return _notes.GetValueOrDefault(movieId);
+            return _notes.GetValueOrDefault(id);
         }
     }
 

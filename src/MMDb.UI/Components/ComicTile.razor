@@ -1,0 +1,26 @@
+@* One comic copy on a shelf: the cover, its number (or name) with a KEY tag, and what makes it this copy. *@
+<div class="issue" @key="Comic.Id">
+    <a href="comics/@Comic.Id" aria-label="@Comic.DisplayName">
+        <Poster Title="@(Comic.Series ?? Comic.DisplayName)" Subtitle="@(Comic.Number is { } n && !ComicText.IsCollected(Comic.Format) ? "#" + n : null)" ImageUrl="Comic.CoverUrl" />
+    </a>
+    <div class="num">
+        <a href="comics/@Comic.Id">@Label</a>
+        @if (Comic.IsKeyIssue)
+        {
+            <span class="key">KEY</span>
+        }
+    </div>
+    @if (ComicText.Caption(Comic) is { Length: > 0 } caption)
+    {
+        <div class="sub2">@caption</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ComicSummaryDto Comic { get; set; } = null!;
+
+    /// <summary>In a series' run only the number is shown; elsewhere the full name.</summary>
+    [Parameter] public bool InRun { get; set; }
+
+    private string Label => InRun && Comic.Number is { } number ? "#" + number : Comic.DisplayName;
+}

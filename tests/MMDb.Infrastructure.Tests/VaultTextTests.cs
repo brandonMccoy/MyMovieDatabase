@@ -22,6 +22,29 @@ public sealed class VaultTextTests
     public void Note_names_are_safe_file_names(string title, int? year, string expected) =>
         NoteNames.For(title, year).ShouldBe(expected);
 
+    [Theory]
+    [InlineData("Saga", "7", null, null, "Saga 7")]
+    [InlineData("Saga", "7", "Cover B", null, "Saga 7 (Cover B)")]
+    [InlineData("Saga", "7", null, 1, "Saga 7")]
+    [InlineData("Saga", "7", null, 2, "Saga 7 (2nd printing)")]
+    [InlineData("Saga", "7", "1:25 Variant", 3, "Saga 7 (1 -25 Variant) (3rd printing)")]
+    [InlineData("X-Men", "1.MU", null, 11, "X-Men 1.MU (11th printing)")]
+    [InlineData("Batman/Superman", "½", null, 22, "Batman-Superman ½ (22nd printing)")]
+    public void Issue_note_names_have_no_hash(string series, string number, string? variant, int? printing, string expected) =>
+        NoteNames.ForIssue(series, number, variant, printing).ShouldBe(expected);
+
+    [Theory]
+    [InlineData(new[] { "1", "2", "3", "5", "7", "8" }, "#1–3, #5, #7–8")]
+    [InlineData(new[] { "8", "1" }, "#1, #8")]
+    [InlineData(new[] { "4" }, "#4")]
+    [InlineData(new string[0], "")]
+    public void Issue_numbers_are_written_as_ranges(string[] numbers, string expected) =>
+        IssueRanges.Format(numbers, ["1", "2", "3", "4", "5", "6", "7", "8"]).ShouldBe(expected);
+
+    [Fact]
+    public void Ranges_follow_the_series_order_not_the_digits() =>
+        IssueRanges.Format(["1", "1.MU", "2", "Annual 1"], ["1", "1.MU", "2", "3", "Annual 1"]).ShouldBe("#1–2, #Annual 1");
+
     [Fact]
     public void Very_long_titles_are_cut_short() =>
         NoteNames.For(new string('a', 300), 2000).ShouldBe(new string('a', 120) + " (2000)");

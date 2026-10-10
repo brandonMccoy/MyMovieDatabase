@@ -5,7 +5,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using MMDb.Application.Vault;
 using MMDb.Contracts;
+using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
+using MMDb.Domain.Comics;
 using MMDb.Infrastructure;
 using MMDb.Server;
 using MMDb.Testing;
@@ -91,6 +93,36 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
         response.Status.ShouldBe(SaveStatus.Saved, string.Join("; ", response.Errors));
         return response.Movie!;
     }
+
+    protected async Task<ComicDto> SeedComicAsync(ComicDetails details)
+    {
+        var response = await Api.AddComicAsync(Request(details), Ct);
+        response.Status.ShouldBe(SaveStatus.Saved, string.Join("; ", response.Errors));
+        return response.Comic!;
+    }
+
+    protected static SaveComicRequest Request(ComicDetails details) => new()
+    {
+        Format = (ComicFormatKind)(int)details.Format,
+        Series = details.Series,
+        SeriesYear = details.SeriesYear,
+        Number = details.Number,
+        Title = details.Title,
+        Variant = details.Variant,
+        Printing = details.Printing,
+        Publisher = details.Publisher,
+        CoverDate = details.CoverDate,
+        Writers = details.Writers,
+        Artists = details.Artists,
+        Summary = details.Summary,
+        Barcode = details.Barcode,
+        Isbn = details.Isbn,
+        MetronId = details.MetronId,
+        MetronSeriesId = details.MetronSeriesId,
+        IsKeyIssue = details.IsKeyIssue,
+        KeyNote = details.KeyNote,
+        CoverSource = details.CoverUrl,
+    };
 
     /// <summary>The current location relative to the app root, e.g. <c>movies/…</c> or <c>?q=heat</c>.</summary>
     protected string RelativeLocation => Navigation.ToBaseRelativePath(Navigation.Uri);

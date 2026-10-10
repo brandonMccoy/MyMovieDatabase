@@ -1,0 +1,411 @@
+@page "/comics/new"
+@page "/comics/{Id:guid}/edit"
+@using MMDb.UI.Comics
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfCounts Counts
+
+<PageTitle>@(IsNew ? "Add comic" : "Edit comic") · Shelf</PageTitle>
+
+<div class="topbar">
+    <a class="btn ghost back" href="@BackHref"><Icon Name="back" />@BackLabel</a>
+    <div class="spacer"></div>
+    @if (_form is not null && _mode == Mode.Edit)
+    {
+        <a class="btn ghost" href="@BackHref">Cancel</a>
+        <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add comic" : "Save changes")</button>
+    }
+</div>
+
+@if (_loaded && _form is null && !IsNew)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Comic not found</h1>
+            <p>It isn't in your collection any more.</p>
+            <a class="btn" href="comics">Back to comics</a>
+        </div>
+    </div>
+}
+else if (_loaded && _mode == Mode.Search)
+{
+    <div class="content">
+        <div class="section-head">
+            <h1>@(IsNew ? "Add comic" : "Find on Metron")</h1>
+        </div>
+        <ComicSearch State="_search" OnPick="Pick" SearchOnOpen="!IsNew">
+            <Footer>
+                @if (IsNew)
+                {
+                    <span>Not listed?</span> <button type="button" class="link-btn" @onclick="EnterManually">Enter manually</button>
+                }
+                else
+                {
+                    <button type="button" class="link-btn" @onclick="() => _mode = Mode.Edit">Back to editing</button>
+                }
+            </Footer>
+        </ComicSearch>
+    </div>
+}
+else if (_form is not null)
+{
+    <div class="detail editing">
+        <div>
+            <Poster Title="@_form.PosterTitle" Subtitle="@(_form.IsCollected || _form.Number.Trim().Length == 0 ? null : "#" + _form.Number.Trim().TrimStart('#'))" ImageUrl="CoverImage" />
+            @if (!IsNew && !_form.IsCollected)
+            {
+                <button type="button" class="btn sm find" @onclick="FindOnMetron"><Icon Name="search" />Find on Metron</button>
+            }
+        </div>
+
+        <div>
+            @if (_problem is not null)
+            {
+                <div class="problem" role="alert">
+                    <span>@_problem</span>
+                    @if (_problem == ConflictMessage)
+                    {
+                        <button type="button" class="btn sm" @onclick="ReloadAsync">Load the latest version</button>
+                    }
+                    else if (_alreadyOwned is not null)
+                    {
+                        <a class="btn sm" href="comics/@_alreadyOwned.Id">Open @_alreadyOwned.DisplayName</a>
+                    }
+                </div>
+            }
+
+            @if (_candidate is not null)
+            {
+                <div class="review-bar">
+                    <span class="src">@(_candidateIndex == 0 ? "Best match · " : "From ")@Source</span>
+                    <button type="button" class="link-btn" @onclick="() => _mode = Mode.Search">@NotItLabel</button>
+                </div>
+            }
+
+            @if (IsNew && _candidate is { } candidate && candidate.Owned.Count > 0)
+            {
+                <div class="owned-note">
+                    @if (candidate.IsOwned)
+                    {
+                        <span>You already own this copy. Change its variant or printing if this is another one.</span>
+                    }
+                    else
+                    {
+                        <span>You own <b>@string.Join(", ", candidate.Owned.Select(OwnedName))</b> of this issue. Saving adds this copy.</span>
+                    }
+                </div>
+            }
+
+            <div class="eyebrow">@(IsNew ? "New comic" : "Editing")</div>
+
+            @if (_form.IsCollected)
+            {
+                <div class="field">
+                    <label for="title">Title</label>
+                    <input id="title" class="input title-input @State("Title", _form.Title, _baseline?.Title)" @bind="_form.Title" @bind:event="oninput" autocomplete="off" placeholder="e.g. Saga, Volume One" />
+                    <FieldMessage Errors="_errors" Field="Title" />
+                </div>
+                <div class="row3">
+                    <div class="field span2">
+                        <label for="series">Series</label>
+                        <input id="series" class="input @State("Series", _form.Series, _baseline?.Series)" @bind="_form.Series" @bind:event="oninput" autocomplete="off" />
+                        <FieldMessage Errors="_errors" Field="Series" />
+                    </div>
+                    <div class="field">
+                        <label for="number">Volume</label>
+                        <input id="number" class="input @State("Number", _form.Number, _baseline?.Number)" @bind="_form.Number" @bind:event="oninput" autocomplete="off" />
+                        <FieldMessage Errors="_errors" Field="Number" />
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="field">
+                    <label for="series">Series</label>
+                    <input id="series" class="input title-input @State("Series", _form.Series, _baseline?.Series)" @bind="_form.Series" @bind:event="oninput" autocomplete="off" />
+                    <FieldMessage Errors="_errors" Field="Series" />
+                </div>
+                <div class="row3">
+                    <div class="field">
+                        <label for="number">Issue</label>
+                        <input id="number" class="input @State("Number", _form.Number, _baseline?.Number)" @bind="_form.Number" @bind:event="oninput" autocomplete="off" placeholder="e.g. 181" />
+                        <FieldMessage Errors="_errors" Field="Number" />
+                    </div>
+                    <div class="field">
+                        <label for="year">Year it began</label>
+                        <input id="year" type="number" class="input @State("SeriesYear", _form.SeriesYear, _baseline?.SeriesYear)" @bind="_form.SeriesYear" placeholder="e.g. 1964" />
+                        <FieldMessage Errors="_errors" Field="SeriesYear" />
+                    </div>
+                    <div class="field">
+                        <label for="cover-date">Cover date</label>
+                        <input id="cover-date" type="month" class="input @State("CoverDate", _form.CoverMonth, _baseline?.CoverMonth)" value="@_form.CoverMonth" @onchange="e => _form.CoverMonth = e.Value?.ToString() ?? string.Empty" />
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="title">Story title</label>
+                    <input id="title" class="input @State("Title", _form.Title, _baseline?.Title)" @bind="_form.Title" autocomplete="off" />
+                    <FieldMessage Errors="_errors" Field="Title" />
+                </div>
+            }
+
+            <div class="field">
+                <label for="publisher">Publisher</label>
+                <input id="publisher" class="input @State("Publisher", _form.Publisher, _baseline?.Publisher)" @bind="_form.Publisher" list="publisher-options" autocomplete="off" />
+                <datalist id="publisher-options">
+                    @foreach (var publisher in _publishers)
+                    {
+                        <option value="@publisher"></option>
+                    }
+                </datalist>
+                <FieldMessage Errors="_errors" Field="Publisher" />
+            </div>
+
+            <div class="row2">
+                <div class="field">
+                    <label for="writers">Writers</label>
+                    <input id="writers" class="input @State("Writers", string.Join(",", _form.WriterList), _baseline is null ? null : string.Join(",", _baseline.Writers))" @bind="_form.Writers" placeholder="Separate several with commas" />
+                    <FieldMessage Errors="_errors" Field="Writers" />
+                </div>
+                <div class="field">
+                    <label for="artists">Artists</label>
+                    <input id="artists" class="input @State("Artists", string.Join(",", _form.ArtistList), _baseline is null ? null : string.Join(",", _baseline.Artists))" @bind="_form.Artists" placeholder="Separate several with commas" />
+                    <FieldMessage Errors="_errors" Field="Artists" />
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="summary">Summary</label>
+                <textarea id="summary" class="input @State("Summary", _form.Summary, _baseline?.Summary)" rows="4" @bind="_form.Summary"></textarea>
+            </div>
+            <FieldMessage Errors="_errors" Field="CoverUrl" />
+        </div>
+
+        <div>
+            <div class="panel copy-panel">
+                <h3>This copy</h3>
+                <div class="field">
+                    <label for="format">Format</label>
+                    <select id="format" class="input @State("Format", _form.Format.ToString(), _baseline?.Format.ToString())" @bind="_form.Format">
+                        @foreach (var format in ComicText.Formats)
+                        {
+                            <option value="@format">@ComicText.Name(format)</option>
+                        }
+                    </select>
+                    <FieldMessage Errors="_errors" Field="Format" />
+                </div>
+                <div class="field">
+                    <label for="variant">Variant</label>
+                    <input id="variant" class="input @State("Variant", _form.Variant, _baseline?.Variant)" @bind="_form.Variant" placeholder="e.g. Cover B" autocomplete="off" />
+                    <FieldMessage Errors="_errors" Field="Variant" />
+                </div>
+                <div class="field">
+                    <label for="printing">Printing</label>
+                    <input id="printing" type="number" min="1" class="input @State("Printing", _form.Printing, _baseline?.Printing)" @bind="_form.Printing" placeholder="1" />
+                    <FieldMessage Errors="_errors" Field="Printing" />
+                </div>
+                @if (_form.IsCollected)
+                {
+                    <div class="field">
+                        <label for="isbn">ISBN</label>
+                        <input id="isbn" class="input mono @State("Isbn", _form.Isbn, _baseline?.Isbn)" @bind="_form.Isbn" placeholder="978…" autocomplete="off" />
+                        <FieldMessage Errors="_errors" Field="Isbn" />
+                    </div>
+                }
+                else
+                {
+                    <div class="field">
+                        <label for="barcode">Barcode</label>
+                        <input id="barcode" class="input mono @State("Barcode", _form.Barcode, _baseline?.Barcode)" @bind="_form.Barcode" placeholder="UPC, then the 5-digit add-on" autocomplete="off" />
+                        <FieldMessage Errors="_errors" Field="Barcode" />
+                    </div>
+                }
+                <div class="format-row key-row">
+                    <button type="button" class="fmt-toggle @(_form.IsKeyIssue ? "on" : "")" aria-pressed="@Aria.Bool(_form.IsKeyIssue)" @onclick="() => _form.IsKeyIssue = !_form.IsKeyIssue">
+                        <span class="key @(_form.IsKeyIssue ? "" : "off")">KEY</span><span class="small">@(_form.IsKeyIssue ? "Key issue" : "Not a key issue")</span>
+                    </button>
+                    @if (_form.IsKeyIssue)
+                    {
+                        <input class="input" aria-label="Why it's a key issue" placeholder="e.g. 1st Elektra" @bind="_form.KeyNote" />
+                        <FieldMessage Errors="_errors" Field="KeyNote" />
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string ConflictMessage = "This comic was changed somewhere else after you opened it.";
+    private const string DeletedMessage = "This comic was deleted while you were editing it.";
+
+    private enum Mode
+    {
+        Search,
+        Edit,
+    }
+
+    private Mode _mode;
+    private ComicForm? _form;
+    private ComicDto? _original;
+
+    // What the amber "edited" outline compares against: the saved copy, or the match being reviewed.
+    private ComicForm? _baseline;
+    private readonly ComicSearchState _search = new();
+    private ComicCandidateDto? _candidate;
+    private int _candidateIndex;
+    private bool _loaded;
+    private bool _saving;
+    private string? _problem;
+    private ComicDto? _alreadyOwned;
+    private IReadOnlyList<string> _publishers = [];
+    private Dictionary<string, string> _errors = [];
+
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool IsNew => Id is null;
+
+    private string BackHref => IsNew ? "comics" : $"comics/{Id}";
+
+    private string BackLabel => IsNew || _original is null ? "Comics" : _original.DisplayName;
+
+    private string Source => _candidate is { } c && ComicText.IsCollected(c.Details.Format) ? "Open Library" : "Metron";
+
+    private string NotItLabel => (_search.Response?.Candidates.Count ?? 1) - 1 is var others and > 0
+        ? $"Not it? {others} other match{(others == 1 ? "" : "es")}"
+        : "Not it? Search again";
+
+    private Uri? CoverImage =>
+        _form?.CoverSource is not { } source ? null
+        : _original?.CoverSource == source && _original.CoverUrl is { } stored ? stored
+        : Uri.TryCreate(source, UriKind.Absolute, out var online) ? online
+        : null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _publishers = (await Api.ListComicsAsync(new())).Facets.Publishers;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _problem = null;
+        _alreadyOwned = null;
+        _errors = [];
+        if (IsNew)
+        {
+            _mode = Mode.Search;
+        }
+        else
+        {
+            _original = await Api.GetComicAsync(Id!.Value);
+            _form = _original is null ? null : ComicForm.From(_original);
+            _baseline = _original is null ? null : ComicForm.From(_original);
+            _candidate = null;
+            _mode = Mode.Edit;
+        }
+
+        _loaded = true;
+    }
+
+    private void Pick(ComicCandidateDto candidate)
+    {
+        _candidate = candidate;
+        _candidateIndex = _search.Response?.Candidates.ToList().IndexOf(candidate) ?? 0;
+        if (IsNew)
+        {
+            _form = ComicForm.From(candidate.Details);
+            _baseline = ComicForm.From(candidate.Details);
+        }
+        else
+        {
+            // Edit: the outline keeps comparing with the saved copy, so it shows what Metron changes.
+            _form!.Apply(candidate.Details);
+        }
+
+        _errors = [];
+        _problem = null;
+        _mode = Mode.Edit;
+    }
+
+    private void EnterManually()
+    {
+        _form ??= new ComicForm();
+        var response = _search.Response;
+        if (response?.Barcode is { } code)
+        {
+            if (code.Length == 13 && (code.StartsWith("978", StringComparison.Ordinal) || code.StartsWith("979", StringComparison.Ordinal)))
+            {
+                _form.Format = ComicFormatKind.TradePaperback;
+                _form.Isbn = code;
+            }
+            else
+            {
+                _form.Barcode = code;
+            }
+        }
+        else if (_search.SearchedFor is { } typed && _form.Series.Length == 0)
+        {
+            _form.Series = typed;
+        }
+
+        _candidate = null;
+        _baseline = null;
+        _mode = Mode.Edit;
+    }
+
+    private void FindOnMetron()
+    {
+        _search.Query = $"{_form!.Series.Trim()} {_form.SeriesYear} {_form.Number.Trim()}".Replace("  ", " ", StringComparison.Ordinal).Trim();
+        _search.Response = null;
+        _mode = Mode.Search;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _problem = null;
+        _alreadyOwned = null;
+        try
+        {
+            var request = _form!.ToRequest();
+            var response = IsNew
+                ? await Api.AddComicAsync(request)
+                : await Api.UpdateComicAsync(Id!.Value, _original!.Version, request);
+
+            switch (response.Status)
+            {
+                case SaveStatus.Saved:
+                    await Counts.RefreshAsync();
+                    Navigation.NavigateTo($"comics/{response.Comic!.Id}", replace: IsNew);
+                    return;
+                case SaveStatus.Invalid:
+                    _errors = response.Errors.GroupBy(e => e.Field).ToDictionary(g => g.Key, g => string.Join(" ", g.Select(e => e.Message)));
+                    break;
+                case SaveStatus.Conflict:
+                    _problem = ConflictMessage;
+                    break;
+                case SaveStatus.NotFound:
+                    _problem = DeletedMessage;
+                    break;
+                case SaveStatus.AlreadyOwned:
+                    _alreadyOwned = response.Comic;
+                    _problem = $"You already own this copy of {response.Comic!.DisplayName}.";
+                    break;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string OwnedName(ComicSummaryDto owned) => ComicText.Copy(owned.Variant, owned.Printing) is { Length: > 0 } copy ? copy : "the regular cover";
+
+    // "edited" (amber outline) marks a change from the baseline; "invalid" marks a rejected field.
+    private string State<T>(string field, T current, T? baseline) =>
+        _errors.ContainsKey(field) ? "invalid"
+        : _baseline is not null && !Equals(Tidy(current), Tidy(baseline)) ? "edited"
+        : "";
+
+    private static object? Tidy<T>(T value) => value is string text ? text.Trim() : value;
+}

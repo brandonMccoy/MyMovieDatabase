@@ -1,0 +1,110 @@
+{
+  "id": 4521,
+  "publisher": {
+    "id": 9,
+    "name": "Image"
+  },
+  "imprint": null,
+  "series": {
+    "id": 1234,
+    "name": "Saga",
+    "sort_name": "Saga",
+    "volume": 1,
+    "year_began": 2012,
+    "series_type": {
+      "id": 13,
+      "name": "Ongoing Series"
+    },
+    "genres": [
+      {
+        "id": 10,
+        "name": "Science Fiction"
+      }
+    ]
+  },
+  "number": "7",
+  "alt_number": "",
+  "title": "",
+  "name": [
+    "Chapter Seven"
+  ],
+  "cover_date": "2012-11-01",
+  "store_date": "2012-11-14",
+  "foc_date": null,
+  "price": "2.99",
+  "price_currency": "USD",
+  "rating": {
+    "id": 5,
+    "name": "Mature"
+  },
+  "sku": "SEP120526",
+  "isbn": "",
+  "upc": "70985301744800711",
+  "page": 32,
+  "desc": "Marko and Alana arrive on Quietus, the Wreath moon where Marko's parents wait.",
+  "image": "https://static.metron.cloud/media/issue/2018/11/29/saga-7.jpg",
+  "cover_hash": "c4f0e1d2b3a49586",
+  "arcs": [],
+  "credits": [
+    {
+      "id": 101,
+      "creator": "Brian K. Vaughan",
+      "role": [
+        {
+          "id": 1,
+          "name": "Writer"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "creator": "Fiona Staples",
+      "role": [
+        {
+          "id": 2,
+          "name": "Artist"
+        },
+        {
+          "id": 7,
+          "name": "Cover"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "creator": "Fonografiks",
+      "role": [
+        {
+          "id": 5,
+          "name": "Letterer"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "creator": "Eric Stephenson",
+      "role": [
+        {
+          "id": 8,
+          "name": "Editor"
+        }
+      ]
+    }
+  ],
+  "characters": [],
+  "teams": [],
+  "universes": [],
+  "reprints": [],
+  "variants": [
+    {
+      "name": "Second Printing",
+      "sku": "",
+      "upc": "70985301744800712",
+      "image": "https://static.metron.cloud/media/variants/2018/11/29/saga-7-2nd.jpg"
+    }
+  ],
+  "cv_id": 371234,
+  "gcd_id": 1045678,
+  "resource_url": "https://metron.cloud/issue/saga-2012-7/",
+  "modified": "2024-03-02T10:11:12.000000-05:00"
+}

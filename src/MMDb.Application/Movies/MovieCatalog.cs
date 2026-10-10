@@ -1,3 +1,4 @@
+using MMDb.Application.Covers;
 using MMDb.Application.Metadata;
 using MMDb.Application.Vault;
 using MMDb.Domain.Movies;
@@ -5,9 +6,9 @@ using MMDb.Domain.Movies;
 namespace MMDb.Application.Movies;
 
 /// <summary>Use cases for the movie collection: browse, add, edit, delete. Every change is mirrored into the vault.</summary>
-public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore, VaultMirror vault)
+public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IPosterSource posters, ICoverStore coverStore, VaultMirror vault, VaultContentSource content)
 {
-    private readonly CoverKeeper _covers = new(posters, coverStore);
+    private readonly CoverKeeper _covers = new(coverStore);
 
     public Task<Movie?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
         movies.FindAsync(id, cancellationToken);
@@ -93,7 +94,7 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
         }
 
         _covers.Forget(movie);
-        await vault.MovieRemovedAsync(movie.Id, movies.ListAsync);
+        await vault.RemovedAsync(movie.Id, content.LoadAsync);
         return true;
     }
 
@@ -101,14 +102,20 @@ public sealed class MovieCatalog(IMovieRepository movies, TimeProvider clock, IP
     {
         try
         {
-            await _covers.SaveAsync(movie, () => movies.SaveChangesAsync(cancellationToken), cancellationToken);
+            var poster = movie.PosterPath;
+            await _covers.SaveAsync(
+                movie,
+                poster is null ? null : CoverKeeper.CoverName(movie.Id, poster.TrimStart('/')),
+                ct => posters.FetchAsync(poster!, ct),
+                () => movies.SaveChangesAsync(cancellationToken),
+                cancellationToken);
         }
         catch (ConcurrencyConflictException)
         {
             return new SaveMovieResult.Conflict();
         }
 
-        await vault.MovieSavedAsync(movie, movies.ListAsync);
+        await vault.MovieSavedAsync(movie, content.LoadAsync);
         return new SaveMovieResult.Saved(movie);
     }
 }

@@ -120,7 +120,7 @@ internal static partial class MovieNote
         return format.FilePath is { } path ? $"{name} ({Markdown.FileLink(path)})" : name;
     }
 
-    private static void Key(StringBuilder note, string key, string? value)
+    internal static void Key(StringBuilder note, string key, string? value)
     {
         if (value is not null)
         {
@@ -128,10 +128,10 @@ internal static partial class MovieNote
         }
     }
 
-    private static void Key(StringBuilder note, string key, int? value) =>
+    internal static void Key(StringBuilder note, string key, int? value) =>
         Key(note, key, value?.ToString(CultureInfo.InvariantCulture));
 
-    private static void List(StringBuilder note, string key, IEnumerable<string> values)
+    internal static void List(StringBuilder note, string key, IEnumerable<string> values)
     {
         var items = values.ToList();
         if (items.Count == 0)

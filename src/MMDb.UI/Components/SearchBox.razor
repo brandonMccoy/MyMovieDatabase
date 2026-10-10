@@ -1,9 +1,9 @@
 @inject NavigationManager Navigation
 
-@* The topbar search. On the library it filters live; elsewhere, Enter opens the library with the search. *@
+@* The topbar search. On a library it filters live; elsewhere, Enter opens the library with the search. *@
 <label class="search">
     <Icon Name="search" />
-    <input type="search" data-search placeholder="Search titles, directors, cast…" aria-label="Search movies"
+    <input type="search" data-search placeholder="@Placeholder" aria-label="@Label"
            value="@Value" @oninput="OnInput" @onkeydown="OnKeyDown" />
     <kbd>Ctrl K</kbd>
 </label>
@@ -12,6 +12,13 @@
     private string? _typed;
 
     [Parameter] public string? Value { get; set; }
+
+    [Parameter] public string Placeholder { get; set; } = "Search titles, directors, cast…";
+
+    [Parameter] public string Label { get; set; } = "Search movies";
+
+    /// <summary>The library Enter opens: <c>""</c> for movies, <c>"comics"</c>.</summary>
+    [Parameter] public string Library { get; set; } = "";
 
     /// <summary>Called as the user types. Without it, Enter navigates to the library.</summary>
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
@@ -29,7 +36,7 @@
     {
         if (e.Key == "Enter" && !ValueChanged.HasDelegate && !string.IsNullOrWhiteSpace(_typed))
         {
-            Navigation.NavigateTo("?q=" + Uri.EscapeDataString(_typed.Trim()));
+            Navigation.NavigateTo(Library + "?q=" + Uri.EscapeDataString(_typed.Trim()));
         }
     }
 }

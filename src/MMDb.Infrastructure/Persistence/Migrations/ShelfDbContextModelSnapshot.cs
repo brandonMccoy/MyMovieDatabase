@@ -17,6 +17,140 @@ namespace MMDb.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
+            modelBuilder.Entity("MMDb.Domain.Comics.Comic", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Artists")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("CoverDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CoverImage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CoverUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsKeyIssue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Isbn")
+                        .HasMaxLength(13)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyNote")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("MetronId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MetronSeriesId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Number")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Printing")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Publisher")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Series")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SeriesYear")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Summary")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Variant")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Writers")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("_upc")
+                        .HasMaxLength(13)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Upc");
+
+                    b.Property<string>("_upcSupplement")
+                        .HasMaxLength(5)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UpcSupplement");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Isbn");
+
+                    b.HasIndex("MetronId");
+
+                    b.HasIndex("_upc");
+
+                    b.ToTable("Comics", (string)null);
+                });
+
+            modelBuilder.Entity("MMDb.Domain.Comics.ComicSeries", b =>
+                {
+                    b.Property<int>("MetronId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IssueNumbers")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Publisher")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("YearBegan")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MetronId");
+
+                    b.ToTable("ComicSeries", (string)null);
+                });
+
             modelBuilder.Entity("MMDb.Domain.Movies.Movie", b =>
                 {
                     b.Property<Guid>("Id")

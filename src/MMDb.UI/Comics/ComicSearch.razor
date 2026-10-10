@@ -1,0 +1,157 @@
+@* Looking a comic up on Metron (issues) or Open Library (an ISBN); picking a match hands it to the page. *@
+@inject ICollectionApi Api
+
+<div class="lookup">
+    <form class="lookup-bar" @onsubmit="SearchAsync">
+        <div class="search">
+            <Icon Name="search" />
+            <input type="search" data-search aria-label="Series and issue, barcode or ISBN" placeholder="Series and issue, barcode or ISBN…" autocomplete="off" autofocus
+                   @bind="State.Query" @bind:event="oninput" />
+        </div>
+        <button type="submit" class="btn primary" disabled="@(_searching || string.IsNullOrWhiteSpace(State.Query))">Search</button>
+    </form>
+    <p class="small hint">Type the series and issue number ("saga 7", "Daredevil 1964 181"), scan the barcode with its add-on, type the UPC then the issue number, or a trade's ISBN.</p>
+
+    @if (_searching)
+    {
+        <p class="small" role="status">Searching…</p>
+    }
+    else if (State.Response is { } response)
+    {
+        @if (response.Barcode is not null)
+        {
+            <span class="code-chip"><Icon Name="scan" />@(IsIsbn(response) ? "ISBN" : "UPC") @response.Barcode</span>
+        }
+
+        @switch (response.Status)
+        {
+            case LookupStatus.NoMatches:
+                <p class="notice" role="status">No comics found on Metron for “@State.SearchedFor”. Check the spelling, or leave out the year.</p>
+                break;
+            case LookupStatus.UnknownBarcode when IsIsbn(response):
+                <p class="notice" role="status">Open Library doesn't know this ISBN. Enter the trade by hand; the ISBN is kept.</p>
+                break;
+            case LookupStatus.UnknownBarcode:
+                <p class="notice" role="status">This barcode isn't on Metron. Search by series and issue number instead; the barcode is kept for the copy.</p>
+                break;
+            case LookupStatus.BarcodeOwned when response.OwnedByCode is { } owned:
+                <p class="notice owned-barcode" role="status">
+                    You already own this copy: <a href="comics/@owned.Id">@owned.DisplayName</a>@if (ComicText.Copy(owned.Variant, owned.Printing) is { Length: > 0 } copy) {<span> · @copy</span>}
+                </p>
+                break;
+            case LookupStatus.NotConfigured:
+                <p class="notice" role="alert">
+                    Metron isn't set up on this PC yet. Make an API token on metron.cloud, add it with
+                    <code class="mono">dotnet user-secrets set Metron:Token &lt;token&gt; --project src/MMDb.App</code>
+                    and restart Shelf.
+                </p>
+                break;
+            case LookupStatus.KeyRejected:
+                <p class="notice" role="alert">@response.FailedService turned down the token on this PC. Check it in user secrets (Metron:Token).</p>
+                break;
+            case LookupStatus.Busy:
+                <p class="notice" role="alert">
+                    @response.FailedService is busy right now.
+                    @if (response.FailedService == "Metron")
+                    {
+                        <span>It allows 20 lookups a minute. Wait a moment and search again.</span>
+                    }
+                    else
+                    {
+                        <span>Wait a moment and search again.</span>
+                    }
+                </p>
+                break;
+            case LookupStatus.Unavailable:
+                <p class="notice" role="alert">Couldn't reach @(response.FailedService ?? "the online database"). Check the internet connection and try again.</p>
+                break;
+        }
+
+        @if (response.Candidates.Count > 0)
+        {
+            <ul class="matches">
+                @foreach (var (candidate, index) in response.Candidates.Select((c, i) => (c, i)))
+                {
+                    <li @key="index">
+                        <button type="button" class="match" @onclick="() => OnPick.InvokeAsync(candidate)">
+                            <Poster Title="@(candidate.Details.Series ?? candidate.DisplayName)" ImageUrl="candidate.CoverUrl" />
+                            <span class="match-text">
+                                <span class="mt">@candidate.DisplayName@if (ComicText.Copy(candidate.Details.Variant, candidate.Details.Printing) is { Length: > 0 } copy) {<span class="mv"> · @copy</span>}</span>
+                                <span class="mm">@Meta(candidate.Details)</span>
+                                @if (candidate.IsOwned)
+                                {
+                                    <span class="mo">You own this copy</span>
+                                }
+                                else if (candidate.Owned.Count > 0)
+                                {
+                                    <span class="mo">In your collection: @string.Join(", ", candidate.Owned.Select(OwnedName))</span>
+                                }
+                            </span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    }
+
+    @if (Footer is not null)
+    {
+        <div class="lookup-foot">@Footer</div>
+    }
+</div>
+
+@code {
+    private bool _searching;
+
+    /// <summary>Kept by the page, so the matches are still there when coming back from the editor.</summary>
+    [Parameter, EditorRequired] public ComicSearchState State { get; set; } = null!;
+
+    [Parameter, EditorRequired] public EventCallback<ComicCandidateDto> OnPick { get; set; }
+
+    /// <summary>Under the results: "Enter manually", "Back to editing".</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>Search for <see cref="ComicSearchState.Query"/> straight away (when it has not been searched yet).</summary>
+    [Parameter] public bool SearchOnOpen { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SearchOnOpen && State.Response is null && !string.IsNullOrWhiteSpace(State.Query))
+        {
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        var query = State.Query.Trim();
+        if (query.Length == 0 || _searching)
+        {
+            return;
+        }
+
+        _searching = true;
+        try
+        {
+            State.Response = await Api.LookupComicAsync(query);
+            State.SearchedFor = query;
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+
+    private static bool IsIsbn(ComicLookupResponse response) => response.Barcode is { Length: 13 } code && code.StartsWith("97", StringComparison.Ordinal)
+        && response.Candidates.All(c => ComicText.IsCollected(c.Details.Format));
+
+    private static string OwnedName(ComicSummaryDto owned) => ComicText.Copy(owned.Variant, owned.Printing) is { Length: > 0 } copy ? copy : "regular cover";
+
+    private static string Meta(SaveComicRequest details) => string.Join(" · ", new[]
+    {
+        ComicText.IsCollected(details.Format) ? ComicText.Name(details.Format) : details.SeriesYear is { } year ? $"{details.Series} ({year})" : null,
+        details.Publisher,
+        details.CoverDate is { } date ? ComicText.MonthYear(date) : null,
+        details.Writers.Count > 0 ? string.Join(", ", details.Writers) : null,
+    }.OfType<string>());
+}

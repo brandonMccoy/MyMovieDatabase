@@ -1,0 +1,193 @@
+@page "/comics"
+@implements IDisposable
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+
+<PageTitle>Comics · Shelf</PageTitle>
+
+<div class="topbar">
+    <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
+    <div class="spacer"></div>
+    <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
+</div>
+
+<div class="content">
+    <div class="section-head">
+        <h1>Comics</h1>
+        @if (_list is not null)
+        {
+            var facets = _list.Facets;
+            <span class="sub">@Plural(facets.IssueCount, "issue") · @Count(facets.SeriesCount) series · @Plural(facets.CollectedCount, "trade")</span>
+        }
+    </div>
+
+    @if (_list is null)
+    {
+        @* Loading: in-process this is a blink, so no spinner. *@
+    }
+    else if (_list.Facets.IssueCount + _list.Facets.CollectedCount == 0)
+    {
+        <div class="empty">
+            <h2>No comics yet</h2>
+            <p>Add the first comic you own: an issue by series and number, a barcode, or a trade's ISBN.</p>
+            <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
+        </div>
+    }
+    else
+    {
+        <div class="filters">
+            @foreach (var (shelf, label) in Shelves)
+            {
+                <button type="button" class="chip @On(SelectedShelf == shelf)" aria-pressed="@Aria.Bool(SelectedShelf == shelf)"
+                        @onclick='() => SetQuery("shelf", shelf == ComicShelfKind.Series ? null : shelf.ToString())'>@label@if (shelf == ComicShelfKind.KeyIssues) {<span class="n">@Count(_list.Facets.KeyIssueCount)</span>}</button>
+            }
+
+            <label class="select">Publisher
+                <select value="@(Publisher ?? "")" @onchange='e => SetQuery("publisher", e.Value as string)'>
+                    <option value="">Any</option>
+                    @foreach (var publisher in _list.Facets.Publishers)
+                    {
+                        <option value="@publisher">@publisher</option>
+                    }
+                </select>
+            </label>
+            <div class="spacer"></div>
+            <label class="select">Sort
+                <select value="@SelectedSort" @onchange='e => SetQuery("sort", e.Value as string == nameof(ComicSortOrder.Series) ? null : e.Value as string)'>
+                    <option value="@ComicSortOrder.Series">Series A–Z</option>
+                    <option value="@ComicSortOrder.RecentlyAdded">Recently added</option>
+                </select>
+            </label>
+        </div>
+
+        @if (_list.Runs.Count == 0 && _list.Comics.Count == 0)
+        {
+            <div class="empty">
+                <h2>No comics match</h2>
+                <p>Nothing on this shelf matches this search and these filters.</p>
+                <a class="btn" href="comics">Clear search and filters</a>
+            </div>
+        }
+        else if (SelectedShelf == ComicShelfKind.Series)
+        {
+            @foreach (var run in _list.Runs)
+            {
+                <section class="series" @key="run.Title">
+                    <div class="series-head">
+                        <h3>@run.Name@if (run.Year is { } year) {<span class="yr"> (@year)</span>}</h3>
+                        @if (run.Publisher is not null)
+                        {
+                            <span class="pub">@run.Publisher</span>
+                        }
+                        <span class="progress">
+                            @if (run.KnownCount is { } known)
+                            {
+                                <span>@Count(run.OwnedCount) of @Count(known)</span>
+                                <span class="bar" role="progressbar" aria-label="@run.Title owned" aria-valuemin="0" aria-valuemax="@known" aria-valuenow="@run.OwnedCount"><i style="width:@Percent(run.OwnedCount, known)%"></i></span>
+                            }
+                            else
+                            {
+                                <span>@Plural(run.OwnedCount, "issue")</span>
+                            }
+                        </span>
+                    </div>
+                    <div class="issues">
+                        @foreach (var entry in run.Entries)
+                        {
+                            @if (entry.IsMissing)
+                            {
+                                <div class="issue missing" @key="'#' + entry.Number">
+                                    <div class="poster"><span class="pt">Missing</span></div>
+                                    <div class="num">#@entry.Number</div>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var copy in entry.Copies)
+                                {
+                                    <ComicTile Comic="copy" InRun />
+                                }
+                            }
+                        }
+                    </div>
+                </section>
+            }
+        }
+        else
+        {
+            <div class="issues @(SelectedShelf == ComicShelfKind.Collected ? "collected" : "")">
+                @foreach (var comic in _list.Comics)
+                {
+                    <ComicTile Comic="comic" />
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private static readonly (ComicShelfKind Shelf, string Label)[] Shelves =
+    [
+        (ComicShelfKind.Series, "Series"),
+        (ComicShelfKind.Issues, "Issues"),
+        (ComicShelfKind.Collected, "Trades & HCs"),
+        (ComicShelfKind.KeyIssues, "Key issues"),
+    ];
+
+    private ComicListResponse? _list;
+    private CancellationTokenSource? _loading;
+
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    [SupplyParameterFromQuery(Name = "shelf")] public string? Shelf { get; set; }
+
+    [SupplyParameterFromQuery(Name = "publisher")] public string? Publisher { get; set; }
+
+    [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
+
+    private ComicShelfKind SelectedShelf => Enum.TryParse<ComicShelfKind>(Shelf, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : ComicShelfKind.Series;
+
+    private ComicSortOrder SelectedSort => Enum.TryParse<ComicSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : ComicSortOrder.Series;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Typing fires a load per keystroke; only the newest one may update the page.
+        _loading?.Cancel();
+        _loading?.Dispose();
+        _loading = new CancellationTokenSource();
+        var token = _loading.Token;
+
+        var request = new ComicListRequest { Search = Q, Shelf = SelectedShelf, Publisher = Publisher, Sort = SelectedSort };
+        try
+        {
+            var list = await Api.ListComicsAsync(request, token);
+            if (!token.IsCancellationRequested)
+            {
+                _list = list;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void Search(string text) => SetQuery("q", text, replace: true);
+
+    private void SetQuery(string name, string? value, bool replace = false) =>
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameter(name, string.IsNullOrWhiteSpace(value) ? null : value), replace: replace);
+
+    private static string On(bool on) => on ? "on" : "";
+
+    private static string Count(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Plural(int n, string noun) => $"{Count(n)} {noun}{(n == 1 ? "" : "s")}";
+
+    private static string Percent(int part, int whole) =>
+        (whole == 0 ? 0 : Math.Min(100, Math.Round(100.0 * part / whole, 1))).ToString(CultureInfo.InvariantCulture);
+
+    public void Dispose()
+    {
+        _loading?.Cancel();
+        _loading?.Dispose();
+    }
+}

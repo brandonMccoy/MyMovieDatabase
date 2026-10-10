@@ -92,8 +92,8 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - **ProductBase**: `Id (Guid)`, `CreatedAt`, `UpdatedAt`, `Version` (optimistic concurrency + sync), `CoverImage`. No per-copy details (condition, price, location): the user decided these are clutter.
 - **Movie** (one row per film): `Title`, `Year`, `TmdbId`, `Directors`, `Cast` (top N), `Genres`, `RuntimeMinutes`, `Rating`, `Overview`, `TrailerYouTubeKey`.
 - **MovieFormat** (1..n per movie): `MovieId`, `Format` (DVD / Blu-ray / 4K UHD / Digital), `Upc?`, `FilePath?` (Digital only: the video file on the PC), `AddedAt`. Unique on (`MovieId`, `Format`). Owning a film on several formats = one Movie with several MovieFormats.
-- **Comic**: `Series`, `Volume`, `IssueNumber`, `Variant`, `Printing`, `Publisher`, `CoverDate`, `Writers`, `Artists`, `Format` (single issue / TPB / HC / omnibus), `Upc`, `UpcSupplement`, `Isbn`, `MetronId`, `IsKeyIssue`, `KeyNote` (e.g. "1st Elektra").
-- **Series** (comics): `Name`, `Volume`, `Publisher`, `MetronId`, `TotalIssues` — powers progress bars and "missing issues".
+- **Comic** (one row per copy: each variant or printing owned is its own row): `Format` (single issue / trade paperback / hardcover / omnibus), `Series`, `SeriesYear` (the year it began, which tells volumes apart: Daredevil (1964)), `Number` (text: "181", "½", "1.MU"; a trade's volume number), `Title` (a trade's title or an issue's story title), `Variant`, `Printing`, `Publisher`, `CoverDate`, `Writers`, `Artists`, `Summary`, `Upc` + `UpcSupplement` (the 5-digit add-on), `Isbn`, `MetronId`, `MetronSeriesId`, `IsKeyIssue`, `KeyNote` (e.g. "1st Elektra"), `CoverUrl` (where the cover was downloaded from).
+- **ComicSeries**: `MetronId`, `Name`, `YearBegan`, `Publisher`, `IssueNumbers` (every issue Metron lists), `FetchedAt` — powers "N of M" and missing issues. Fetched when an issue of the series is saved and the copy kept is missing or a week old.
 - **WishlistItem**: `ProductType`, the same descriptive fields (nullable), `Priority`, `MaxPrice`, `Notes`, `AcquiredAt` (moving an item to the collection links the two).
 - **LookupCache**: provider + request (API key stripped) → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble. Kept 30 days (TMDB search results: 1 day). Only successful answers are kept; for UPCitemdb that includes "unknown barcode".
 
@@ -108,11 +108,11 @@ Movies and comics are **separate tables and separate screens**; they share only 
 4. User picks a candidate, **edits any field**, and taps Accept → `POST /movies` or `/comics`.
 5. Server saves to SQLite, downloads the cover, and writes the vault note.
    - **Movies:** if the TMDB id already exists, the review screen says so, and Accept adds the new format to the existing film. If that format is already owned, it reports a duplicate.
-   - **Comics:** same UPC + supplement (or Metron id) warns as a duplicate.
+   - **Comics:** the same copy (same UPC and add-on, same ISBN, or the same Metron issue, variant and printing) is turned down as already owned; another variant or printing is a copy of its own.
 
 **Wishlist match:** every lookup also checks the wishlist and returns `wishlistMatch` with the candidates. The phone shows an alert over the camera as soon as it arrives, and the review screen repeats it. Accepting removes the matched wishlist item, or for a partial match asks first.
 - Movies match by `TmdbId`. *Full match* = the wanted format was scanned. *Partial* = same film, different format (e.g. wanted 4K, scanned DVD).
-- Comics match by `MetronId`, else series + volume + issue (+ variant if set).
+- Comics match by `MetronId`, else series + year + issue (+ variant if set).
 - **Away from home:** the phone can't reach the PC, so it matches the scanned barcode against barcodes in its cached collection and wishlist. If that finds nothing, it calls UPCitemdb directly over mobile data (free tier, no key) and fuzzy-matches the product title against cached wishlist titles. The result is marked "likely" and the scan joins the queue for a proper lookup at home.
 
 **Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue for review, one by one.
@@ -121,7 +121,7 @@ Movies and comics are **separate tables and separate screens**; they share only 
 
 ## Metadata providers
 
-Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details by id), `IBarcodeLookup` (UPCitemdb: barcode → product names) and `IPosterSource` (TMDB's image server). `MovieLookup` chains them; each HTTP client has the lookup cache and the standard resilience handler (retries, timeouts; UPCitemdb's 429s are not retried). Comics get their own ports in milestone 4.
+Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details by id), `IBarcodeLookup` (UPCitemdb: barcode → product names) and `IPosterSource` (TMDB's image server). `MovieLookup` chains them; each HTTP client has the lookup cache and the standard resilience handler (retries, timeouts; UPCitemdb's 429s are not retried). Comics use `IComicMetadata` (Metron), `IBookMetadata` (Open Library) and `ICoverSource` (their image servers only); `ComicLookup` chains them.
 
 - **Lookup by text:** a trailing year narrows the search ("heat 1995"); if that finds nothing the whole text is tried, for titles like "Blade Runner 2049". Up to 8 matches are fetched in full (credits, videos and US release dates in one request each).
 - **Lookup by barcode:** a UPC already in the collection is answered from the database without any API call. Otherwise UPCitemdb's product name is cleaned (`RetailTitle`: packaging words, label prefixes like "Mill Creek -", bracketed parts; a bracketed year is kept) and searched on TMDB; the format comes from the name (combo packs count as the best disc).
@@ -132,8 +132,8 @@ Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details 
 | Type | By barcode | By text search | Notes |
 |---|---|---|---|
 | Movie | UPCitemdb → product title | **TMDB** (rich metadata, posters) | No API maps UPC straight to TMDB. Take the UPC title, strip noise ("[Blu-ray]", "Widescreen"), detect format, then search TMDB. |
-| Comic issue | **Metron** (UPC filter, *to verify*) → GCD barcode search | Metron / Comic Vine by series + issue | Metron limit: 20 req/min. |
-| Comic trade | Open Library / Google Books by ISBN | same | |
+| Comic issue | **Metron** `upc` (all 17 digits); if not listed, `upc_starts_with` the UPC + the issue number from the add-on | Metron by series words, year began, number | Token in user secrets (`Metron:Token`). 20 req/min, 5,000/day: a search fetches at most 6 issues; issue details cached 30 days, searches 1 day. GCD and Comic Vine have no barcode search, so they aren't used. |
+| Comic trade | **Open Library** Books API by ISBN (no key) | (enter by hand) | Cover from Open Library; format defaults to trade paperback. |
 
 API keys are kept in the PC's user secrets/config, never in the phone app or the repo.
 
@@ -151,7 +151,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 ## Barcode scanning
 
 - Library: `BarcodeScanning.Native.Maui` (Google ML Kit on Android). It's fast, but **ML Kit may not decode UPC 5-digit add-ons**.
-- **Spike #1 (risk):** test add-on decoding on real comics. Fallback order: ZXing.Net with `UPC_EAN_EXTENSION` enabled, then a second targeted scan of the add-on, then let the user type the issue number.
+- **Spike #1 (risk, milestone 5):** test add-on decoding on real comics with the phone. On the PC, a USB scanner or typing gives the 17 digits; `ComicBarcode` reads the add-on (issue, cover, printing). Fallback order: ZXing.Net with `UPC_EAN_EXTENSION` enabled, then a second targeted scan of the add-on, then let the user type the issue number.
 - Scanner sits behind `IBarcodeScanner`, so UI and logic are testable with a fake.
 
 ## PC ↔ phone communication
@@ -170,10 +170,11 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
   _Index.md                     compact summary: totals + one line per film/issue/wishlist item.
                                 Claude reads this first instead of opening every note.
   Movies/<Title> (<Year>).md
-  Comics/<Series> (<Volume>)/<Series> #<Issue>.md
-  Comics/<Series> (<Volume>)/_Series.md   links all issues
+  Comics/<Series> (<Year>)/<Series> <Issue>.md   one per copy: "Saga 7 (Cover B).md"; no # (links can't hold it)
+  Comics/<Series> (<Year>)/_Series.md   issues owned (linked) and missing
+  Comics/Trades & HCs/<Title>.md
   Wishlist/<…>.md
-  Attachments/covers/<movie id>-<poster file>   copies of the covers
+  Attachments/covers/<id>-<file>   copies of the covers
   .trash/                       removed notes that had text under "My notes"
   Movies.base  Comics.base  Wishlist.base  (Obsidian Bases views)
 ```
@@ -182,8 +183,8 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 - Every note includes `mmdb_id` and `managed_by: mmdb`. The app only touches notes it owns.
 - Writes are atomic (temp file → rename). A "Rebuild vault" command regenerates everything from the database.
 - **My notes:** everything under a note's `## My notes` heading is kept when Shelf rewrites the note (the only part Shelf ever reads back). A removed film's note is deleted, or moved to the vault's `.trash/` if it had text there.
-- **When it is written:** each save or delete rewrites that film's note and cover, then `_Index.md`, `CLAUDE.md` and `Movies.base` (files whose text hasn't changed are left untouched). At startup, on choosing a folder and on **Rebuild vault**, everything is brought up to date and notes of films no longer owned are removed. After a failed write (folder gone, file in use) the next change does a full catch-up. A failure never fails the save; it shows in the sidebar and in Settings.
-- **Names:** `Title (Year).md`; characters Windows or Obsidian links can't hold are dropped (`:` becomes ` -`). A name already used by another film or by one of the user's own files gets ` (2)`. When a title changes, the note moves with its My notes.
+- **When it is written:** each save or delete rewrites that film's or comic's note and cover, then the series notes, `_Index.md`, `CLAUDE.md`, `Movies.base` and `Comics.base` (files whose text hasn't changed are left untouched). At startup, on choosing a folder and on **Rebuild vault**, everything is brought up to date and notes of films no longer owned are removed. After a failed write (folder gone, file in use) the next change does a full catch-up. A failure never fails the save; it shows in the sidebar and in Settings.
+- **Names:** `Title (Year).md`; characters Windows or Obsidian links can't hold are dropped (`:` becomes ` -`). Comics: `Saga 7.md`, with the variant or printing in brackets. A name already used by another note or by one of the user's own files gets ` (2)`. A series folder whose last issue goes loses its `_Series.md`, and the folder too if nothing of the user's is in it. When a title changes, the note moves with its My notes.
 - **Shared files:** `CLAUDE.md` starts with a `managed_by: mmdb` comment and `Movies.base` with a `# managed_by: mmdb` line; without it (the user's own file, or a base whose views were changed in Obsidian) Shelf leaves the file alone.
 - **Folder:** chosen in Settings and kept in the database's `Settings` table. Ports: `IVaultWriter` (files, in Infrastructure) and `ISettingStore`; `VaultMirror` takes one write at a time and holds the status.
 
@@ -191,7 +192,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 - **Time:** `TimeProvider` everywhere (testable).
 - **Logging:** `Microsoft.Extensions.Logging` + rolling file on the PC.
-- **Config:** user secrets for API keys (`Tmdb:ApiKey`); the vault path and port are set in the app's Settings screen.
+- **Config:** user secrets for API keys (`Tmdb:ApiKey`, `Metron:Token`); the vault path and port are set in the app's Settings screen.
 - **Backups:** the database file is copied on startup, keeping the last N copies.
 - **Static analysis:** nullable enabled, analyzers on, `TreatWarningsAsErrors` in `Directory.Build.props`.
 
@@ -200,7 +201,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 - .NET 10 SDK (pinned by `global.json`, roll-forward to latest feature band)
 - `dotnet workload install maui` (includes Android)
 - Android SDK/emulator (via Visual Studio installer or Android Studio); USB debugging on the phone
-- API keys: TMDB, UPCitemdb (free tier), Metron account, optionally Comic Vine
+- API keys: TMDB, UPCitemdb (free tier, no key), a Metron API token; Open Library needs none
 
 ## Build order (milestones)
 
@@ -208,8 +209,8 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 1. Domain + SQLite + movies CRUD on PC (manual entry, no lookup).
 2. Metadata: TMDB search, UPC lookup; review-before-accept screen.
 3. Vault writer + `CLAUDE.md` + Bases.
-4. Comics (Metron/GCD/ISBN) — includes scanner add-on spike.
-5. Server API + pairing + Android app with scanner.
+4. Comics (Metron, Open Library by ISBN), on the PC.
+5. Server API + pairing + Android app with scanner, including the add-on scan spike.
 6. Wishlist + wishlist match on scan.
 6b. Digital folder import + watch folder.
 7. Offline cache/queue on phone.
@@ -220,6 +221,6 @@ Each milestone ships with its tests (see [TESTING.md](TESTING.md)).
 ## Open risks
 
 1. Comic add-on barcode decoding on Android (spike early).
-2. Whether Metron supports UPC lookup (check the API docs during milestone 4; fall back to GCD).
+2. ~~Whether Metron supports UPC lookup~~: it does (`upc`, `upc_starts_with`), checked in its source in milestone 4. Its fixtures are hand-written until a token is set up.
 3. UPC coverage for older DVDs is spotty, so manual search must be first-class.
 4. API terms: TMDB and Comic Vine are non-commercial/attribution-required. Fine for personal use; show attribution in About.

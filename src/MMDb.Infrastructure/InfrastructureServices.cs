@@ -1,8 +1,10 @@
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
+using MMDb.Application.Comics;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -23,9 +25,11 @@ public sealed class ShelfSettings
     public required string CoverDirectory { get; init; }
 
     public TmdbSettings Tmdb { get; init; } = new();
+
+    public MetronSettings Metron { get; init; } = new();
 }
 
-public static class InfrastructureServices
+public static partial class InfrastructureServices
 {
     private static readonly ProductInfoHeaderValue UserAgent = new("Shelf", "1.0");
 
@@ -39,11 +43,13 @@ public static class InfrastructureServices
         // Singleton options so the lookup cache (used by long-lived HTTP handlers) can make its own contexts.
         services.AddDbContext<ShelfDbContext>(options => options.UseSqlite(settings.ConnectionString), optionsLifetime: ServiceLifetime.Singleton);
         services.AddScoped<IMovieRepository, EfMovieRepository>();
+        services.AddScoped<IComicRepository, EfComicRepository>();
         services.AddSingleton<LookupCache>();
         services.AddSingleton<ICoverStore>(new FileCoverStore(settings.CoverDirectory));
         services.AddSingleton<ISettingStore, SettingStore>();
         services.AddSingleton<IVaultWriter>(sp => new FileVaultWriter(settings.CoverDirectory, sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton(settings.Tmdb);
+        services.AddSingleton(settings.Metron);
 
         services.AddHttpClient<IMovieMetadata, TmdbClient>(http => Configure(http, "https://api.themoviedb.org/3/"))
             .AddHttpMessageHandler(sp => CacheHandler(sp, TmdbClient.Source, uri =>
@@ -52,14 +58,24 @@ public static class InfrastructureServices
 
         services.AddHttpClient<IBarcodeLookup, UpcItemDbClient>(http => Configure(http, "https://api.upcitemdb.com/"))
             .AddHttpMessageHandler(sp => CacheHandler(sp, UpcItemDbClient.Source, _ => TimeSpan.FromDays(30)))
-            .AddStandardResilienceHandler(options =>
-            {
-                Resilience(options);
+            .AddStandardResilienceHandler(NoRetryWhenBusy);
 
-                // Its limits are per minute and per day, so retrying a 429 within seconds only burns lookups.
-                options.Retry.ShouldHandle = args => ValueTask.FromResult(
-                    args.Outcome.Exception is HttpRequestException || (int?)args.Outcome.Result?.StatusCode >= 500);
-            });
+        // An issue's details hardly change; searches and a series' issue list grow as new issues come out.
+        services.AddHttpClient<IComicMetadata, MetronClient>(http => Configure(http, "https://metron.cloud/api/"))
+            .AddHttpMessageHandler(sp => CacheHandler(sp, MetronClient.Source, uri =>
+                IssueDetails().IsMatch(uri.AbsolutePath) ? TimeSpan.FromDays(30) : TimeSpan.FromDays(1)))
+            .AddStandardResilienceHandler(NoRetryWhenBusy);
+
+        services.AddHttpClient<IBookMetadata, OpenLibraryClient>(http =>
+            {
+                Configure(http, "https://openlibrary.org/");
+                http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(personal collection app)"));
+            })
+            .AddHttpMessageHandler(sp => CacheHandler(sp, OpenLibraryClient.Source, _ => TimeSpan.FromDays(30)))
+            .AddStandardResilienceHandler(NoRetryWhenBusy);
+
+        services.AddHttpClient<ICoverSource, ComicCovers>(http => http.DefaultRequestHeaders.UserAgent.Add(UserAgent))
+            .AddStandardResilienceHandler(Resilience);
 
         services.AddHttpClient<IPosterSource, TmdbPosters>(http => http.DefaultRequestHeaders.UserAgent.Add(UserAgent))
             .AddStandardResilienceHandler(Resilience);
@@ -84,6 +100,17 @@ public static class InfrastructureServices
     // Someone is waiting on the search screen: give up after 20 s rather than the default 30 s.
     private static void Resilience(HttpStandardResilienceOptions options) =>
         options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(20);
+
+    // Their limits are per minute and per day, so retrying a 429 within seconds only burns lookups.
+    private static void NoRetryWhenBusy(HttpStandardResilienceOptions options)
+    {
+        Resilience(options);
+        options.Retry.ShouldHandle = args => ValueTask.FromResult(
+            args.Outcome.Exception is HttpRequestException || (int?)args.Outcome.Result?.StatusCode >= 500);
+    }
+
+    [GeneratedRegex(@"^/api/issue/\d+/?$")]
+    private static partial Regex IssueDetails();
 
     private static LookupCacheHandler CacheHandler(IServiceProvider services, string provider, Func<Uri, TimeSpan> maxAge) =>
         new(provider, maxAge, services.GetRequiredService<LookupCache>(), services.GetRequiredService<TimeProvider>());

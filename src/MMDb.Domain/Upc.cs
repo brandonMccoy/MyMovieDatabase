@@ -41,7 +41,7 @@ public sealed record Upc
     public override string ToString() => Value;
 
     // GS1: weight the digits left of the check digit 3,1,3,1… starting from the right.
-    private static bool HasValidCheckDigit(string digits)
+    internal static bool HasValidCheckDigit(string digits)
     {
         var sum = 0;
         for (int i = digits.Length - 2, weight = 3; i >= 0; i--, weight = 4 - weight)

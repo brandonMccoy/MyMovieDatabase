@@ -1,0 +1,22 @@
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 4521,
+      "series": {
+        "name": "Saga",
+        "volume": 1,
+        "year_began": 2012
+      },
+      "number": "7",
+      "issue": "Saga (2012) #7",
+      "cover_date": "2012-11-01",
+      "store_date": "2012-11-14",
+      "image": "https://static.metron.cloud/media/issue/2018/11/29/saga-7.jpg",
+      "cover_hash": "c4f0e1d2b3a49586",
+      "modified": "2024-03-02T10:11:12.000000-05:00"
+    }
+  ]
+}

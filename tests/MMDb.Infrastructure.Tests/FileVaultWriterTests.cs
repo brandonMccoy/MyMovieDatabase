@@ -50,7 +50,9 @@ public sealed class FileVaultWriterTests : IDisposable
         return movie;
     }
 
-    private Task WriteAsync(Movie movie, params Movie[] others) => _writer.WriteMovieAsync(Folder, movie, [movie, .. others], Ct);
+    private static VaultContent Films(params Movie[] movies) => new(movies, [], []);
+
+    private Task WriteAsync(Movie movie, params Movie[] others) => _writer.WriteMovieAsync(Folder, movie, Films([movie, .. others]), Ct);
 
     private string Read(string relative) => File.ReadAllText(_vault[relative]);
 
@@ -99,7 +101,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var alien = Film(TestMovies.Titled("Alien", 1979) with { Directors = ["Ridley Scott"] }, new FormatDetails(MediaFormat.BluRay));
         var arrival = Film(TestMovies.Titled("arrival", 2016), new FormatDetails(MediaFormat.Digital));
 
-        await _writer.SyncAsync(Folder, [heat, alien, arrival], Ct);
+        await _writer.SyncAsync(Folder, Films(heat, alien, arrival), Ct);
 
         await VerifyText(Read("_Index.md"));
     }
@@ -107,7 +109,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task The_guide_for_claude_describes_the_vault()
     {
-        await _writer.SyncAsync(Folder, [], Ct);
+        await _writer.SyncAsync(Folder, Films(), Ct);
 
         await VerifyText(Read("CLAUDE.md"));
     }
@@ -115,7 +117,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task The_movies_base_has_cover_table_and_recent_views()
     {
-        await _writer.SyncAsync(Folder, [], Ct);
+        await _writer.SyncAsync(Folder, Films(), Ct);
 
         await VerifyText(Read("Movies.base"), "yaml");
     }
@@ -207,7 +209,7 @@ public sealed class FileVaultWriterTests : IDisposable
         _clock.Advance(TimeSpan.FromMinutes(1));
         var second = Film(TestMovies.Heat with { Directors = ["Someone Else"] });
 
-        await _writer.SyncAsync(Folder, [second, first], Ct);
+        await _writer.SyncAsync(Folder, Films(second, first), Ct);
 
         _writer.NoteOf(Folder, first.Id).ShouldBe("Movies/Heat (1995).md");
         _writer.NoteOf(Folder, second.Id).ShouldBe("Movies/Heat (1995) (2).md");
@@ -232,7 +234,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var heat = WithCover(Film(TestMovies.HeatOnTmdb));
         await WriteAsync(heat);
 
-        await _writer.RemoveMovieAsync(Folder, heat.Id, [], Ct);
+        await _writer.RemoveAsync(Folder, heat.Id, VaultContent.Empty, Ct);
 
         Notes().ShouldBeEmpty();
         FileNames("Attachments/covers").ShouldBeEmpty();
@@ -248,7 +250,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await WriteAsync(heat);
         await File.AppendAllTextAsync(_vault["Movies/Heat (1995).md"], "Lent to Sam.\n", Ct);
 
-        await _writer.RemoveMovieAsync(Folder, heat.Id, [], Ct);
+        await _writer.RemoveAsync(Folder, heat.Id, VaultContent.Empty, Ct);
 
         Notes().ShouldBeEmpty();
         File.ReadAllText(_vault[".trash/Heat (1995).md"]).ShouldEndWith("Lent to Sam.\n");
@@ -263,7 +265,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await WriteAsync(heat);
         await File.AppendAllTextAsync(_vault["Movies/Heat (1995).md"], "Lent to Sam.\n", Ct);
 
-        await _writer.RemoveMovieAsync(Folder, heat.Id, [], Ct);
+        await _writer.RemoveAsync(Folder, heat.Id, VaultContent.Empty, Ct);
 
         File.ReadAllText(_vault[".trash/Heat (1995).md"]).ShouldBe("older");
         File.ReadAllText(_vault[".trash/Heat (1995) (2).md"]).ShouldEndWith("Lent to Sam.\n");
@@ -274,12 +276,12 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var heat = Film(TestMovies.Heat);
         var alien = Film(TestMovies.Titled("Alien", 1979));
-        await _writer.SyncAsync(Folder, [heat, alien], Ct);
+        await _writer.SyncAsync(Folder, Films(heat, alien), Ct);
         await File.WriteAllTextAsync(_vault["Movies/Watch next.md"], "Thief (1981)", Ct);
         await File.WriteAllTextAsync(_vault["Movies/Copy.md"], "---\nmmdb_id: 1\n---\nnot managed", Ct);
         await File.WriteAllTextAsync(_vault["Ideas.md"], "", Ct);
 
-        await _writer.SyncAsync(Folder, [alien], Ct);
+        await _writer.SyncAsync(Folder, Films(alien), Ct);
 
         Notes().ShouldBe(["Alien (1979).md", "Copy.md", "Watch next.md"]);
         File.Exists(_vault["Ideas.md"]).ShouldBeTrue();
@@ -294,7 +296,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var restarted = new FileVaultWriter(_covers.Path, _clock);
         heat.Update(TestMovies.Titled("Heat", 1996), TestMovies.On(MediaFormat.Dvd), _clock.GetUtcNow());
 
-        await restarted.SyncAsync(Folder, [heat], Ct);
+        await restarted.SyncAsync(Folder, Films(heat), Ct);
 
         Notes().ShouldBe(["Heat (1996).md"]);
         Read("Movies/Heat (1996).md").ShouldEndWith("Mine.\n");
@@ -342,10 +344,10 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var heat = WithCover(Film(TestMovies.HeatOnTmdb));
         var alien = WithCover(Film(TestMovies.Titled("Alien", 1979)), "alien.jpg");
-        await _writer.SyncAsync(Folder, [heat, alien], Ct);
+        await _writer.SyncAsync(Folder, Films(heat, alien), Ct);
         await File.WriteAllTextAsync(_vault["Attachments/covers/my-scan.jpg"], "", Ct);
 
-        await _writer.SyncAsync(Folder, [alien], Ct);
+        await _writer.SyncAsync(Folder, Films(alien), Ct);
 
         FileNames("Attachments/covers").ShouldBe([$"{alien.Id:N}-alien.jpg", "my-scan.jpg"]);
     }
@@ -359,7 +361,7 @@ public sealed class FileVaultWriterTests : IDisposable
         var longAgo = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(path, longAgo);
 
-        await _writer.SyncAsync(Folder, [heat], Ct);
+        await _writer.SyncAsync(Folder, Films(heat), Ct);
 
         File.GetLastWriteTimeUtc(path).ShouldBe(longAgo);
     }
@@ -367,7 +369,7 @@ public sealed class FileVaultWriterTests : IDisposable
     [Fact]
     public async Task No_temporary_files_are_left_behind()
     {
-        await _writer.SyncAsync(Folder, [WithCover(Film(TestMovies.HeatOnTmdb))], Ct);
+        await _writer.SyncAsync(Folder, Films(WithCover(Film(TestMovies.HeatOnTmdb))), Ct);
 
         Directory.GetFiles(Folder, "*.shelf-tmp", SearchOption.AllDirectories).ShouldBeEmpty();
     }
@@ -378,7 +380,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await File.WriteAllTextAsync(_vault["CLAUDE.md"], "# My vault rules", Ct);
         await File.WriteAllTextAsync(_vault["Movies.base"], "views: []", Ct);
 
-        await _writer.SyncAsync(Folder, [], Ct);
+        await _writer.SyncAsync(Folder, Films(), Ct);
 
         Read("CLAUDE.md").ShouldBe("# My vault rules");
         Read("Movies.base").ShouldBe("views: []");
@@ -390,7 +392,7 @@ public sealed class FileVaultWriterTests : IDisposable
         await File.WriteAllTextAsync(_vault["CLAUDE.md"], "<!-- managed_by: mmdb · old version -->", Ct);
         await File.WriteAllTextAsync(_vault["_Index.md"], "---\nmanaged_by: mmdb\n---\nold", Ct);
 
-        await _writer.SyncAsync(Folder, [], Ct);
+        await _writer.SyncAsync(Folder, Films(), Ct);
 
         Read("CLAUDE.md").ShouldContain("## Movie note frontmatter");
         Read("_Index.md").ShouldContain("# Collection index");
@@ -401,7 +403,7 @@ public sealed class FileVaultWriterTests : IDisposable
     {
         var gone = _vault["gone"];
 
-        var error = await Should.ThrowAsync<VaultUnavailableException>(() => _writer.SyncAsync(gone, [], Ct));
+        var error = await Should.ThrowAsync<VaultUnavailableException>(() => _writer.SyncAsync(gone, Films(), Ct));
 
         error.Problem.ShouldBe(VaultProblem.FolderMissing);
         Directory.Exists(gone).ShouldBeFalse();

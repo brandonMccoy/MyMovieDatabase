@@ -1,0 +1,9 @@
+{
+  "count": 4,
+  "next": null,
+  "previous": "https://metron.cloud/api/issue/?series_id=1234",
+  "results": [
+    { "id": 4517, "series": { "name": "Saga", "volume": 1, "year_began": 2012 }, "number": "3", "issue": "Saga (2012) #3", "cover_date": "2012-07-01", "store_date": "2012-05-09", "image": null, "cover_hash": "", "modified": "2024-03-02T10:11:12.000000-05:00" },
+    { "id": 4521, "series": { "name": "Saga", "volume": 1, "year_began": 2012 }, "number": "7", "issue": "Saga (2012) #7", "cover_date": "2012-11-01", "store_date": "2012-11-14", "image": null, "cover_hash": "", "modified": "2024-03-02T10:11:12.000000-05:00" }
+  ]
+}

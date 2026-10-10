@@ -13,6 +13,9 @@
                 <MoviesNavLink href="" Match="NavLinkMatch.Prefix">
                     <Icon Name="film" />Movies<span class="count">@Counts.Movies?.ToString("N0", CultureInfo.InvariantCulture)</span>
                 </MoviesNavLink>
+                <NavLink href="comics" Match="NavLinkMatch.Prefix">
+                    <Icon Name="book" />Comics<span class="count">@Counts.Comics?.ToString("N0", CultureInfo.InvariantCulture)</span>
+                </NavLink>
             </nav>
         </div>
         <div class="side-foot">

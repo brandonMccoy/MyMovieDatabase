@@ -1,0 +1,169 @@
+{
+  "ISBN:9781401225759": {
+    "url": "http://openlibrary.org/books/OL24377265M/Preludes_Nocturnes",
+    "key": "/books/OL24377265M",
+    "title": "Preludes & Nocturnes",
+    "authors": [
+      {
+        "url": "http://openlibrary.org/authors/OL53305A/Neil_Gaiman",
+        "name": "Neil Gaiman"
+      },
+      {
+        "url": "http://openlibrary.org/authors/OL1399676A/Sam_Kieth",
+        "name": "Sam Kieth"
+      }
+    ],
+    "pagination": "1 volume (unpaged)",
+    "identifiers": {
+      "isbn_13": [
+        "9781401225759"
+      ],
+      "lccn": [
+        "2012027187"
+      ],
+      "oclc": [
+        "429021940"
+      ],
+      "openlibrary": [
+        "OL24377265M"
+      ]
+    },
+    "classifications": {
+      "lc_classifications": [
+        "PN6728.S26 G45 2010",
+        "PN6737.G3 2010"
+      ]
+    },
+    "publishers": [
+      {
+        "name": "Vertigo"
+      },
+      {
+        "name": "DC Comics"
+      }
+    ],
+    "publish_places": [
+      {
+        "name": "New York, USA"
+      }
+    ],
+    "publish_date": "2010",
+    "subjects": [
+      {
+        "name": "Dream",
+        "url": "https://openlibrary.org/subjects/dream"
+      },
+      {
+        "name": "Endless",
+        "url": "https://openlibrary.org/subjects/endless"
+      },
+      {
+        "name": "graphic novel",
+        "url": "https://openlibrary.org/subjects/graphic_novel"
+      },
+      {
+        "name": "DC Vertigo",
+        "url": "https://openlibrary.org/subjects/dc_vertigo"
+      },
+      {
+        "name": "Long Now Manual for Civilization",
+        "url": "https://openlibrary.org/subjects/long_now_manual_for_civilization"
+      },
+      {
+        "name": "nyt:paperback-graphic-books=2009-05-24",
+        "url": "https://openlibrary.org/subjects/nyt:paperback-graphic-books=2009-05-24"
+      },
+      {
+        "name": "New York Times bestseller",
+        "url": "https://openlibrary.org/subjects/new_york_times_bestseller"
+      },
+      {
+        "name": "Literature",
+        "url": "https://openlibrary.org/subjects/literature"
+      },
+      {
+        "name": "Comics & graphic novels, horror",
+        "url": "https://openlibrary.org/subjects/comics_&_graphic_novels,_horror"
+      },
+      {
+        "name": "Fiction, fantasy, general",
+        "url": "https://openlibrary.org/subjects/fiction,_fantasy,_general"
+      },
+      {
+        "name": "Sandman (Fictitious character)",
+        "url": "https://openlibrary.org/subjects/sandman_(fictitious_character)"
+      },
+      {
+        "name": "Comic books, strips",
+        "url": "https://openlibrary.org/subjects/comic_books,_strips"
+      },
+      {
+        "name": "nyt:hardcover-graphic-books=2012-02-05",
+        "url": "https://openlibrary.org/subjects/nyt:hardcover-graphic-books=2012-02-05"
+      },
+      {
+        "name": "Graphic novels",
+        "url": "https://openlibrary.org/subjects/graphic_novels"
+      },
+      {
+        "name": "Comics & graphic novels, fantasy, general",
+        "url": "https://openlibrary.org/subjects/comics_&_graphic_novels,_fantasy,_general"
+      },
+      {
+        "name": "Missing persons, fiction",
+        "url": "https://openlibrary.org/subjects/missing_persons,_fiction"
+      }
+    ],
+    "subject_places": [
+      {
+        "name": "The Dreaming",
+        "url": "https://openlibrary.org/subjects/place:the_dreaming"
+      },
+      {
+        "name": "Hell",
+        "url": "https://openlibrary.org/subjects/place:hell"
+      },
+      {
+        "name": "London",
+        "url": "https://openlibrary.org/subjects/place:london"
+      }
+    ],
+    "subject_people": [
+      {
+        "name": "Dream",
+        "url": "https://openlibrary.org/subjects/person:dream"
+      },
+      {
+        "name": "Morpheus",
+        "url": "https://openlibrary.org/subjects/person:morpheus"
+      },
+      {
+        "name": "John Constantine",
+        "url": "https://openlibrary.org/subjects/person:john_constantine"
+      },
+      {
+        "name": "Lucifer",
+        "url": "https://openlibrary.org/subjects/person:lucifer"
+      },
+      {
+        "name": "John Dee",
+        "url": "https://openlibrary.org/subjects/person:john_dee"
+      },
+      {
+        "name": "Dr Destiny",
+        "url": "https://openlibrary.org/subjects/person:dr_destiny"
+      }
+    ],
+    "subject_times": [
+      {
+        "name": "Early 1900's to 1988",
+        "url": "https://openlibrary.org/subjects/time:early_1900's_to_1988"
+      }
+    ],
+    "cover": {
+      "small": "https://covers.openlibrary.org/b/id/6626179-S.jpg",
+      "medium": "https://covers.openlibrary.org/b/id/6626179-M.jpg",
+      "large": "https://covers.openlibrary.org/b/id/6626179-L.jpg"
+    }
+  }
+}

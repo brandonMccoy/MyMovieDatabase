@@ -284,6 +284,55 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .vault:hover span { color: var(--text); text-decoration: underline; }
 .vault svg { width: 14px; height: 14px; color: var(--obsidian); flex: none; }
 
+/* ---------- Comics ---------- */
+.series { border-top: 1px solid var(--line-soft); padding: 20px 0 6px; }
+.series:first-of-type { border-top: 0; padding-top: 0; }
+.series-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.series-head h3 { margin: 0; font: 400 24px/1.1 var(--serif); }
+.series-head h3 .yr { color: var(--muted); font-size: 18px; }
+.series-head .pub { color: var(--muted); font-size: 13px; }
+.series-head .progress, .run .progress { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { width: 120px; height: 4px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.issues { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 16px 14px; }
+.issue { min-width: 0; }
+.issue a { text-decoration: none; }
+.issue > a { display: block; border-radius: var(--radius-sm); }
+.issue .poster { padding: 9px; aspect-ratio: 2/3.05; }
+.issue .poster .pt { font-size: 14px; }
+.issue .num { margin-top: 7px; font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.issue .num a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.issue .sub2 { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.key { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; color: var(--accent-ink); background: var(--accent); padding: 2px 5px; border-radius: 3px; flex: none; }
+.issue.missing .poster { background: repeating-linear-gradient(135deg, var(--surface) 0 8px, var(--surface-2) 8px 16px); box-shadow: inset 0 0 0 1px var(--line); }
+.issue.missing .poster::before { display: none; }
+.issue.missing .poster .pt { color: var(--faint); font-family: var(--font); font-size: 12px; }
+.issue.missing .num { color: var(--faint); }
+/* new: trades are wider books, shown like film posters */
+.issues.collected { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 26px 18px; }
+.issues.collected .poster .pt { font-size: 18px; }
+
+/* new: a comic's page */
+.detail.comic .story { font: italic 400 20px/1.3 var(--serif); color: var(--text-2); margin-top: 6px; }
+.detail.comic .key-note { color: var(--accent); font-size: 14px; margin-top: 6px; }
+.detail.comic .credits { margin: 12px 0 20px; display: grid; gap: 4px; }
+.detail.comic .details { margin-top: 26px; max-width: 360px; }
+.owned-copy .copy { color: var(--text-2); font-size: 13px; margin: 2px 0 8px; }
+.run .run-title { font: 400 20px/1.2 var(--serif); margin-bottom: 8px; }
+.run .progress { margin: 0 0 10px; justify-content: space-between; }
+.run .bar { width: 90px; }
+.open-series { color: var(--accent); font-size: 13px; font-weight: 500; text-decoration: none; }
+.open-series:hover { text-decoration: underline; }
+
+/* new: the comic editor */
+.row2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.row3 .span2 { grid-column: span 2; }
+select.input { appearance: none; cursor: pointer; }
+.copy-panel .field:last-of-type { margin-bottom: 0; }
+.key-row { border-top: 1px solid var(--line-soft); margin-top: 14px; padding-top: 12px; }
+.key.off { background: transparent; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line); }
+.match .mv { color: var(--text-2); font: 500 13px var(--font); }
+
 @media (max-width: 1100px) {
   .setrow { grid-template-columns: 1fr; gap: 6px; }
   .detail { grid-template-columns: 180px 1fr; }

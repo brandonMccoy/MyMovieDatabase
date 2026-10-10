@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
 
 namespace MMDb.Infrastructure.Persistence;
@@ -7,6 +8,10 @@ namespace MMDb.Infrastructure.Persistence;
 public sealed class ShelfDbContext(DbContextOptions<ShelfDbContext> options) : DbContext(options)
 {
     public DbSet<Movie> Movies => Set<Movie>();
+
+    public DbSet<Comic> Comics => Set<Comic>();
+
+    public DbSet<ComicSeries> ComicSeries => Set<ComicSeries>();
 
     internal DbSet<LookupCacheEntry> LookupCache => Set<LookupCacheEntry>();
 

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MMDb.Application.Comics;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -14,6 +15,9 @@ public static class ApplicationServices
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<MovieCatalog>();
         services.AddScoped<MovieLookup>();
+        services.AddScoped<ComicCatalog>();
+        services.AddScoped<ComicLookup>();
+        services.AddScoped<VaultContentSource>();
         services.AddSingleton<VaultMirror>();
         services.AddScoped<VaultSync>();
         return services;

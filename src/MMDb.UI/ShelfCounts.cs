@@ -9,9 +9,14 @@ public sealed class ShelfCounts(ICollectionApi api)
 
     public int? Movies { get; private set; }
 
+    /// <summary>Comic copies: single issues, trades, hardcovers and omnibuses.</summary>
+    public int? Comics { get; private set; }
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         Movies = (await api.ListMoviesAsync(new(), cancellationToken)).Facets.FilmCount;
+        var comics = (await api.ListComicsAsync(new(), cancellationToken)).Facets;
+        Comics = comics.IssueCount + comics.CollectedCount;
         Changed?.Invoke();
     }
 }

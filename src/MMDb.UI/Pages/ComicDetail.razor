@@ -1,0 +1,223 @@
+@page "/comics/{Id:guid}"
+@inject ICollectionApi Api
+@inject NavigationManager Navigation
+@inject ShelfCounts Counts
+@inject IServiceProvider Services
+
+<PageTitle>@(_comic?.DisplayName ?? "Comic") · Shelf</PageTitle>
+
+<div class="topbar">
+    <a class="btn ghost back" href="comics"><Icon Name="back" />Comics</a>
+    <SearchBox Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
+</div>
+
+@if (_loaded && _comic is null)
+{
+    <div class="content">
+        <div class="empty">
+            <h1>Comic not found</h1>
+            <p>It isn't in your collection any more.</p>
+            <a class="btn" href="comics">Back to comics</a>
+        </div>
+    </div>
+}
+else if (_comic is not null)
+{
+    var collected = ComicText.IsCollected(_comic.Format);
+    <div class="hero"><div class="backdrop" style="@PosterColors.Style(_comic.Series ?? _comic.DisplayName)"></div></div>
+    <div class="detail comic">
+        <div>
+            <Poster Title="@(_comic.Series ?? _comic.DisplayName)" Subtitle="@(collected || _comic.Number is null ? null : "#" + _comic.Number)" ImageUrl="_comic.CoverUrl" />
+        </div>
+
+        <div>
+            @if (_comic.IsKeyIssue)
+            {
+                <div class="fmts"><span class="key">KEY</span></div>
+            }
+            <h1 class="title-lg">@_comic.DisplayName</h1>
+            <div class="byline">@string.Join(" · ", Facts())</div>
+            @if (!collected && _comic.Title is not null)
+            {
+                <div class="story">@_comic.Title</div>
+            }
+            @if (_comic.IsKeyIssue && _comic.KeyNote is not null)
+            {
+                <div class="key-note">@_comic.KeyNote</div>
+            }
+            <div class="credits">
+                @if (_comic.Writers.Count > 0)
+                {
+                    <div class="byline">Written by @Names(_comic.Writers)</div>
+                }
+                @if (_comic.Artists.Count > 0)
+                {
+                    <div class="byline">Art by @Names(_comic.Artists)</div>
+                }
+            </div>
+
+            <div class="actions">
+                <a class="btn" href="comics/@_comic.Id/edit"><Icon Name="edit" />Edit</a>
+                <div class="menu-wrap">
+                    <button type="button" class="btn ghost" aria-label="More" aria-expanded="@Aria.Bool(_menuOpen)" @onclick="() => _menuOpen = !_menuOpen"><Icon Name="dots" /></button>
+                    @if (_menuOpen)
+                    {
+                        <div class="menu" role="menu">
+                            <button type="button" role="menuitem" class="danger" @onclick="AskToDelete">Delete comic…</button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (_confirmingDelete)
+            {
+                <div class="confirm" role="alertdialog" aria-label="Delete comic">
+                    <div><b>Delete @_comic.DisplayName?</b> This removes this copy from your collection.</div>
+                    <div class="confirm-actions">
+                        <button type="button" class="btn" @onclick="() => _confirmingDelete = false">Cancel</button>
+                        <button type="button" class="btn danger" @onclick="DeleteAsync">Delete</button>
+                    </div>
+                </div>
+            }
+
+            @if (_comic.Summary is not null)
+            {
+                <p class="synopsis">@_comic.Summary</p>
+            }
+
+            <dl class="kv details">
+                <dt>Added</dt><dd>@LongDate(_comic.CreatedAt)</dd>
+                <dt>Last edited</dt><dd>@LongDate(_comic.UpdatedAt)</dd>
+                @if (_comic.MetronId is { } metron)
+                {
+                    <dt>Metron</dt><dd class="mono">@metron</dd>
+                }
+            </dl>
+        </div>
+
+        <div>
+            <div class="panel owned-copy">
+                <h3>Owned <a href="comics/@_comic.Id/edit">Edit</a></h3>
+                <div class="owned">
+                    <span>@ComicText.Name(_comic.Format)</span>
+                    <span class="small">Added @MonthYear(_comic.CreatedAt)</span>
+                </div>
+                @if (ComicText.Copy(_comic.Variant, _comic.Printing) is { Length: > 0 } copy)
+                {
+                    <div class="copy">@copy</div>
+                }
+                @if (_comic.Barcode is not null)
+                {
+                    <div class="mono owned-code">UPC @Barcode(_comic.Barcode)</div>
+                }
+                @if (_comic.Isbn is not null)
+                {
+                    <div class="mono owned-code">ISBN @_comic.Isbn</div>
+                }
+            </div>
+            @if (_comic.Run is { } run)
+            {
+                <div class="panel run">
+                    <h3>Series</h3>
+                    <div class="run-title">@run.Title</div>
+                    @if (run.KnownCount is { } known)
+                    {
+                        <div class="progress">
+                            <span>@Count(run.OwnedCount) of @Count(known) owned</span>
+                            <span class="bar" role="progressbar" aria-label="@run.Title owned" aria-valuemin="0" aria-valuemax="@known" aria-valuenow="@run.OwnedCount"><i style="width:@Percent(run.OwnedCount, known)%"></i></span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="progress"><span>@Count(run.OwnedCount) @(run.OwnedCount == 1 ? "issue" : "issues") owned</span></div>
+                    }
+                    <a class="open-series" href="@SeriesHref(run)">Open series →</a>
+                </div>
+            }
+            @if (_note is not null)
+            {
+                <div class="panel">
+                    <a class="vault" href="@_note.OpenUri.OriginalString" target="_blank" rel="noopener" title="Open in Obsidian">
+                        <Icon Name="obsidian" /><span>@_note.Path</span>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private ComicDto? _comic;
+    private VaultNoteDto? _note;
+    private bool _loaded;
+    private bool _menuOpen;
+    private bool _confirmingDelete;
+
+    [Parameter] public Guid Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _comic = await Api.GetComicAsync(Id);
+        _note = _comic is null ? null : Services.GetService<IVaultApi>()?.NoteFor(Id);
+        _loaded = true;
+    }
+
+    private void AskToDelete()
+    {
+        _menuOpen = false;
+        _confirmingDelete = true;
+    }
+
+    private async Task DeleteAsync()
+    {
+        await Api.DeleteComicAsync(Id);
+        await Counts.RefreshAsync();
+        Navigation.NavigateTo("comics");
+    }
+
+    // "Daredevil (1964) · Marvel · April 1982", or for a trade "Trade paperback · Image · Saga Vol. 1".
+    private IEnumerable<string> Facts()
+    {
+        if (ComicText.IsCollected(_comic!.Format))
+        {
+            yield return ComicText.Name(_comic.Format);
+            if (_comic.Series is { } series && _comic.Title is not null)
+            {
+                yield return _comic.Number is { } volume ? $"{series} Vol. {volume}" : series;
+            }
+        }
+        else if (_comic.Series is { } series)
+        {
+            yield return _comic.SeriesYear is { } year ? $"{series} ({year})" : series;
+        }
+
+        if (_comic.Publisher is { } publisher)
+        {
+            yield return publisher;
+        }
+
+        if (_comic.CoverDate is { } date)
+        {
+            yield return ComicText.LongMonthYear(date);
+        }
+    }
+
+    private static string Names(IReadOnlyList<string> names) =>
+        names.Count == 1 ? names[0] : string.Join(", ", names.Take(names.Count - 1)) + " & " + names[^1];
+
+    private string SeriesHref(SeriesRunDto run) => "comics?q=" + Uri.EscapeDataString(run.Name);
+
+    // The UPC, then the add-on, as printed under the bars.
+    private static string Barcode(string digits) => digits.Length is 14 or 17 ? $"{digits[..12]} {digits[12..]}"
+        : digits.Length is 15 or 18 ? $"{digits[..13]} {digits[13..]}"
+        : digits;
+
+    private static string Count(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Percent(int part, int whole) =>
+        (whole == 0 ? 0 : Math.Min(100, Math.Round(100.0 * part / whole, 1))).ToString(CultureInfo.InvariantCulture);
+
+    private static string MonthYear(DateTimeOffset at) => at.ToLocalTime().ToString("MMM yyyy", CultureInfo.InvariantCulture);
+
+    private static string LongDate(DateTimeOffset at) => at.ToLocalTime().ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+}

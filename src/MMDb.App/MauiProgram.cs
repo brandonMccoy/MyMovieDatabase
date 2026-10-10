@@ -39,6 +39,7 @@ public static class MauiProgram
                 ConnectionString = InfrastructureServices.SqliteConnectionString(databasePath),
                 CoverDirectory = CoverFolder.Path,
                 Tmdb = new TmdbSettings { ApiKey = builder.Configuration["Tmdb:ApiKey"] },
+                Metron = new MetronSettings { Token = builder.Configuration["Metron:Token"] },
             },
             CoverFolder.BaseUri);
         builder.Services.AddSingleton<IFolderPicker, WindowsFolderPicker>();

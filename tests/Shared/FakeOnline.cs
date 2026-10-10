@@ -2,12 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MMDb.Application.Metadata;
 using MMDb.Domain;
+using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
 using MMDb.Infrastructure;
 
 namespace MMDb.Testing;
 
-/// <summary>Hand-written stand-ins for TMDB, UPCitemdb, the poster server and the cover folder.</summary>
+/// <summary>Hand-written stand-ins for TMDB, UPCitemdb, Metron, Open Library, the image servers and the cover folder.</summary>
 internal sealed class FakeOnline
 {
     public FakeTmdb Tmdb { get; } = new();
@@ -17,6 +18,12 @@ internal sealed class FakeOnline
     public FakePosters Posters { get; } = new();
 
     public FakeCoverStore Covers { get; } = new();
+
+    public FakeMetron Metron { get; } = new();
+
+    public FakeBooks Books { get; } = new();
+
+    public FakeComicCovers ComicCovers { get; } = new();
 
     /// <summary>Settings for an in-memory database; the cover folder is never touched because the store is faked.</summary>
     public static ShelfSettings Settings(InMemorySqlite sqlite) => new()
@@ -30,7 +37,10 @@ internal sealed class FakeOnline
         .Replace(ServiceDescriptor.Singleton<IMovieMetadata>(Tmdb))
         .Replace(ServiceDescriptor.Singleton<IBarcodeLookup>(Barcodes))
         .Replace(ServiceDescriptor.Singleton<IPosterSource>(Posters))
-        .Replace(ServiceDescriptor.Singleton<ICoverStore>(Covers));
+        .Replace(ServiceDescriptor.Singleton<ICoverStore>(Covers))
+        .Replace(ServiceDescriptor.Singleton<IComicMetadata>(Metron))
+        .Replace(ServiceDescriptor.Singleton<IBookMetadata>(Books))
+        .Replace(ServiceDescriptor.Singleton<ICoverSource>(ComicCovers));
 }
 
 /// <summary>Finds films whose title contains the search text (ignoring case), in the order they were added.</summary>
@@ -136,4 +146,128 @@ internal sealed class FakeCoverStore : ICoverStore
     }
 
     public void Delete(string name) => Files.Remove(name);
+}
+
+/// <summary>Finds issues the way Metron does: by exact barcode, barcode prefix, or series words, year and number.</summary>
+internal sealed class FakeMetron : IComicMetadata
+{
+    private readonly List<IssueFacts> _issues = [];
+    private readonly Dictionary<int, SeriesFacts> _series = [];
+    private readonly List<IssueSearch> _searches = [];
+    private int _seriesFetches;
+
+    public MetadataProblem? FailWith { get; set; }
+
+    public IReadOnlyList<IssueSearch> Searches { get { lock (_searches) { return [.. _searches]; } } }
+
+    public int SeriesFetches => Volatile.Read(ref _seriesFetches);
+
+    /// <param name="issue">Must have a <see cref="ComicDetails.MetronId"/>.</param>
+    public FakeMetron Add(ComicDetails issue, params VariantFacts[] variants)
+    {
+        _issues.Add(new IssueFacts(issue.Normalized(), variants));
+        return this;
+    }
+
+    public FakeMetron AddSeries(int metronSeriesId, SeriesFacts series)
+    {
+        _series[metronSeriesId] = series;
+        return this;
+    }
+
+    public Task<IReadOnlyList<int>> SearchAsync(IssueSearch search, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        lock (_searches)
+        {
+            _searches.Add(search);
+        }
+
+        IReadOnlyList<int> ids = [.. _issues.Where(i => Matches(i, search)).Select(i => i.Details.MetronId!.Value)];
+        return Task.FromResult(ids);
+    }
+
+    public Task<IssueFacts?> GetIssueAsync(int metronId, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        return Task.FromResult(_issues.Find(i => i.Details.MetronId == metronId));
+    }
+
+    public Task<SeriesFacts?> GetSeriesAsync(int metronSeriesId, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing();
+        Interlocked.Increment(ref _seriesFetches);
+        return Task.FromResult(_series.GetValueOrDefault(metronSeriesId));
+    }
+
+    private static bool Matches(IssueFacts issue, IssueSearch search)
+    {
+        var d = issue.Details;
+        if (search.Barcode is { } barcode)
+        {
+            return d.Barcode == barcode;
+        }
+
+        if (search.UpcPrefix is { } prefix && d.Barcode?.StartsWith(prefix, StringComparison.Ordinal) != true)
+        {
+            return false;
+        }
+
+        if (search.Series is { } words && !words.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => d.Series?.Contains(w, StringComparison.OrdinalIgnoreCase) == true))
+        {
+            return false;
+        }
+
+        return (search.SeriesYear is null || d.SeriesYear == search.SeriesYear) && (search.Number is null || d.Number == search.Number);
+    }
+
+    private void ThrowIfFailing()
+    {
+        if (FailWith is { } problem)
+        {
+            throw new MetadataException("Metron", problem);
+        }
+    }
+}
+
+internal sealed class FakeBooks : IBookMetadata
+{
+    private readonly Dictionary<string, ComicDetails> _books = [];
+
+    public MetadataProblem? FailWith { get; set; }
+
+    public int Lookups { get; private set; }
+
+    public FakeBooks Add(ComicDetails book)
+    {
+        _books[Isbn.Parse(book.Isbn!).Value] = book;
+        return this;
+    }
+
+    public Task<ComicDetails?> FindByIsbnAsync(Isbn isbn, CancellationToken cancellationToken = default)
+    {
+        Lookups++;
+        if (FailWith is { } problem)
+        {
+            throw new MetadataException("Open Library", problem);
+        }
+
+        return Task.FromResult(_books.GetValueOrDefault(isbn.Value));
+    }
+}
+
+/// <summary>Serves a few bytes per cover link, or nothing while <see cref="Offline"/>.</summary>
+internal sealed class FakeComicCovers : ICoverSource
+{
+    public bool Offline { get; set; }
+
+    public List<string> Fetched { get; } = [];
+
+    public static byte[] ImageFor(string url) => System.Text.Encoding.UTF8.GetBytes("image of " + url);
+
+    public Task<byte[]?> FetchAsync(string url, CancellationToken cancellationToken = default)
+    {
+        Fetched.Add(url);
+        return Task.FromResult(Offline ? null : ImageFor(url));
+    }
 }

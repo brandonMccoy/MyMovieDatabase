@@ -49,5 +49,16 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Links:** directors and cast are `[[links]]` in the note body (people notes aren't created); frontmatter keeps plain names.
 - **Status colors:** states are text, not green (green stays reserved for Digital); a failed write is amber.
 
+## Milestone 4 (decided 2026-10-09)
+- **Sources:** issues from Metron (API token in user secrets), trades from Open Library by ISBN. GCD and Comic Vine dropped: neither can search by barcode.
+- **Add-on scan spike:** moved to milestone 5 with the phone scanner. On the PC the search box takes a 17-digit UPC (USB scanner or typed) or the 12-digit UPC followed by the issue number; add-on decoding is in Domain.
+- **Add comic:** one box like Add movie: text ("saga 7", "Daredevil 1964 181"), a UPC or a trade's ISBN. Matches show cover, series, issue, variant, publisher, cover date and "In your collection" with the variants owned; picking one opens the editor filled in. "Not listed? Enter manually".
+- **Variants:** each copy is its own entry (`#7 · Cover B`); a series' progress counts the issue once. The same copy saved twice (same UPC, ISBN, or Metron issue + variant) is turned down as already owned.
+- **Library:** as mocked. Series groups with "N of M" progress from Metron's issue list and striped tiles for the issues missing between the first and last owned (their "+ Wishlist" comes with the wishlist in milestone 6; while searching, gaps aren't shown); chips Series / Issues / Trades & HCs / Key issues; publisher filter; sort Series A–Z or Recently added. Runs Metron doesn't know show "N issues" and no gaps.
+- **Trades, HCs, omnibuses:** their own shelf under "Trades & HCs" (cover grid) with an optional series and volume ("Saga Vol. 1"); they don't count toward a series' progress.
+- **Key issues:** set by hand in the editor (switch + short note such as "1st Elektra", shown under the issue number). Nothing is tagged automatically.
+- **Issue page:** laid out like a film's page: cover · fields (series, publisher, cover date, story title, writers, artists, summary) · panels for the copy owned (format, variant, printing, UPC/ISBN, added) and the series' progress.
+- **Vault:** `Comics/<Series> (<Year>)/<Series> <Issue>.md` (no `#`: Obsidian links can't hold it; the heading keeps it) like film notes (writers and artists `[[linked]]`, a link to the series note), `_Series.md` listing owned and missing issues, and `Comics.base` with Issues, Series and Key issues views.
+
 ## Open
 - None. Design phase complete (2026-10-08).

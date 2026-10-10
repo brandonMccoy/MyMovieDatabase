@@ -1,3 +1,4 @@
+using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
 
 namespace MMDb.Application.Vault;
@@ -22,7 +23,7 @@ public sealed record VaultStatus
     /// <summary>When the vault was last brought up to date.</summary>
     public DateTimeOffset? LastSyncAt { get; init; }
 
-    /// <summary>Notes Shelf keeps in the vault (one per film).</summary>
+    /// <summary>Notes Shelf keeps in the vault (one per film and per comic).</summary>
     public int NoteCount { get; init; }
 
     public VaultProblem? Problem { get; init; }
@@ -45,11 +46,11 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
 
     public VaultStatus Status => _status;
 
-    /// <returns>The film's note relative to the vault, if there is a vault and the note has been written.</returns>
-    public string? NoteOf(Guid movieId) => Status.Folder is { } folder ? writer.NoteOf(folder, movieId) : null;
+    /// <returns>The film's or comic's note relative to the vault, if there is a vault and the note has been written.</returns>
+    public string? NoteOf(Guid id) => Status.Folder is { } folder ? writer.NoteOf(folder, id) : null;
 
     /// <summary>Switches to <paramref name="folder"/> (<see langword="null"/>: no vault) and writes it all.</summary>
-    internal async Task SyncAsync(string? folder, Func<CancellationToken, Task<IReadOnlyList<Movie>>> movies, CancellationToken cancellationToken)
+    internal async Task SyncAsync(string? folder, Func<CancellationToken, Task<VaultContent>> load, CancellationToken cancellationToken)
     {
         await _turn.WaitAsync(cancellationToken);
         try
@@ -64,7 +65,7 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
             Publish(new() { State = VaultState.Syncing, Folder = folder });
             try
             {
-                await WriteAsync(folder, all => writer.SyncAsync(folder, all, cancellationToken), movies, cancellationToken);
+                await WriteAsync(folder, all => writer.SyncAsync(folder, all, cancellationToken), load, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -78,14 +79,18 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
         }
     }
 
-    internal Task MovieSavedAsync(Movie movie, Func<CancellationToken, Task<IReadOnlyList<Movie>>> movies) =>
-        ChangeAsync((folder, all) => writer.WriteMovieAsync(folder, movie, all), movies);
+    internal Task MovieSavedAsync(Movie movie, Func<CancellationToken, Task<VaultContent>> load) =>
+        ChangeAsync((folder, all) => writer.WriteMovieAsync(folder, movie, all), load);
 
-    internal Task MovieRemovedAsync(Guid movieId, Func<CancellationToken, Task<IReadOnlyList<Movie>>> movies) =>
-        ChangeAsync((folder, all) => writer.RemoveMovieAsync(folder, movieId, all), movies);
+    internal Task ComicSavedAsync(Comic comic, Func<CancellationToken, Task<VaultContent>> load) =>
+        ChangeAsync((folder, all) => writer.WriteComicAsync(folder, comic, all), load);
+
+    /// <summary>A film or comic was deleted.</summary>
+    internal Task RemovedAsync(Guid id, Func<CancellationToken, Task<VaultContent>> load) =>
+        ChangeAsync((folder, all) => writer.RemoveAsync(folder, id, all), load);
 
     // Not cancellable: the change is already in the database, so the vault should follow it.
-    private async Task ChangeAsync(Func<string, IReadOnlyList<Movie>, Task> change, Func<CancellationToken, Task<IReadOnlyList<Movie>>> movies)
+    private async Task ChangeAsync(Func<string, VaultContent, Task> change, Func<CancellationToken, Task<VaultContent>> load)
     {
         if (Status.Folder is null)
         {
@@ -101,10 +106,10 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
             }
 
             // After a failure other notes may be stale too, so catch up on everything.
-            Func<IReadOnlyList<Movie>, Task> write = Status.State == VaultState.Failed
+            Func<VaultContent, Task> write = Status.State == VaultState.Failed
                 ? all => writer.SyncAsync(folder, all)
                 : all => change(folder, all);
-            await WriteAsync(folder, write, movies, CancellationToken.None);
+            await WriteAsync(folder, write, load, CancellationToken.None);
         }
         finally
         {
@@ -114,15 +119,15 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
 
     private async Task WriteAsync(
         string folder,
-        Func<IReadOnlyList<Movie>, Task> write,
-        Func<CancellationToken, Task<IReadOnlyList<Movie>>> movies,
+        Func<VaultContent, Task> write,
+        Func<CancellationToken, Task<VaultContent>> load,
         CancellationToken cancellationToken)
     {
         try
         {
-            var all = await movies(cancellationToken);
+            var all = await load(cancellationToken);
             await write(all);
-            Publish(new() { State = VaultState.Synced, Folder = folder, LastSyncAt = clock.GetUtcNow(), NoteCount = all.Count });
+            Publish(new() { State = VaultState.Synced, Folder = folder, LastSyncAt = clock.GetUtcNow(), NoteCount = all.NoteCount });
         }
         catch (VaultUnavailableException e)
         {

@@ -1,6 +1,6 @@
 namespace MMDb.Domain;
 
-/// <summary>Columns shared by every collected product (movies now, comics later).</summary>
+/// <summary>Columns shared by every collected product: movies and comics.</summary>
 public abstract class ProductBase
 {
     public Guid Id { get; protected init; }

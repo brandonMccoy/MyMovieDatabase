@@ -1,0 +1,118 @@
+# managed_by: mmdb · Shelf rewrites this file. Change a view in Obsidian and Shelf leaves it alone from then on.
+filters:
+  and:
+    - file.inFolder("Comics")
+    - 'managed_by == "mmdb"'
+properties:
+  file.name:
+    displayName: Note
+  series:
+    displayName: Series
+  volume:
+    displayName: Volume
+  issue:
+    displayName: Issue
+  variant:
+    displayName: Variant
+  publisher:
+    displayName: Publisher
+  cover_date:
+    displayName: Cover date
+  format:
+    displayName: Format
+  key_note:
+    displayName: Key issue
+  owned:
+    displayName: Owned
+  issues:
+    displayName: Issues
+  added:
+    displayName: Added
+views:
+  - type: cards
+    name: Covers
+    filters:
+      and:
+        - 'file.name != "_Series"'
+    order:
+      - file.name
+      - publisher
+    sort:
+      - property: series
+        direction: ASC
+      - property: file.name
+        direction: ASC
+    image: note.cover
+    imageAspectRatio: 1.5
+  - type: table
+    name: Issues
+    filters:
+      and:
+        - 'format == "single issue"'
+    order:
+      - file.name
+      - series
+      - volume
+      - issue
+      - variant
+      - publisher
+      - cover_date
+      - added
+    sort:
+      - property: series
+        direction: ASC
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Series
+    filters:
+      and:
+        - 'file.name == "_Series"'
+    order:
+      - series
+      - volume
+      - publisher
+      - owned
+      - issues
+    sort:
+      - property: series
+        direction: ASC
+  - type: table
+    name: Key issues
+    filters:
+      and:
+        - 'key_issue == true'
+    order:
+      - file.name
+      - key_note
+      - cover_date
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Trades and hardcovers
+    filters:
+      and:
+        - 'format != "single issue"'
+        - 'file.name != "_Series"'
+    order:
+      - file.name
+      - format
+      - publisher
+      - added
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Recently added
+    filters:
+      and:
+        - 'file.name != "_Series"'
+    order:
+      - file.name
+      - format
+      - added
+    sort:
+      - property: added
+        direction: DESC
+    limit: 50

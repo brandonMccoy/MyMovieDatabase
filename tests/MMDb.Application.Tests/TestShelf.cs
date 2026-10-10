@@ -1,10 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
+using MMDb.Application.Comics;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
 using MMDb.Domain;
+using MMDb.Domain.Comics;
 using MMDb.Domain.Movies;
 using MMDb.Infrastructure;
 using MMDb.Testing;
@@ -60,6 +62,19 @@ internal sealed class TestShelf : IAsyncDisposable
         await use(sync, ct);
         return true;
     });
+
+    public Task<T> Comics<T>(Func<ComicCatalog, CancellationToken, Task<T>> use) => Use(use);
+
+    public Task<ComicLookupResult> LookupComicAsync(string query) => Use<ComicLookup, ComicLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
+
+    /// <summary>Adds a comic that must be valid, and returns it.</summary>
+    public async Task<Comic> AddComicAsync(ComicDetails details)
+    {
+        var result = await Comics((catalog, ct) => catalog.AddAsync(details, ct));
+        return result.ShouldBeOfType<SaveComicResult.Saved>().Comic;
+    }
+
+    public Task<ComicShelf> ListComicsAsync(ComicQuery? query = null) => Comics((catalog, ct) => catalog.ListAsync(query ?? new(), ct));
 
     public Task<MovieLookupResult> LookupAsync(string query) => Use<MovieLookup, MovieLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
 
