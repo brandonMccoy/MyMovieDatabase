@@ -1,6 +1,8 @@
+@inject ShelfDevice Device
+
 <Router AppAssembly="typeof(Routes).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <RouteView RouteData="routeData" DefaultLayout="@(Device.IsPhone ? typeof(PhoneLayout) : typeof(MainLayout))" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

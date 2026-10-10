@@ -51,6 +51,37 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Whatever_changes_the_collection_is_announced_and_nothing_else_is()
+    {
+        var changes = 0;
+        Api.Changed += () => changes++;
+
+        var added = (await Api.AddMovieAsync(Heat, Ct)).Movie!;
+        changes.ShouldBe(1);
+
+        await Api.AddMovieAsync(Heat with { Title = "" }, Ct);
+        await Api.UpdateMovieAsync(added.Id, added.Version + 5, Heat, Ct);
+        await Api.UpdateMovieAsync(Guid.NewGuid(), 1, Heat, Ct);
+        await Api.DeleteMovieAsync(Guid.NewGuid(), Ct);
+        await Api.ListMoviesAsync(new(), Ct);
+        await Api.GetMovieAsync(added.Id, Ct);
+        await Api.LookupMovieAsync("heat", Ct);
+        changes.ShouldBe(1, "refused saves and reads change nothing");
+
+        await Api.UpdateMovieAsync(added.Id, added.Version, Heat with { Rating = "18" }, Ct);
+        changes.ShouldBe(2);
+        await Api.DeleteMovieAsync(added.Id, Ct);
+        changes.ShouldBe(3);
+
+        var comic = (await Api.AddComicAsync(new() { Series = "Saga", Number = "7" }, Ct)).Comic!;
+        await Api.AddComicAsync(new() { Series = "Saga", Number = "" }, Ct);
+        await Api.UpdateComicAsync(comic.Id, comic.Version, new() { Series = "Saga", Number = "8" }, Ct);
+        await Api.DeleteComicAsync(comic.Id, Ct);
+        await Api.DeleteComicAsync(comic.Id, Ct);
+        changes.ShouldBe(6);
+    }
+
+    [Fact]
     public async Task An_added_movie_comes_back_with_every_field()
     {
         var response = await Api.AddMovieAsync(Heat, Ct);

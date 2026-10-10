@@ -1,0 +1,71 @@
+@page "/scan/review"
+@implements IDisposable
+@using MMDb.Contracts.Scans
+@using MMDb.UI.Scanning
+@inject ScanInbox Queue
+@inject NavigationManager Navigation
+
+<PageTitle>Review scans · Shelf</PageTitle>
+
+@* Goes straight to the next scan there is something to review for. This list shows only while none is ready. *@
+<div class="topbar">
+    <a class="btn ghost back" href="scan"><Icon Name="back" />Scan</a>
+</div>
+<div class="content">
+    <div class="section-head"><h1>Scanned</h1></div>
+    @if (Queue.Items.Count == 0)
+    {
+        <div class="empty">
+            <h2>Nothing waiting</h2>
+            <p>Everything you scanned has been reviewed.</p>
+            <a class="btn primary" href="scan"><Icon Name="scan" />Scan</a>
+        </div>
+    }
+    else
+    {
+        <ul class="scans">
+            @foreach (var item in Queue.Items)
+            {
+                <li @key="item.Id">
+                    <span class="code-chip"><Icon Name="scan" />@item.Code</span>
+                    <span class="scan-state">@(item.State == ScanState.LookingUp ? "Looking it up…" : "Couldn't ask the PC")</span>
+                    @if (item.State == ScanState.Failed)
+                    {
+                        <button type="button" class="btn sm" @onclick="() => Queue.RetryAsync(item)">Try again</button>
+                    }
+                    <button type="button" class="btn sm ghost" aria-label="Remove @item.Code" @onclick="() => Queue.Remove(item.Id)"><Icon Name="x" /></button>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    /// <summary>The scan to review; without it, the oldest one that is ready.</summary>
+    [SupplyParameterFromQuery(Name = "item")] public Guid? Item { get; set; }
+
+    protected override void OnInitialized() => Queue.Changed += OnQueueChanged;
+
+    protected override void OnParametersSet() => OpenNext();
+
+    // Leaving for the editor happens once; this page is gone right after.
+    private bool _leaving;
+
+    private void OpenNext()
+    {
+        var item = Queue.Find(Item) is { State: ScanState.Ready } asked ? asked : Queue.NextReady;
+        if (item is not null && !_leaving)
+        {
+            _leaving = true;
+            Navigation.NavigateTo($"{(item.Kind == ProductKind.Comic ? "comics" : "movies")}/new?scan={item.Id}", replace: true);
+        }
+    }
+
+    private void OnQueueChanged() => InvokeAsync(() =>
+    {
+        OpenNext();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Queue.Changed -= OnQueueChanged;
+}

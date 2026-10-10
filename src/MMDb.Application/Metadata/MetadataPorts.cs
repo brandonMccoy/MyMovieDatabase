@@ -38,6 +38,9 @@ public interface ICoverStore
     /// <param name="name">A file name, no folders. An existing cover with that name is replaced.</param>
     Task SaveAsync(string name, byte[] image, CancellationToken cancellationToken = default);
 
+    /// <returns>The cover's bytes; <see langword="null"/> if there is no cover with that name.</returns>
+    Task<byte[]?> ReadAsync(string name, CancellationToken cancellationToken = default);
+
     /// <summary>Removes the cover if it is there.</summary>
     void Delete(string name);
 }

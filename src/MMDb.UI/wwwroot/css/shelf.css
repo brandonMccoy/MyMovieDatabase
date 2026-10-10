@@ -333,6 +333,141 @@ select.input { appearance: none; cursor: pointer; }
 .key.off { background: transparent; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line); }
 .match .mv { color: var(--text-2); font: 500 13px var(--font); }
 
+/* ---------- Settings: phone ---------- */
+.pair { display: grid; grid-template-columns: 148px 1fr; gap: 22px; align-items: start; }
+.qr { width: 148px; height: 148px; border-radius: 6px; background: #fff; display: block; }
+.qr path { fill: #111; }
+.code { font: 22px var(--mono); letter-spacing: .2em; color: var(--text); margin: 4px 0 8px; }
+.devices { margin-top: 14px; border-top: 1px solid var(--line-soft); }
+.device { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+.device:last-child { border-bottom: 0; padding-bottom: 0; }
+.device .muted { color: var(--muted); }
+.device .btn { margin-left: auto; }
+/* new: states are told in words; the dot only says whether the phone is here now */
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot.on { background: var(--text); }
+.set > .warn, .set > .small { margin: 0; }
+
+/* ---------- Phone app (new frame; camera, review and browse pieces from the mockup's phone screens) ---------- */
+/* The camera is a native view behind the page, so the scan screen has to be see-through. */
+html:has(.phone-app), body:has(.phone-app) { background: transparent; }
+.phone-app { min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); padding-top: env(safe-area-inset-top); }
+.phone-app:has(.camera) { background: transparent; }
+.phone-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.phone-app .pc-only { display: none; }
+
+.appbar { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; }
+.appbar .ttl { font: 400 28px/1 var(--serif); margin: 0; }
+.appbar svg { width: 20px; height: 20px; color: var(--text-2); }
+.appbar .right { margin-left: auto; display: grid; place-items: center; width: 36px; height: 36px; margin-right: -8px; }
+.phone-app .topbar { padding: 10px 16px 12px; border-bottom: 0; gap: 8px; }
+.phone-app .appbar + .topbar { padding-top: 0; }
+.phone-app .topbar .btn.back { padding-left: 0; border-color: transparent; }
+.phone-app .search { max-width: none; padding: 10px 12px; font-size: 14px; }
+.phone-app .search kbd { display: none; }
+.phone-app .content { padding: 0 16px 24px; }
+.phone-app .section-head h1 { font-size: 28px; }
+.phone-app .filters { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px 14px; padding: 0 16px; scrollbar-width: none; }
+.phone-app .filters::-webkit-scrollbar { display: none; }
+.phone-app .chip { flex: none; }
+.phone-app .empty { padding: 28px 0; }
+
+.phone-app .grid, .phone-app .issues, .phone-app .issues.collected { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.phone-app .grid .poster, .phone-app .issues .poster { padding: 7px; }
+.phone-app .grid .poster .pt, .phone-app .issues .poster .pt { font-size: 13px; }
+.phone-app .card .t { font-size: 12px; margin-top: 6px; }
+.phone-app .card .m { font-size: 11px; gap: 3px 5px; }
+.phone-app .card .fmt { font-size: 8.5px; padding: 2px 4px; }
+.phone-app .cover .hover { display: none; }
+.phone-app .series-head { gap: 4px 10px; }
+.phone-app .series-head h3 { font-size: 21px; }
+.phone-app .series-head .progress { margin-left: 0; flex-basis: 100%; justify-content: space-between; }
+
+.phone-app .backdrop { height: 170px; }
+.phone-app .detail { grid-template-columns: 1fr; gap: 18px; padding: 0 16px 24px; margin-top: -120px; }
+.phone-app .detail > :last-child { grid-column: auto; }
+.phone-app .detail .poster { width: 132px; padding: 10px; }
+.phone-app .detail .poster .pt { font-size: 20px; }
+.phone-app .title-lg { font-size: 38px; }
+.phone-app .title-lg .yr { font-size: 22px; }
+.phone-app .synopsis { font-size: 14.5px; margin-top: 18px; }
+.phone-app .tabs { margin-top: 22px; }
+.phone-app .cast { grid-template-columns: 1fr 1fr; }
+
+/* Review: the editor in one column, with the save button under the thumb. */
+.phone-app .detail.editing { margin-top: 0; padding-top: 4px; padding-bottom: 96px; }
+.phone-app .detail.editing .poster { width: 96px; padding: 8px; }
+.phone-app .detail.editing .poster .pt { font-size: 15px; }
+.phone-app .title-input { font-size: 24px; }
+.phone-app .btn.find { width: auto; }
+.phone-app .lookup-foot { line-height: 2; }
+.review-count { font-weight: 600; font-size: 15px; }
+.sticky {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; gap: 10px;
+  padding: 18px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 34%);
+}
+.sticky .btn.primary { flex: 1; justify-content: center; padding: 12px 14px; font-size: 15px; }
+
+.bnav {
+  position: sticky; bottom: 0; z-index: 3; display: grid; grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line-soft); padding: 8px 6px calc(10px + env(safe-area-inset-bottom)); background: var(--bg);
+}
+.bnav a { display: grid; justify-items: center; gap: 4px; font-size: 10.5px; color: var(--muted); text-decoration: none; }
+.bnav a.on { color: var(--text); }
+.bnav svg { width: 20px; height: 20px; }
+.bnav .scanbtn { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; margin-top: -18px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+
+/* Pairing, and the PC being away */
+.phone-notice { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 34px 22px 28px; }
+.phone-notice .brand { padding: 0; margin-bottom: 26px; }
+.phone-notice h1 { font: 400 34px/1.05 var(--serif); margin: 0; }
+.phone-notice p { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.5; }
+.phone-notice p b { color: var(--text); font-weight: 600; }
+.phone-notice > .btn { align-self: stretch; justify-content: center; padding: 12px 14px; font-size: 15px; margin-top: 8px; }
+.phone-notice .problem, .phone-notice .notice { margin: 0; align-self: stretch; font-size: 13.5px; }
+.pair-typed { align-self: stretch; margin-top: 16px; padding-top: 18px; border-top: 1px solid var(--line-soft); display: grid; gap: 10px; }
+.pair-typed .field { margin: 0; }
+.pair-typed .input { font-size: 16px; padding: 11px 12px; }
+.pair-typed .btn { justify-content: center; padding: 11px 14px; }
+
+/* Camera */
+.camera {
+  flex: 1; position: relative; display: grid; place-items: center; min-height: 100dvh;
+  background: radial-gradient(70% 45% at 50% 46%, transparent 55%, rgba(0,0,0,.42));
+}
+.reticle { width: 250px; height: 150px; position: relative; }
+.reticle.square { width: 230px; height: 230px; }
+.reticle i { position: absolute; width: 26px; height: 26px; border-color: var(--accent); border-style: solid; border-width: 0; }
+.reticle i:nth-child(1) { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 8px; }
+.reticle i:nth-child(2) { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 8px; }
+.reticle i:nth-child(3) { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 8px; }
+.reticle i:nth-child(4) { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 8px; }
+.scanline { position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.cam-hint { position: absolute; bottom: 150px; left: 0; right: 0; text-align: center; color: var(--text); font-size: 13px; line-height: 1.5; text-shadow: 0 1px 3px #000; }
+.type-switch { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 3px; }
+.type-switch button { padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: var(--text-2); background: none; border: 0; }
+.type-switch button.on { background: var(--text); color: var(--bg); }
+.cam-bar { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 20px calc(26px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(transparent, rgba(0,0,0,.6)); }
+.round { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.1); display: grid; place-items: center; color: var(--text); padding: 0; }
+.round svg { width: 18px; height: 18px; }
+.queue { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text); background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.1); padding: 9px 14px; border-radius: 999px; text-decoration: none; }
+.queue b { color: var(--accent); }
+.toast {
+  position: absolute; top: calc(60px + env(safe-area-inset-top)); left: 14px; right: 14px; display: flex; gap: 10px; align-items: flex-start; text-align: left;
+  background: var(--surface-2); border: 1px solid rgba(232,176,75,.4); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--text); box-shadow: 0 10px 24px rgba(0,0,0,.5);
+}
+.toast:disabled { opacity: 1; }
+.toast svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 1px; }
+.toast b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.toast .ts { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.cam-off { display: grid; gap: 8px; justify-items: start; max-width: 300px; padding: 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13.5px; color: var(--text-2); }
+.cam-off b { color: var(--text); font-weight: 600; }
+
+/* Scans still being looked up */
+.scans { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.scans li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px; background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.scans .scan-state { color: var(--muted); font-size: 12.5px; margin-right: auto; }
+
 @media (max-width: 1100px) {
   .setrow { grid-template-columns: 1fr; gap: 6px; }
   .detail { grid-template-columns: 180px 1fr; }

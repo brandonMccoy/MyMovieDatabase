@@ -18,6 +18,23 @@ internal sealed class FileCoverStore(string directory) : ICoverStore
         File.Move(temp, path, overwrite: true);
     }
 
+    public async Task<byte[]?> ReadAsync(string name, CancellationToken cancellationToken = default)
+    {
+        if (!IsPlainName(name))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await File.ReadAllBytesAsync(Path.Combine(Directory, name), cancellationToken);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
     public void Delete(string name)
     {
         try
@@ -30,8 +47,10 @@ internal sealed class FileCoverStore(string directory) : ICoverStore
         }
     }
 
-    private string PathOf(string name) =>
-        name.Length > 0 && Path.GetFileName(name) == name && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && name is not ("." or "..")
-            ? Path.Combine(Directory, name)
-            : throw new ArgumentException($"'{name}' is not a plain file name.", nameof(name));
+    private string PathOf(string name) => IsPlainName(name)
+        ? Path.Combine(Directory, name)
+        : throw new ArgumentException($"'{name}' is not a plain file name.", nameof(name));
+
+    private static bool IsPlainName(string name) =>
+        name.Length > 0 && Path.GetFileName(name) == name && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && name is not ("." or "..");
 }

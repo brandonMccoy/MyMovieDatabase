@@ -1,0 +1,136 @@
+@implements IAsyncDisposable
+@using MMDb.Contracts.Phone
+@using MMDb.UI.Scanning
+@inject IPcLink Link
+@inject IServiceProvider Services
+
+@* First run on the phone: scan the QR code Shelf shows on the PC, or type the PC's address and code. *@
+@if (_scanning)
+{
+    <div class="camera pairing">
+        <div class="reticle square"><i></i><i></i><i></i><i></i></div>
+        <div class="cam-hint">Point at the code in Shelf on your PC<br />Settings → Phone</div>
+        <div class="cam-bar">
+            <button type="button" class="round" aria-label="Stop scanning" @onclick="StopScanningAsync"><Icon Name="x" /></button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="phone-notice pair-screen">
+        <div class="brand"><div class="brand-mark"><Icon Name="film" Class="i14" /></div><span class="brand-name">Shelf</span></div>
+        <h1>Pair with your PC</h1>
+        @if (Link.State == PcLinkState.Unpaired)
+        {
+            <p class="notice" role="status">This phone was unpaired on @(Link.PcName ?? "the PC"). Pair it again to carry on.</p>
+        }
+        <p>Open Shelf on your PC, go to <b>Settings → Phone</b>, and scan the code it shows. Both must be on the same Wi-Fi.</p>
+
+        @if (_scanner is not null)
+        {
+            <button type="button" class="btn primary scan-code" disabled="@_pairing" @onclick="StartScanningAsync"><Icon Name="scan" />Scan the code</button>
+        }
+
+        @if (_problem is not null)
+        {
+            <p class="problem" role="alert">@_problem</p>
+        }
+
+        <form class="pair-typed" @onsubmit="PairTypedAsync">
+            <div class="small">Or type what it says under the code</div>
+            <div class="field">
+                <label for="pc-address">PC address</label>
+                <input id="pc-address" class="input mono" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="192.168.1.24" @bind="_address" @bind:event="oninput" />
+            </div>
+            <div class="field">
+                <label for="pc-code">Code</label>
+                <input id="pc-code" class="input mono" inputmode="numeric" autocomplete="off" placeholder="482 913" @bind="_code" @bind:event="oninput" />
+            </div>
+            <button type="submit" class="btn" disabled="@(_pairing || string.IsNullOrWhiteSpace(_address) || string.IsNullOrWhiteSpace(_code))">@(_pairing ? "Pairing…" : "Pair")</button>
+        </form>
+    </div>
+}
+
+@code {
+    private IBarcodeScanner? _scanner;
+    private bool _scanning;
+    private bool _pairing;
+    private string? _problem;
+    private string _address = "";
+    private string _code = "";
+
+    protected override void OnInitialized() => _scanner = Services.GetService<IBarcodeScanner>();
+
+    private async Task StartScanningAsync()
+    {
+        _problem = null;
+        switch (await _scanner!.StartAsync(ScanTarget.PairingCode, text => _ = InvokeAsync(() => ScannedAsync(text))))
+        {
+            case ScannerStart.Started:
+                _scanning = true;
+                break;
+            case ScannerStart.NotAllowed:
+                _problem = "Shelf isn't allowed to use the camera. Allow it in Android's settings, or type the address and code instead.";
+                break;
+            default:
+                _problem = "This phone has no camera Shelf can use. Type the address and code instead.";
+                break;
+        }
+    }
+
+    private async Task StopScanningAsync()
+    {
+        _scanning = false;
+        if (_scanner is not null)
+        {
+            await _scanner.StopAsync();
+        }
+    }
+
+    private async Task ScannedAsync(string text)
+    {
+        // The camera keeps reporting the code while it is in view.
+        if (!_scanning || _pairing)
+        {
+            return;
+        }
+
+        await StopScanningAsync();
+        await PairAsync(() => Link.PairAsync(text));
+    }
+
+    private Task PairTypedAsync() => PairAsync(() => Link.PairAsync(_address, _code));
+
+    private async Task PairAsync(Func<Task<PairStatus>> pair)
+    {
+        _pairing = true;
+        _problem = null;
+        StateHasChanged();
+        try
+        {
+            _problem = await pair() switch
+            {
+                PairStatus.Paired => null,
+                PairStatus.NotACode => "That isn't a Shelf pairing code. Use the one under Settings → Phone on the PC.",
+                PairStatus.WrongCode => "The PC turned the code down. It may have expired: use the code the PC shows now.",
+                PairStatus.WrongPc => "A different computer answered at that address. Scan the code on the PC again.",
+                _ => "No PC answered. Check that Shelf is open on the PC and this phone is on the same Wi-Fi.",
+            };
+        }
+        finally
+        {
+            _pairing = false;
+
+            // A code read by the camera arrives outside any click, so nothing else redraws the screen.
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_scanning && _scanner is not null)
+        {
+            await _scanner.StopAsync();
+        }
+    }
+}

@@ -1,16 +1,28 @@
 @page "/comics/new"
 @page "/comics/{Id:guid}/edit"
+@using MMDb.Contracts.Scans
 @using MMDb.UI.Comics
+@using MMDb.UI.Scanning
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
 @inject ShelfCounts Counts
+@inject ScanInbox Queue
+@inject ShelfDevice Device
 
 <PageTitle>@(IsNew ? "Add comic" : "Edit comic") · Shelf</PageTitle>
 
 <div class="topbar">
     <a class="btn ghost back" href="@BackHref"><Icon Name="back" />@BackLabel</a>
+    @if (_scan is not null)
+    {
+        <span class="review-count">Review · @(Queue.Items.ToList().IndexOf(_scan) + 1) of @Queue.Items.Count</span>
+    }
     <div class="spacer"></div>
-    @if (_form is not null && _mode == Mode.Edit)
+    @if (_scan is not null)
+    {
+        <button type="button" class="btn ghost skip" @onclick="SkipScan">Remove</button>
+    }
+    @if (_form is not null && _mode == Mode.Edit && !Device.IsPhone)
     {
         <a class="btn ghost" href="@BackHref">Cancel</a>
         <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add comic" : "Save changes")</button>
@@ -38,6 +50,14 @@ else if (_loaded && _mode == Mode.Search)
                 @if (IsNew)
                 {
                     <span>Not listed?</span> <button type="button" class="link-btn" @onclick="EnterManually">Enter manually</button>
+                    @if (_scan is not null)
+                    {
+                        <span> · Not a comic?</span> <button type="button" class="link-btn as-other" @onclick="() => LookUpAsAsync(ProductKind.Movie)">Look it up as a film</button>
+                    }
+                    else if (Device.IsPhone)
+                    {
+                        <span> · </span><a class="link-btn" href="movies/new">Add a film instead</a>
+                    }
                 }
                 else
                 {
@@ -234,6 +254,14 @@ else if (_form is not null)
     </div>
 }
 
+@if (Device.IsPhone && _loaded && _form is not null && _mode == Mode.Edit)
+{
+    @* On the phone the save button sits under the thumb, as mocked. *@
+    <div class="sticky">
+        <button type="button" class="btn primary" disabled="@(!_form.CanSave || _saving)" @onclick="SaveAsync">@(IsNew ? "Add comic" : "Save changes")</button>
+    </div>
+}
+
 @code {
     private const string ConflictMessage = "This comic was changed somewhere else after you opened it.";
     private const string DeletedMessage = "This comic was deleted while you were editing it.";
@@ -250,7 +278,7 @@ else if (_form is not null)
 
     // What the amber "edited" outline compares against: the saved copy, or the match being reviewed.
     private ComicForm? _baseline;
-    private readonly ComicSearchState _search = new();
+    private ComicSearchState _search = new();
     private ComicCandidateDto? _candidate;
     private int _candidateIndex;
     private bool _loaded;
@@ -260,13 +288,20 @@ else if (_form is not null)
     private IReadOnlyList<string> _publishers = [];
     private Dictionary<string, string> _errors = [];
 
+    // The scan being reviewed (phone): the editor opens on what the PC found for it.
+    private ScanItem? _scan;
+    private Guid? _openedScan;
+
     [Parameter] public Guid? Id { get; set; }
+
+    /// <summary>A scan from the phone's queue to review.</summary>
+    [SupplyParameterFromQuery(Name = "scan")] public Guid? Scan { get; set; }
 
     private bool IsNew => Id is null;
 
-    private string BackHref => IsNew ? "comics" : $"comics/{Id}";
+    private string BackHref => _scan is not null ? "scan" : IsNew ? "comics" : $"comics/{Id}";
 
-    private string BackLabel => IsNew || _original is null ? "Comics" : _original.DisplayName;
+    private string BackLabel => _scan is not null ? "Scan" : IsNew || _original is null ? "Comics" : _original.DisplayName;
 
     private string Source => _candidate is { } c && ComicText.IsCollected(c.Details.Format) ? "Open Library" : "Metron";
 
@@ -294,6 +329,10 @@ else if (_form is not null)
         if (IsNew)
         {
             _mode = Mode.Search;
+            if (!_loaded || Scan != _openedScan)
+            {
+                OpenScan();
+            }
         }
         else
         {
@@ -305,6 +344,40 @@ else if (_form is not null)
         }
 
         _loaded = true;
+    }
+
+    // Starts from what the PC found for the scan: the best match filled in, or the search step saying why not.
+    private void OpenScan()
+    {
+        _openedScan = Scan;
+        _scan = Queue.Find(Scan) is { State: ScanState.Ready, Response.Comic: not null } item ? item : null;
+        _form = null;
+        _candidate = null;
+        _baseline = null;
+        _search = new();
+        if (_scan?.Response?.Comic is { } found)
+        {
+            _search.Query = _search.SearchedFor = _scan.Code;
+            _search.Response = found;
+            if (found is { Status: LookupStatus.Found, Candidates: [var best, ..] })
+            {
+                Pick(best);
+            }
+        }
+    }
+
+    private void SkipScan()
+    {
+        Queue.Remove(_scan!.Id);
+        Navigation.NavigateTo(Queue.Items.Count > 0 ? "scan/review" : "scan", replace: true);
+    }
+
+    // A film's barcode scanned with the switch on Comic.
+    private async Task LookUpAsAsync(ProductKind kind)
+    {
+        var item = _scan!;
+        await Queue.RetryAsync(item, kind);
+        Navigation.NavigateTo($"scan/review?item={item.Id}", replace: true);
     }
 
     private void Pick(ComicCandidateDto candidate)
@@ -375,6 +448,14 @@ else if (_form is not null)
             switch (response.Status)
             {
                 case SaveStatus.Saved:
+                    if (_scan is not null)
+                    {
+                        // On to the next scan; after the last one, the library shows what was added.
+                        Queue.Remove(_scan.Id);
+                        Navigation.NavigateTo(Queue.Items.Count > 0 ? "scan/review" : "comics", replace: true);
+                        return;
+                    }
+
                     await Counts.RefreshAsync();
                     Navigation.NavigateTo($"comics/{response.Comic!.Id}", replace: IsNew);
                     return;

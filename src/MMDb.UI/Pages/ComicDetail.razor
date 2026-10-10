@@ -3,12 +3,16 @@
 @inject NavigationManager Navigation
 @inject ShelfCounts Counts
 @inject IServiceProvider Services
+@inject ShelfDevice Device
 
 <PageTitle>@(_comic?.DisplayName ?? "Comic") · Shelf</PageTitle>
 
 <div class="topbar">
     <a class="btn ghost back" href="comics"><Icon Name="back" />Comics</a>
-    <SearchBox Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
+    @if (!Device.IsPhone)
+    {
+        <SearchBox Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
+    }
 </div>
 
 @if (_loaded && _comic is null)
@@ -56,6 +60,8 @@ else if (_comic is not null)
                 }
             </div>
 
+            @if (!Device.IsPhone)
+            {
             <div class="actions">
                 <a class="btn" href="comics/@_comic.Id/edit"><Icon Name="edit" />Edit</a>
                 <div class="menu-wrap">
@@ -68,6 +74,7 @@ else if (_comic is not null)
                     }
                 </div>
             </div>
+            }
 
             @if (_confirmingDelete)
             {
@@ -97,7 +104,7 @@ else if (_comic is not null)
 
         <div>
             <div class="panel owned-copy">
-                <h3>Owned <a href="comics/@_comic.Id/edit">Edit</a></h3>
+                <h3>Owned @if (!Device.IsPhone) {<a href="comics/@_comic.Id/edit">Edit</a>}</h3>
                 <div class="owned">
                     <span>@ComicText.Name(_comic.Format)</span>
                     <span class="small">Added @MonthYear(_comic.CreatedAt)</span>

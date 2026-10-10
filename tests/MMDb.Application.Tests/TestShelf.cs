@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using MMDb.Application.Comics;
+using MMDb.Application.Devices;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -64,6 +65,12 @@ internal sealed class TestShelf : IAsyncDisposable
     });
 
     public Task<T> Comics<T>(Func<ComicCatalog, CancellationToken, Task<T>> use) => Use(use);
+
+    public PairingDesk Desk => _services.GetRequiredService<PairingDesk>();
+
+    public Task<T> Devices<T>(Func<DeviceAccess, CancellationToken, Task<T>> use) => Use(use);
+
+    public Task<ScanResult> ScanAsync(string code, ProductKind? kind = null) => Use<ScanLookup, ScanResult>((lookup, ct) => lookup.LookupAsync(code, kind, ct));
 
     public Task<ComicLookupResult> LookupComicAsync(string query) => Use<ComicLookup, ComicLookupResult>((lookup, ct) => lookup.LookupAsync(query, ct));
 

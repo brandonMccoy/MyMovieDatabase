@@ -145,6 +145,8 @@ internal sealed class FakeCoverStore : ICoverStore
         return Task.CompletedTask;
     }
 
+    public Task<byte[]?> ReadAsync(string name, CancellationToken cancellationToken = default) => Task.FromResult(Files.GetValueOrDefault(name));
+
     public void Delete(string name) => Files.Remove(name);
 }
 

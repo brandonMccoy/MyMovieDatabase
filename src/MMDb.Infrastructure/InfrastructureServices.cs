@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using MMDb.Application.Comics;
+using MMDb.Application.Devices;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -44,6 +45,7 @@ public static partial class InfrastructureServices
         services.AddDbContext<ShelfDbContext>(options => options.UseSqlite(settings.ConnectionString), optionsLifetime: ServiceLifetime.Singleton);
         services.AddScoped<IMovieRepository, EfMovieRepository>();
         services.AddScoped<IComicRepository, EfComicRepository>();
+        services.AddScoped<IDeviceRepository, EfDeviceRepository>();
         services.AddSingleton<LookupCache>();
         services.AddSingleton<ICoverStore>(new FileCoverStore(settings.CoverDirectory));
         services.AddSingleton<ISettingStore, SettingStore>();

@@ -2,9 +2,21 @@ using MMDb.Contracts;
 
 namespace MMDb.UI;
 
-/// <summary>The collection totals shown in the sidebar. Pages call <see cref="RefreshAsync"/> after saving or deleting.</summary>
-public sealed class ShelfCounts(ICollectionApi api)
+/// <summary>
+/// The collection totals shown in the sidebar. They follow the collection: once read, they are read again
+/// whenever something is saved or deleted, on this PC or from a phone.
+/// </summary>
+public sealed class ShelfCounts : IDisposable
 {
+    private readonly ICollectionApi _api;
+    private bool _wanted;
+
+    public ShelfCounts(ICollectionApi api)
+    {
+        _api = api;
+        api.Changed += OnCollectionChanged;
+    }
+
     public event Action? Changed;
 
     public int? Movies { get; private set; }
@@ -14,9 +26,21 @@ public sealed class ShelfCounts(ICollectionApi api)
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        Movies = (await api.ListMoviesAsync(new(), cancellationToken)).Facets.FilmCount;
-        var comics = (await api.ListComicsAsync(new(), cancellationToken)).Facets;
+        _wanted = true;
+        Movies = (await _api.ListMoviesAsync(new(), cancellationToken)).Facets.FilmCount;
+        var comics = (await _api.ListComicsAsync(new(), cancellationToken)).Facets;
         Comics = comics.IssueCount + comics.CollectedCount;
         Changed?.Invoke();
+    }
+
+    public void Dispose() => _api.Changed -= OnCollectionChanged;
+
+    // Only once a screen has asked for the totals: the phone never shows them.
+    private void OnCollectionChanged()
+    {
+        if (_wanted)
+        {
+            _ = RefreshAsync();
+        }
     }
 }

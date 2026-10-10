@@ -11,6 +11,10 @@
 <div class="content">
     <div class="section-head"><h1>Settings</h1></div>
     <div class="settings">
+        @if (Services.GetService<IPhoneApi>() is not null)
+        {
+            <MMDb.UI.Phone.PhoneSettings />
+        }
         @if (_vault is not null)
         {
             var status = _vault.Status;

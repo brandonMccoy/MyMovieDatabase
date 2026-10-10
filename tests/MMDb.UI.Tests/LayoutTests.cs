@@ -31,6 +31,18 @@ public sealed class LayoutTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task The_sidebar_counts_follow_what_is_saved_elsewhere_such_as_from_a_phone()
+    {
+        var layout = RenderLayout();
+        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["0", "0"]));
+
+        await SeedAsync(Heat);
+        await SeedComicAsync(MMDb.Testing.TestComics.Saga7);
+
+        layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["1", "1"]));
+    }
+
+    [Fact]
     public void Only_built_screens_appear_in_the_sidebar()
     {
         RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Comics0", "Settings"]);

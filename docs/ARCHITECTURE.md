@@ -19,7 +19,7 @@ Status: **draft v1** (2026-10-08). Look & feel and the detailed feature list are
 | App shell | **.NET MAUI Blazor Hybrid** (Windows + Android) | One UI codebase in Razor/HTML/CSS. CSS gives full control over a polished look; MAUI gives native camera access. |
 | Source of truth | **SQLite on the PC** via EF Core | Single file, zero admin, easy backup. |
 | Vault | **One-way mirror**: app writes markdown, never reads it back | Simple and reliable; no conflict resolution. |
-| Phone ↔ PC | **HTTPS REST over LAN**, mDNS discovery, QR-code pairing | Works without internet; pairing QR doubles as trust setup. |
+| Phone ↔ PC | **HTTPS REST over LAN**, QR-code pairing (mDNS discovery later) | Works without internet; pairing QR doubles as trust setup. |
 | Phone OS | **Android only** | Easy install from the PC (no store, no Mac). |
 
 ## System overview
@@ -41,7 +41,7 @@ Status: **draft v1** (2026-10-08). Look & feel and the detailed feature list are
 │   ├─ Blazor UI (MMDb.UI, same components)                          │
 │   ├─ Camera barcode scanner                                        │
 │   ├─ MMDb.Client (typed HTTP client)                               │
-│   └─ Local cache + offline queue (SQLite)                          │
+│   └─ Local cache + offline queue (SQLite, milestone 7)             │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -62,9 +62,12 @@ src/
   MMDb.Infrastructure/  EF Core + SQLite, metadata provider adapters, vault
                         writer, cover store, HTTP resilience (retry, rate limit).
   MMDb.Contracts/       Request/response DTOs shared by server and client.
-  MMDb.Server/          ASP.NET Core minimal API, auth (device tokens), mDNS
-                        advertisement, pairing endpoint.
-  MMDb.Client/          Typed HttpClient for the phone, offline queue, sync.
+  MMDb.Server/          Library hosted inside the PC app (PhoneHost): ASP.NET Core
+                        minimal API over ICollectionApi, pairing, device tokens,
+                        the PC's certificate; in-process APIs for the PC's screens.
+  MMDb.Client/          The phone's side: PcLink (pairing, certificate pin, token),
+                        HttpCollectionApi, covers kept on the phone. Offline queue
+                        and sync come in milestone 7.
   MMDb.UI/              Razor class library: pages, components, design system
                         (CSS tokens). Shared by both platforms.
   MMDb.App/             MAUI Blazor Hybrid host. Windows: starts the server
@@ -75,13 +78,13 @@ tests/                      (each added when its layer first has code)
   MMDb.Application.Tests/     use cases against real SQLite + fake providers
   MMDb.Infrastructure.Tests/  EF mappings/migrations, providers (recorded HTTP),
                               vault output (snapshot)
-  MMDb.Server.Tests/          HTTP API via WebApplicationFactory
-  MMDb.Client.Tests/          client + offline queue against in-memory server
+  MMDb.Server.Tests/          HTTP API on an in-memory TestServer
+  MMDb.Client.Tests/          client against the in-memory server, and real HTTPS on loopback
   MMDb.UI.Tests/              bUnit component tests
   MMDb.E2E.Tests/             Playwright over WebView2 (few critical journeys)
 ```
 
-Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Server.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it will be `MMDb.Client`. The same screens therefore run in both places.
+Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Server.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it is `MMDb.Client.HttpCollectionApi`, which sends each call to the PC. The same screens therefore run in both places; `ShelfDevice.IsPhone` switches the frame (bottom bar instead of sidebar) and hides what the phone doesn't do (editing and deleting saved items). `ICollectionApi.Changed` tells open screens on the PC that something was saved, so a phone's additions appear in the PC's library and counts by themselves.
 
 **Data on the PC:** `%LOCALAPPDATA%\Shelf\shelf.db`, backed up on startup to `backups\` (SQLite online backup, newest 10 kept), then migrated. Downloaded covers live in `covers\` beside it (one file per film and poster, `<movie id>-<TMDB poster file>`); the WebView serves that folder as `https://covers.shelf.example/`. Set `SHELF_DATA_DIR` to run against another folder (scratch data, E2E). Schema changes: `dotnet ef migrations add <Name> --project src/MMDb.Infrastructure --output-dir Persistence/Migrations` (local tool, `dotnet tool restore`); a test fails if the model has changes without a migration.
 
@@ -94,16 +97,17 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - **MovieFormat** (1..n per movie): `MovieId`, `Format` (DVD / Blu-ray / 4K UHD / Digital), `Upc?`, `FilePath?` (Digital only: the video file on the PC), `AddedAt`. Unique on (`MovieId`, `Format`). Owning a film on several formats = one Movie with several MovieFormats.
 - **Comic** (one row per copy: each variant or printing owned is its own row): `Format` (single issue / trade paperback / hardcover / omnibus), `Series`, `SeriesYear` (the year it began, which tells volumes apart: Daredevil (1964)), `Number` (text: "181", "½", "1.MU"; a trade's volume number), `Title` (a trade's title or an issue's story title), `Variant`, `Printing`, `Publisher`, `CoverDate`, `Writers`, `Artists`, `Summary`, `Upc` + `UpcSupplement` (the 5-digit add-on), `Isbn`, `MetronId`, `MetronSeriesId`, `IsKeyIssue`, `KeyNote` (e.g. "1st Elektra"), `CoverUrl` (where the cover was downloaded from).
 - **ComicSeries**: `MetronId`, `Name`, `YearBegan`, `Publisher`, `IssueNumbers` (every issue Metron lists), `FetchedAt` — powers "N of M" and missing issues. Fetched when an issue of the series is saved and the copy kept is missing or a week old.
+- **PairedDevice**: `Id`, `Name`, `TokenHash` (SHA-256 of the phone's token), `PairedAt`, `LastSeenAt`.
 - **WishlistItem**: `ProductType`, the same descriptive fields (nullable), `Priority`, `MaxPrice`, `Notes`, `AcquiredAt` (moving an item to the collection links the two).
 - **LookupCache**: provider + request (API key stripped) → raw JSON + fetched-at, to avoid repeat API calls and rate-limit trouble. Kept 30 days (TMDB search results: 1 day). Only successful answers are kept; for UPCitemdb that includes "unknown barcode".
 
 ## Adding a product: scan → review → accept
 
-1. Phone camera decodes a barcode (see *Barcode scanning* below) and sends `POST /lookup { code, supplement?, productType? }`.
-2. Server classifies the code:
+1. Phone camera decodes a barcode (see *Barcode scanning* below) and sends `POST /api/v1/scans { code, kind? }` (the add-on digits follow the UPC in `code`).
+2. Server classifies the code (`ScannedCode.KindOf`), unless the user chose Movie or Comic on the scan screen:
    - EAN-13 starting `978`/`979` → **ISBN** (comic trade/graphic novel).
-   - UPC-A with 5-digit add-on → **comic single issue** (add-on = issue/variant/printing).
-   - Otherwise → **movie** (unless the user chose a type first).
+   - UPC-A with an add-on → **comic single issue** (add-on = issue/variant/printing).
+   - Otherwise → **movie**. A comic whose add-on wasn't read looks like a film; the review screen offers "Look it up as a comic".
 3. Server runs the provider chain for that type, merges results into **candidates**, and returns them. Nothing is saved yet.
 4. User picks a candidate, **edits any field**, and taps Accept → `POST /movies` or `/comics`.
 5. Server saves to SQLite, downloads the cover, and writes the vault note.
@@ -115,7 +119,7 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - Comics match by `MetronId`, else series + year + issue (+ variant if set).
 - **Away from home:** the phone can't reach the PC, so it matches the scanned barcode against barcodes in its cached collection and wishlist. If that finds nothing, it calls UPCitemdb directly over mobile data (free tier, no key) and fuzzy-matches the product title against cached wishlist titles. The result is marked "likely" and the scan joins the queue for a proper lookup at home.
 
-**Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue for review, one by one.
+**Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue (`ScanInbox`, kept while the app is open; it is persisted with the offline queue in milestone 7) for review, one by one, in the same editor the PC uses.
 
 **Manual entry** uses the same review screen: the user types a title (movies) or series + issue (comics), the server searches the same providers by text, and the user picks or ignores the suggestions.
 
@@ -151,16 +155,22 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 ## Barcode scanning
 
 - Library: `BarcodeScanning.Native.Maui` (Google ML Kit on Android). It's fast, but **ML Kit may not decode UPC 5-digit add-ons**.
-- **Spike #1 (risk, milestone 5):** test add-on decoding on real comics with the phone. On the PC, a USB scanner or typing gives the 17 digits; `ComicBarcode` reads the add-on (issue, cover, printing). Fallback order: ZXing.Net with `UPC_EAN_EXTENSION` enabled, then a second targeted scan of the add-on, then let the user type the issue number.
-- Scanner sits behind `IBarcodeScanner`, so UI and logic are testable with a fake.
+- The camera is a native view under the web view (`MainPage`); the scan screen keeps its background see-through and draws the reticle, switch and queue over it in HTML.
+- **Spike #1 (still open):** test add-on decoding on real comics with a phone. It could not be done in milestone 5: no phone was connected and the emulator can't run on the dev PC (no hypervisor driver). On the PC, a USB scanner or typing gives the 17 digits; `ComicBarcode` reads the add-on (issue, cover, printing). Fallback order: ZXing.Net with `UPC_EAN_EXTENSION` enabled, then a second targeted scan of the add-on, then let the user type the issue number. Until then a comic scanned without its add-on opens the comic search with the UPC, to add the issue number by hand.
+- Scanner sits behind `IBarcodeScanner` (in `MMDb.UI`), so UI and logic are testable with a fake; `CameraScanner` in the Android app implements it.
 
 ## PC ↔ phone communication
 
-- **Discovery:** PC advertises `_mmdb._tcp` via mDNS. The phone browses for it, with manual IP entry as a fallback.
-- **Pairing:** the PC shows a QR code containing `host:port`, a one-time pairing code, and the **SHA-256 fingerprint of the PC's self-signed TLS cert**. The phone scans it, pins the cert, and exchanges the code for a long-lived device token. Devices can be revoked on the PC. This avoids Android's cleartext-HTTP block without needing a real certificate.
-- **API:** REST + JSON. Endpoints are versioned (`/api/v1`). DTOs live in `MMDb.Contracts`, so client and server can't drift.
+- **Finding the PC:** the pairing QR code lists the PC's addresses (Wi-Fi and wired adapters before VPN and virtual ones). The phone remembers them all, tries them in turn and puts the one that answered first. mDNS discovery (`_mmdb._tcp`), for when the router gives the PC a new address, waits until it can be tested on a real phone; until then the phone pairs again.
+- **Pairing:** Settings on the PC shows a QR code (`shelf://pair?h=…&p=5243&c=…&f=…&n=…`) with the PC's addresses and port, a one-time six-digit code, and the **SHA-256 fingerprint of the PC's self-signed TLS certificate**. The phone scans it, pins the certificate (nothing else about it is checked) and exchanges the code for a long-lived device token. The address and code can be typed instead; the phone then pins whichever certificate that address shows (trust on first use). Devices can be unpaired on the PC. This avoids Android's cleartext-HTTP block without needing a real certificate.
+  - The code exists only while Settings shows it, works once and for five minutes; five wrong guesses throw it away and close pairing for a minute.
+  - The token is 32 random bytes; the PC stores only its SHA-256 (`PairedDevices` table) and when the phone was last seen.
+  - The certificate (`phone.pfx` beside the database, ECDSA P-256, 20 years) is made on first run and kept, so paired phones keep recognizing the PC.
+- **API:** REST + JSON under `/api/v1`, one endpoint per `ICollectionApi` call plus `pair`, `session`, `scans` and `covers/{name}`; everything but `health` and `pair` needs `Authorization: Bearer <token>` (401 otherwise). A save that doesn't go through answers 400/404/409 with the same response body the PC's screens get. DTOs live in `MMDb.Contracts` (`ShelfJson`: camelCase, enums by name), so client and server can't drift.
+- **Covers:** pages ask for stored covers under `https://covers.shelf.example/` on both devices. On the PC the web view maps that host to the cover folder; on the phone the app intercepts the request, fetches `covers/{name}` over the link and keeps the file (thumbnails come with the offline copy in milestone 7).
+- **PC away:** until milestone 7 the phone shows "Can't reach <PC>" with Try again whenever a request fails.
 - **Offline phone (confirmed):** the phone keeps a read-only cached copy of the collection and wishlist (metadata + small cover thumbnails), so "do I already own this?" works in a store. Scans made away from home are queued and sent when the PC is reachable. Sync uses `UpdatedAt`/`Version` (`GET /changes?since=`).
-- **Windows firewall:** the app adds an inbound rule for its port on first run. This needs the user's consent and is limited to the private network profile only.
+- **Windows firewall:** the first time the PC app listens, Windows asks whether to allow it; allowing it on private networks is enough. Shelf adds no rule itself. A VPN on the PC can block devices on the home network until its local-network access setting is on.
 
 ## Obsidian vault (one-way mirror)
 
@@ -192,7 +202,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 
 - **Time:** `TimeProvider` everywhere (testable).
 - **Logging:** `Microsoft.Extensions.Logging` + rolling file on the PC.
-- **Config:** user secrets for API keys (`Tmdb:ApiKey`, `Metron:Token`); the vault path and port are set in the app's Settings screen.
+- **Config:** user secrets for API keys (`Tmdb:ApiKey`, `Metron:Token`); the vault path is set in the app's Settings screen; phones are served on port 5243.
 - **Backups:** the database file is copied on startup, keeping the last N copies.
 - **Static analysis:** nullable enabled, analyzers on, `TreatWarningsAsErrors` in `Directory.Build.props`.
 
@@ -210,7 +220,7 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 2. Metadata: TMDB search, UPC lookup; review-before-accept screen.
 3. Vault writer + `CLAUDE.md` + Bases.
 4. Comics (Metron, Open Library by ISBN), on the PC.
-5. Server API + pairing + Android app with scanner, including the add-on scan spike.
+5. Server API + pairing + Android app with scanner. (The add-on scan spike and mDNS wait for a real phone.)
 6. Wishlist + wishlist match on scan.
 6b. Digital folder import + watch folder.
 7. Offline cache/queue on phone.
@@ -220,7 +230,7 @@ Each milestone ships with its tests (see [TESTING.md](TESTING.md)).
 
 ## Open risks
 
-1. Comic add-on barcode decoding on Android (spike early).
+1. Comic add-on barcode decoding on Android: still untested. Milestone 5 was built without a phone or a working emulator, so nothing of the Android app has run on a device yet: camera, see-through scan screen, secure storage, certificate pinning on Android and cover interception need a first run on a phone (see TESTING.md, *Phone hardware*).
 2. ~~Whether Metron supports UPC lookup~~: it does (`upc`, `upc_starts_with`), checked in its source in milestone 4. Its fixtures are hand-written until a token is set up.
 3. UPC coverage for older DVDs is spotty, so manual search must be first-class.
 4. API terms: TMDB and Comic Vine are non-commercial/attribution-required. Fine for personal use; show attribution in About.

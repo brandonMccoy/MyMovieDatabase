@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MMDb.Client\MMDb.Client.csproj" />
+    <!-- The client is tested against the real web API, served in memory (docs/TESTING.md). -->
+    <ProjectReference Include="..\..\src\MMDb.Server\MMDb.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\*.cs" LinkBase="Shared" />
+    <Compile Include="..\Shared\Phone\*.cs" LinkBase="Shared\Phone" />
+  </ItemGroup>
+
+</Project>

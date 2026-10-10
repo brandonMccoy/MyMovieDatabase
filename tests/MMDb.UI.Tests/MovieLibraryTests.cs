@@ -10,6 +10,21 @@ public sealed class MovieLibraryTests : ShelfTestContext
         [.. page.FindAll(".card .t").Select(t => t.TextContent)];
 
     [Fact]
+    public async Task A_film_saved_elsewhere_such_as_from_a_phone_shows_up_in_the_open_library()
+    {
+        await SeedAsync(Heat);
+        Navigation.NavigateTo("?format=Dvd");
+        var page = Render<MovieLibrary>();
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Heat"]));
+
+        await SeedAsync(Film("Alien", 1979));
+        await SeedAsync(Film("Arrival", 2016, MovieFormatKind.BluRay));
+
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Alien", "Heat"], "the filter still applies"));
+        page.Find(".section-head .sub").TextContent.ShouldBe("3 films · 4 discs");
+    }
+
+    [Fact]
     public void An_empty_collection_invites_adding_the_first_movie()
     {
         var page = Render<MovieLibrary>();

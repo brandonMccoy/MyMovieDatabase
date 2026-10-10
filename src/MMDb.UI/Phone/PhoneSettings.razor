@@ -1,0 +1,143 @@
+@implements IDisposable
+@using System.Text
+@using MMDb.Contracts.Phone
+@inject IPhoneApi Phone
+@inject TimeProvider Clock
+
+@* Settings on the PC: the code a phone pairs with, and the phones already paired. *@
+<section class="set" aria-labelledby="phone-heading">
+    <h3 id="phone-heading">Phone</h3>
+    <div class="desc">Open Shelf on your phone and scan this code. Both devices must be on the same Wi-Fi.</div>
+
+    @if (Phone.Server is { State: PhoneServerState.Failed } failed)
+    {
+        <p class="warn" role="alert">
+            Phones can't connect: Shelf couldn't open port @failed.Port on this PC@(failed.Problem is null ? "" : $" ({failed.Problem})").
+            Close the other program using it, then restart Shelf.
+        </p>
+    }
+    else if (Phone.Server.State == PhoneServerState.Off)
+    {
+        <p class="small" role="status">Getting ready for phones…</p>
+    }
+    else if (_code is not null)
+    {
+        <div class="pair">
+            @if (_code.QrRows.Count > 0)
+            {
+                <svg class="qr" viewBox="0 0 @_code.QrRows.Count @_code.QrRows.Count" shape-rendering="crispEdges" role="img" aria-label="Pairing code for the phone's camera">
+                    <path d="@QrPath(_code.QrRows)" />
+                </svg>
+            }
+            <div>
+                <div class="small">Or enter this code</div>
+                <div class="code">@_code.Code[..3] @_code.Code[3..]</div>
+                <div class="small expiry">Expires in @Remaining(_code.ExpiresAt) · @AddressLine(Phone.Server)</div>
+            </div>
+        </div>
+    }
+
+    @if (_devices.Count > 0)
+    {
+        <div class="devices">
+            @foreach (var device in _devices)
+            {
+                var connected = IsConnected(device);
+                <div class="device" @key="device.Id">
+                    <span class="dot @(connected ? "on" : null)"></span>
+                    <span>@device.Name</span>
+                    <span class="muted">
+                        @if (connected)
+                        {
+                            <span>Connected</span>
+                        }
+                        else if (device.LastSeenAt is { } seen)
+                        {
+                            <span>Last seen <TimeAgo At="seen" /></span>
+                        }
+                        · paired @Date(device.PairedAt)
+                    </span>
+                    <button type="button" class="btn sm" @onclick="() => Phone.UnpairAsync(device.Id)">Unpair</button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    // A phone in use talks to the PC at least this often.
+    private static readonly TimeSpan ConnectedWithin = TimeSpan.FromMinutes(2);
+
+    private PairingCodeDto? _code;
+    private IReadOnlyList<PairedDeviceDto> _devices = [];
+    private ITimer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Phone.Changed += OnChanged;
+        _timer = Clock.CreateTimer(_ => InvokeAsync(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _code = Phone.Server.State == PhoneServerState.Listening ? Phone.PairingCode() : null;
+        _devices = await Phone.ListDevicesAsync();
+    }
+
+    // Counts the code down, and shows the next one when it runs out.
+    private void Tick()
+    {
+        if (_code is not null && _code.ExpiresAt <= Clock.GetUtcNow())
+        {
+            _code = Phone.PairingCode();
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnChanged() => InvokeAsync(async () =>
+    {
+        await RefreshAsync();
+        StateHasChanged();
+    });
+
+    private string Remaining(DateTimeOffset expiresAt)
+    {
+        var left = expiresAt - Clock.GetUtcNow();
+        left = left < TimeSpan.Zero ? TimeSpan.Zero : left;
+        return $"{(int)left.TotalMinutes}:{left.Seconds:00}";
+    }
+
+    private static string AddressLine(PhoneServerDto server) => server.Addresses is [var first, ..]
+        ? $"PC address {first}:{server.Port.ToString(CultureInfo.InvariantCulture)}"
+        : "this PC isn't on a network";
+
+    private bool IsConnected(PairedDeviceDto device) => device.LastSeenAt is { } seen && Clock.GetUtcNow() - seen < ConnectedWithin;
+
+    private string Date(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, Clock.LocalTimeZone).ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+
+    // One square per dark module.
+    private static string QrPath(IReadOnlyList<string> rows)
+    {
+        var path = new StringBuilder();
+        for (var y = 0; y < rows.Count; y++)
+        {
+            for (var x = 0; x < rows[y].Length; x++)
+            {
+                if (rows[y][x] == '1')
+                {
+                    path.Append(CultureInfo.InvariantCulture, $"M{x} {y}h1v1h-1z");
+                }
+            }
+        }
+
+        return path.ToString();
+    }
+
+    public void Dispose()
+    {
+        Phone.Changed -= OnChanged;
+        _timer?.Dispose();
+    }
+}

@@ -1,16 +1,28 @@
 @page "/movies/new"
 @page "/movies/{Id:guid}/edit"
+@using MMDb.Contracts.Scans
 @using MMDb.UI.Movies
+@using MMDb.UI.Scanning
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
 @inject ShelfCounts Counts
+@inject ScanInbox Queue
+@inject ShelfDevice Device
 
 <PageTitle>@(IsNew ? "Add movie" : "Edit movie") · Shelf</PageTitle>
 
 <div class="topbar">
     <a class="btn ghost back" href="@BackHref"><Icon Name="back" />@BackLabel</a>
+    @if (_scan is not null)
+    {
+        <span class="review-count">Review · @(Queue.Items.ToList().IndexOf(_scan) + 1) of @Queue.Items.Count</span>
+    }
     <div class="spacer"></div>
-    @if (_form is not null && _mode == Mode.Edit)
+    @if (_scan is not null)
+    {
+        <button type="button" class="btn ghost skip" @onclick="SkipScan">Remove</button>
+    }
+    @if (_form is not null && _mode == Mode.Edit && !Device.IsPhone)
     {
         <a class="btn ghost" href="@BackHref">Cancel</a>
         <button type="button" class="btn primary" disabled="@(!CanSave || _saving)" @onclick="SaveAsync">@SaveLabel</button>
@@ -38,6 +50,14 @@ else if (_loaded && _mode == Mode.Search)
                 @if (IsNew)
                 {
                     <span>Not listed?</span> <button type="button" class="link-btn" @onclick="EnterManually">Enter manually</button>
+                    @if (_scan is not null)
+                    {
+                        <span> · Not a film?</span> <button type="button" class="link-btn as-other" @onclick="() => LookUpAsAsync(ProductKind.Comic)">Look it up as a comic</button>
+                    }
+                    else if (Device.IsPhone)
+                    {
+                        <span> · </span><a class="link-btn" href="comics/new">Add a comic instead</a>
+                    }
                 }
                 else
                 {
@@ -206,6 +226,14 @@ else if (_form is not null)
     </div>
 }
 
+@if (Device.IsPhone && _loaded && _form is not null && _mode == Mode.Edit)
+{
+    @* On the phone the save button sits under the thumb, as mocked. *@
+    <div class="sticky">
+        <button type="button" class="btn primary" disabled="@(!CanSave || _saving)" @onclick="SaveAsync">@SaveLabel</button>
+    </div>
+}
+
 @code {
     private const string ConflictMessage = "This movie was changed somewhere else after you opened it.";
     private const string DeletedMessage = "This movie was deleted while you were editing it.";
@@ -222,7 +250,7 @@ else if (_form is not null)
 
     // What the amber "edited" outline compares against: the saved film, or the TMDB match being reviewed.
     private Baseline? _baseline;
-    private readonly MovieSearchState _search = new();
+    private MovieSearchState _search = new();
     private MovieCandidateDto? _candidate;
     private int _candidateIndex;
 
@@ -236,13 +264,20 @@ else if (_form is not null)
     private IReadOnlyList<string> _genreOptions = [];
     private Dictionary<string, string> _errors = [];
 
+    // The scan being reviewed (phone): the editor opens on what the PC found for it.
+    private ScanItem? _scan;
+    private Guid? _openedScan;
+
     [Parameter] public Guid? Id { get; set; }
+
+    /// <summary>A scan from the phone's queue to review.</summary>
+    [SupplyParameterFromQuery(Name = "scan")] public Guid? Scan { get; set; }
 
     private bool IsNew => Id is null;
 
-    private string BackHref => IsNew ? "" : $"movies/{Id}";
+    private string BackHref => _scan is not null ? "scan" : IsNew ? "" : $"movies/{Id}";
 
-    private string BackLabel => IsNew || _original is null ? "Movies" : _original.Title;
+    private string BackLabel => _scan is not null ? "Scan" : IsNew || _original is null ? "Movies" : _original.Title;
 
     private bool CanSave => _form!.CanSave && !(IsNew && _candidate?.Owned is { } owned && AddingTo(owned).Count == 0);
 
@@ -275,6 +310,10 @@ else if (_form is not null)
         if (IsNew)
         {
             _mode = Mode.Search;
+            if (!_loaded || Scan != _openedScan)
+            {
+                OpenScan();
+            }
         }
         else
         {
@@ -286,6 +325,41 @@ else if (_form is not null)
         }
 
         _loaded = true;
+    }
+
+    // Starts from what the PC found for the scan: the best match filled in, or the search step saying why not.
+    private void OpenScan()
+    {
+        _openedScan = Scan;
+        _scan = Queue.Find(Scan) is { State: ScanState.Ready, Response.Movie: not null } item ? item : null;
+        _form = null;
+        _candidate = null;
+        _baseline = null;
+        _pendingUpc = null;
+        _search = new();
+        if (_scan?.Response?.Movie is { } found)
+        {
+            _search.Query = _search.SearchedFor = _scan.Code;
+            _search.Response = found;
+            if (found is { Status: LookupStatus.Found, Candidates: [var best, ..] })
+            {
+                Pick(best);
+            }
+        }
+    }
+
+    private void SkipScan()
+    {
+        Queue.Remove(_scan!.Id);
+        Navigation.NavigateTo(Queue.Items.Count > 0 ? "scan/review" : "scan", replace: true);
+    }
+
+    // A comic whose add-on the camera didn't read looks like a film.
+    private async Task LookUpAsAsync(ProductKind kind)
+    {
+        var item = _scan!;
+        await Queue.RetryAsync(item, kind);
+        Navigation.NavigateTo($"scan/review?item={item.Id}", replace: true);
     }
 
     private void Pick(MovieCandidateDto candidate)
@@ -389,6 +463,14 @@ else if (_form is not null)
             switch (response.Status)
             {
                 case SaveStatus.Saved:
+                    if (_scan is not null)
+                    {
+                        // On to the next scan; after the last one, the library shows what was added.
+                        Queue.Remove(_scan.Id);
+                        Navigation.NavigateTo(Queue.Items.Count > 0 ? "scan/review" : "", replace: true);
+                        return;
+                    }
+
                     await Counts.RefreshAsync();
                     Navigation.NavigateTo($"movies/{response.Movie!.Id}", replace: IsNew);
                     return;

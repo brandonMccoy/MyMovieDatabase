@@ -1,0 +1,110 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@using MMDb.Contracts.Phone
+@using MMDb.UI.Phone
+@inject IPcLink Link
+@inject NavigationManager Navigation
+
+@* The phone's frame: pairing first, then the screens with the bottom bar; the PC being away takes over the page. *@
+<IconSprite />
+<div class="phone-app @(Path == "scan" ? "see-through" : null)">
+    @if (!_started)
+    {
+        @* The pairing kept on the phone is read in a blink; nothing to show yet. *@
+    }
+    else if (Link.State is PcLinkState.NotPaired or PcLinkState.Unpaired)
+    {
+        <PairScreen />
+    }
+    else if (Link.State == PcLinkState.Unreachable && Path != "phone")
+    {
+        <PcAway OnRetry="RetryAsync" />
+    }
+    else
+    {
+        <div class="phone-body">
+            <ErrorBoundary @ref="_boundary">
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent Context="error">
+                    @if (error is PcUnavailableException)
+                    {
+                        <PcAway OnRetry="RetryAsync" />
+                    }
+                    else
+                    {
+                        <div class="phone-notice" role="alert">
+                            <h1>Something went wrong</h1>
+                            <p>Shelf couldn't show this screen.</p>
+                            <button type="button" class="btn" @onclick="Recover">Try again</button>
+                        </div>
+                    }
+                </ErrorContent>
+            </ErrorBoundary>
+        </div>
+        @if (ShowsNav)
+        {
+            <nav class="bnav" aria-label="Sections">
+                <NavLink href="" class="@(IsMovies ? "on" : null)" ActiveClass=""><Icon Name="film" /><span>Movies</span></NavLink>
+                <a href="scan" class="scan" aria-label="Scan"><span class="scanbtn"><Icon Name="scan" /></span></a>
+                <NavLink href="comics" class="@(IsComics ? "on" : null)" ActiveClass=""><Icon Name="book" /><span>Comics</span></NavLink>
+            </nav>
+        }
+    }
+</div>
+
+@code {
+    private ErrorBoundary? _boundary;
+    private bool _started;
+
+    private string Path => new Uri(Navigation.Uri).AbsolutePath.Trim('/');
+
+    private bool IsComics => Path == "comics" || Path.StartsWith("comics/", StringComparison.Ordinal);
+
+    private bool IsMovies => Path.Length == 0 || Path == "movies" || Path.StartsWith("movies/", StringComparison.Ordinal);
+
+    // Scanning and reviewing fill the screen, as mocked.
+    private bool ShowsNav => Path != "scan" && !Path.StartsWith("scan/", StringComparison.Ordinal) && !Path.EndsWith("/new", StringComparison.Ordinal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Link.Changed += OnChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+        await Link.StartAsync();
+        _started = true;
+
+        // The screens load meanwhile; a PC that is off can take seconds to not answer.
+        StateHasChanged();
+        await Link.CheckAsync();
+    }
+
+    private async Task RetryAsync()
+    {
+        await Link.CheckAsync();
+        Recover();
+    }
+
+    private void Recover() => _boundary?.Recover();
+
+    private void OnChanged() => InvokeAsync(() =>
+    {
+        // Back in touch: whatever screen failed can be shown again.
+        if (Link.State == PcLinkState.Connected)
+        {
+            Recover();
+        }
+
+        StateHasChanged();
+    });
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(() =>
+    {
+        Recover();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Link.Changed -= OnChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

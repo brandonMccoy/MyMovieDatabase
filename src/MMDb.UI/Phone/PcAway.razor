@@ -1,0 +1,33 @@
+@inject IPcLink Link
+
+@* The PC didn't answer. Until the phone keeps its own copy (milestone 7), there is nothing to show without it. *@
+<div class="phone-notice" role="alert">
+    <div class="brand"><div class="brand-mark"><Icon Name="film" Class="i14" /></div><span class="brand-name">Shelf</span></div>
+    <h1>Can't reach @(Link.PcName ?? "your PC")</h1>
+    <p>Shelf on your PC has to be running, and this phone on the same Wi-Fi.</p>
+    @if (Link.Address is not null)
+    {
+        <p class="small">Last seen at <span class="mono">@Link.Address</span></p>
+    }
+    <button type="button" class="btn primary" disabled="@_trying" @onclick="RetryAsync">@(_trying ? "Trying…" : "Try again")</button>
+    <a class="link-btn" href="phone">Pair with another PC</a>
+</div>
+
+@code {
+    private bool _trying;
+
+    [Parameter, EditorRequired] public EventCallback OnRetry { get; set; }
+
+    private async Task RetryAsync()
+    {
+        _trying = true;
+        try
+        {
+            await OnRetry.InvokeAsync();
+        }
+        finally
+        {
+            _trying = false;
+        }
+    }
+}

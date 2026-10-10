@@ -1,0 +1,121 @@
+@page "/scan"
+@implements IAsyncDisposable
+@using MMDb.Contracts.Scans
+@using MMDb.UI.Scanning
+@inject ScanInbox Queue
+@inject NavigationManager Navigation
+@inject TimeProvider Clock
+@inject IServiceProvider Services
+
+<PageTitle>Scan · Shelf</PageTitle>
+
+@* The camera shows behind this page. Every barcode read joins the queue and is looked up by the PC meanwhile. *@
+<div class="camera">
+    <div class="type-switch" role="group" aria-label="What you are scanning">
+        @foreach (var mode in new[] { ScanMode.Movie, ScanMode.Comic, ScanMode.Auto })
+        {
+            <button type="button" class="@(Queue.Mode == mode ? "on" : null)" aria-pressed="@Aria.Bool(Queue.Mode == mode)" @onclick="() => Queue.Mode = mode">@mode</button>
+        }
+    </div>
+
+    @if (_last is not null)
+    {
+        <button type="button" class="toast" @onclick="() => Review(_last)" disabled="@(_last.State != ScanState.Ready)">
+            <Icon Name="@(_last.Kind == ProductKind.Comic ? "book" : "film")" />
+            <span>
+                <b>@Headline(_last)</b>
+                <span class="ts">@Detail(_last)</span>
+            </span>
+        </button>
+    }
+
+    @if (_start is ScannerStart.Started)
+    {
+        <div class="reticle"><i></i><i></i><i></i><i></i><div class="scanline"></div></div>
+        <div class="cam-hint">Point at the barcode on the back</div>
+    }
+    else if (_start is not null)
+    {
+        <div class="cam-off" role="alert">
+            <b>@(_start == ScannerStart.NotAllowed ? "Shelf isn't allowed to use the camera" : "No camera to scan with")</b>
+            <span>@(_start == ScannerStart.NotAllowed ? "Allow it in Android's settings, or type the code instead." : "Type the code or the title instead.")</span>
+            <a class="btn" href="@ManualHref"><Icon Name="keyboard" />Type it in</a>
+        </div>
+    }
+
+    <div class="cam-bar">
+        <a class="round" href="" aria-label="Close"><Icon Name="x" /></a>
+        @if (Queue.Items.Count > 0)
+        {
+            <a class="queue" href="scan/review"><b>@Queue.Items.Count</b> scanned · review</a>
+        }
+        <a class="round" href="@ManualHref" aria-label="Type it in"><Icon Name="keyboard" /></a>
+    </div>
+</div>
+
+@code {
+    // The camera reports a barcode many times a second while it is in view.
+    private static readonly TimeSpan SameCodeAgainAfter = TimeSpan.FromSeconds(3);
+
+    private IBarcodeScanner? _scanner;
+    private ScannerStart? _start;
+    private ScanItem? _last;
+    private bool _lastWasNew;
+    private string? _lastCode;
+    private DateTimeOffset _lastCodeAt;
+
+    private string ManualHref => Queue.Mode == ScanMode.Comic ? "comics/new" : "movies/new";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Queue.Changed += OnQueueChanged;
+        _scanner = Services.GetService<IBarcodeScanner>();
+        _start = _scanner is null
+            ? ScannerStart.NoCamera
+            : await _scanner.StartAsync(ScanTarget.Product, code => _ = InvokeAsync(() => Scanned(code)));
+    }
+
+    private void Scanned(string code)
+    {
+        var now = Clock.GetUtcNow();
+        if (code == _lastCode && now - _lastCodeAt < SameCodeAgainAfter)
+        {
+            _lastCodeAt = now;
+            return;
+        }
+
+        (_lastCode, _lastCodeAt) = (code, now);
+        (_last, _lastWasNew) = Queue.Add(code);
+        StateHasChanged();
+    }
+
+    private void Review(ScanItem item) => Navigation.NavigateTo($"scan/review?item={item.Id}");
+
+    private string Headline(ScanItem item) => item.State switch
+    {
+        ScanState.LookingUp => "Looking it up…",
+        ScanState.Failed => "Couldn't ask the PC",
+        _ when item.IsOwned => $"You already own {item.Title}",
+        _ => item.Title ?? "Not found",
+    };
+
+    private string Detail(ScanItem item) => item.State switch
+    {
+        ScanState.LookingUp => item.Code,
+        ScanState.Failed => "It stays in the queue to try again.",
+        _ when !_lastWasNew => "Already scanned · tap to review",
+        _ when item.Title is null => "Tap to search by title",
+        _ => "Tap to review",
+    };
+
+    private void OnQueueChanged() => InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        Queue.Changed -= OnQueueChanged;
+        if (_scanner is not null && _start == ScannerStart.Started)
+        {
+            await _scanner.StopAsync();
+        }
+    }
+}

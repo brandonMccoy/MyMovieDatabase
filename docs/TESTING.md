@@ -21,7 +21,7 @@ Every change ships with tests. This doc says which kind of test goes where and w
 | Assertions | **Shouldly** (FluentAssertions v8+ requires a commercial license) |
 | Snapshot/approval | In-repo `Snapshot.Match` (vault markdown): compares with `Snapshots/*.verified.*`, leaves a `.received` file on a change. Verify was the plan, but its current versions stop the build until a project declares a sponsorship or fee exemption. |
 | Database | **SQLite** (in-memory with a kept-open connection, or temp file). Never the EF InMemory provider (Microsoft advises against it). |
-| HTTP API | **WebApplicationFactory** (`Microsoft.AspNetCore.Mvc.Testing`) |
+| HTTP API | **TestServer** (`Microsoft.AspNetCore.TestHost`) over the same `PhoneHost` the PC app starts; `tests/Shared/Phone/TestPc` |
 | External APIs | Fake `HttpMessageHandler` serving **recorded JSON fixtures** captured from the real APIs |
 | Time | `Microsoft.Extensions.TimeProvider.Testing` (`FakeTimeProvider`) |
 | Blazor components | **bUnit** |
@@ -36,11 +36,11 @@ Every change ships with tests. This doc says which kind of test goes where and w
 | Domain | Unit (many `[Theory]` cases) | UPC/EAN check digits; ISBN detection; comic add-on parsing (issue/variant/printing); title normalization ("Heat [Blu-ray] (Widescreen)" → "Heat", format = Blu-ray); validation rules; release-name parsing for digital files (`Blade.Runner.2049.2017.2160p.UHD.mkv` → "Blade Runner 2049", 2017; names with no year; titles containing numbers, like "2001: A Space Odyssey"); wishlist match rules (full / partial / none). |
 | Application | Integration (real SQLite, fake providers, fake vault/cover store) | Add movie → saved + vault note requested; duplicate detection; wishlist → owned; lookup returns wishlist match and accepting clears it; digital import over a temp folder of empty fake video files (matched, ambiguous, already-linked, missing-file cases); provider fallback chain order; lookup cache hit skips provider. |
 | Infrastructure | Integration | EF migrations apply on an empty DB; round-trip every entity; each provider maps recorded JSON → candidates and handles 404, 429 (rate limit) and malformed responses; vault writer output **snapshot**; atomic write; "rebuild vault" removes orphaned managed notes but leaves unmanaged ones alone. |
-| Server | Integration (WebApplicationFactory + SQLite) | Endpoints: status codes, validation errors (ProblemDetails), JSON shape snapshots; auth: unpaired device → 401; revoked token → 401; pairing code single-use and expiring. |
-| Client | Integration (client against in-memory server) | Offline queue replays in order once reachable; conflict on stale `Version` surfaces to the user. |
-| UI | bUnit | Review screen pre-fills candidate and allows edits before Accept; Accept disabled while required fields are invalid; empty and error states render; movies and comics lists stay separate. |
+| Server | Integration (TestServer + SQLite) | Endpoints: status codes, the save response on 400/404/409, JSON on the wire; auth: unpaired device → 401; unpaired token → 401; pairing code single-use and expiring; the PC's certificate is made once and kept. |
+| Client | Integration (client against the in-memory server) | Every `ICollectionApi` call gives the phone exactly what the PC's screens get (compared as JSON); pairing by QR text and by typed address; PC away / unpaired; covers kept on the phone. A few tests run the real HTTPS server on loopback to prove the certificate pin: the right PC connects, another certificate is refused. Later: offline queue replays in order once reachable. |
+| UI | bUnit | Review screen pre-fills candidate and allows edits before Accept; Accept disabled while required fields are invalid; empty and error states render; movies and comics lists stay separate. Phone screens run with `ShelfDevice.Phone`, a fake `IPcLink` and a fake camera (`PhoneTestContext`): pairing, PC away, scan queue, review, on to the next. |
 | E2E | Playwright (few) | Manual add movie with TMDB suggestion → appears in list; scan flow with fake scanner → review → accept; wishlist item → mark acquired. |
-| Phone hardware | Manual checklist per release | Real camera scan of DVD, Blu-ray, comic with add-on, trade paperback ISBN; pairing via QR; offline queue. |
+| Phone hardware | Manual checklist per release | Pairing via QR and by typed address; real camera scan of DVD, Blu-ray, comic with add-on, trade paperback ISBN; the camera showing behind the scan screen; covers loading; app restart stays paired; PC off → "Can't reach"; unpair on the PC. Later: offline queue. **Not yet run once** (milestone 5 had no phone and no working emulator). |
 
 ## Live API contract tests
 

@@ -151,6 +151,36 @@ namespace MMDb.Infrastructure.Persistence.Migrations
                     b.ToTable("ComicSeries", (string)null);
                 });
 
+            modelBuilder.Entity("MMDb.Domain.Devices.PairedDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PairedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("PairedDevices", (string)null);
+                });
+
             modelBuilder.Entity("MMDb.Domain.Movies.Movie", b =>
                 {
                     b.Property<Guid>("Id")

@@ -2,24 +2,38 @@
 @implements IDisposable
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
+@inject ShelfDevice Device
 
 <PageTitle>Comics · Shelf</PageTitle>
 
-<div class="topbar">
-    <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
-    <div class="spacer"></div>
-    <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
-</div>
+@if (Device.IsPhone)
+{
+    <div class="appbar"><h1 class="ttl">Comics</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Do I own…?" Label="Search comics" Library="comics" />
+    </div>
+}
+else
+{
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search series, issues, creators…" Label="Search comics" Library="comics" />
+        <div class="spacer"></div>
+        <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
+    </div>
+}
 
 <div class="content">
-    <div class="section-head">
-        <h1>Comics</h1>
-        @if (_list is not null)
-        {
-            var facets = _list.Facets;
-            <span class="sub">@Plural(facets.IssueCount, "issue") · @Count(facets.SeriesCount) series · @Plural(facets.CollectedCount, "trade")</span>
-        }
-    </div>
+    @if (!Device.IsPhone)
+    {
+        <div class="section-head">
+            <h1>Comics</h1>
+            @if (_list is not null)
+            {
+                var facets = _list.Facets;
+                <span class="sub">@Plural(facets.IssueCount, "issue") · @Count(facets.SeriesCount) series · @Plural(facets.CollectedCount, "trade")</span>
+            }
+        </div>
+    }
 
     @if (_list is null)
     {
@@ -29,8 +43,16 @@
     {
         <div class="empty">
             <h2>No comics yet</h2>
-            <p>Add the first comic you own: an issue by series and number, a barcode, or a trade's ISBN.</p>
-            <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
+            @if (Device.IsPhone)
+            {
+                <p>Scan the barcode of the first comic you own: an issue's cover, or the back of a trade.</p>
+                <a class="btn primary" href="scan"><Icon Name="scan" />Scan</a>
+            }
+            else
+            {
+                <p>Add the first comic you own: an issue by series and number, a barcode, or a trade's ISBN.</p>
+                <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
+            }
         </div>
     }
     else
@@ -42,6 +64,8 @@
                         @onclick='() => SetQuery("shelf", shelf == ComicShelfKind.Series ? null : shelf.ToString())'>@label@if (shelf == ComicShelfKind.KeyIssues) {<span class="n">@Count(_list.Facets.KeyIssueCount)</span>}</button>
             }
 
+            @if (!Device.IsPhone)
+            {
             <label class="select">Publisher
                 <select value="@(Publisher ?? "")" @onchange='e => SetQuery("publisher", e.Value as string)'>
                     <option value="">Any</option>
@@ -58,6 +82,7 @@
                     <option value="@ComicSortOrder.RecentlyAdded">Recently added</option>
                 </select>
             </label>
+            }
         </div>
 
         @if (_list.Runs.Count == 0 && _list.Comics.Count == 0)
@@ -149,7 +174,18 @@
 
     private ComicSortOrder SelectedSort => Enum.TryParse<ComicSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : ComicSortOrder.Series;
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
+
+    // Something was saved elsewhere (a phone, another screen): show it.
+    private void OnCollectionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         // Typing fires a load per keystroke; only the newest one may update the page.
         _loading?.Cancel();
@@ -187,6 +223,7 @@
 
     public void Dispose()
     {
+        Api.Changed -= OnCollectionChanged;
         _loading?.Cancel();
         _loading?.Dispose();
     }

@@ -1,5 +1,6 @@
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
+using MMDb.Contracts.Scans;
 
 namespace MMDb.Contracts;
 
@@ -9,6 +10,12 @@ namespace MMDb.Contracts;
 /// </summary>
 public interface ICollectionApi
 {
+    /// <summary>
+    /// Something was added, changed or removed. On the PC this also tells of what a phone saved, so open screens
+    /// can show it; it may be raised on any thread.
+    /// </summary>
+    event Action? Changed;
+
     Task<MovieListResponse> ListMoviesAsync(MovieListRequest request, CancellationToken cancellationToken = default);
 
     /// <returns><see langword="null"/> if there is no such film.</returns>
@@ -42,4 +49,7 @@ public interface ICollectionApi
     /// <summary>Looks a comic up online (Metron for issues, Open Library for an ISBN) without saving anything.</summary>
     /// <param name="query">Series words and an issue number ("saga 7"), a cover barcode, a UPC and issue number, or an ISBN.</param>
     Task<ComicLookupResponse> LookupComicAsync(string query, CancellationToken cancellationToken = default);
+
+    /// <summary>Looks a scanned barcode up as a film or a comic, whichever the code is, without saving anything.</summary>
+    Task<ScanResponse> LookupScanAsync(ScanRequest request, CancellationToken cancellationToken = default);
 }

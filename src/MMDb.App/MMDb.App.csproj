@@ -45,10 +45,16 @@
     <ProjectReference Include="..\MMDb.UI\MMDb.UI.csproj" />
   </ItemGroup>
 
-  <!-- The PC owns the collection: the database and use cases run in-process. The phone gets MMDb.Client in milestone 5. -->
+  <!-- The PC owns the collection: the database and use cases run in-process, and it serves phones over the home network. -->
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <ProjectReference Include="..\MMDb.Server\MMDb.Server.csproj" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" />
+  </ItemGroup>
+
+  <!-- The phone talks to the PC and scans with its camera. -->
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ProjectReference Include="..\MMDb.Client\MMDb.Client.csproj" />
+    <PackageReference Include="BarcodeScanning.Native.Maui" />
   </ItemGroup>
 
 </Project>

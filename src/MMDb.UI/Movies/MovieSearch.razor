@@ -10,7 +10,7 @@
         </div>
         <button type="submit" class="btn primary" disabled="@(_searching || string.IsNullOrWhiteSpace(State.Query))">Search</button>
     </form>
-    <p class="small hint">Type a title, adding the year to narrow it down, or a UPC. A USB barcode scanner works too.</p>
+    <p class="small hint">Type a title, adding the year to narrow it down, or a UPC. <span class="pc-only">A USB barcode scanner works too.</span></p>
 
     @if (_searching)
     {

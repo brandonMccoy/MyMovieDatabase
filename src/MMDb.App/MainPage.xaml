@@ -5,10 +5,13 @@
              x:Class="MMDb.App.MainPage"
              BackgroundColor="#0e1115">
 
-    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
-        <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type ui:Routes}" />
-        </BlazorWebView.RootComponents>
-    </BlazorWebView>
+    <!-- On the phone the camera view is added under the web view (see MainPage.xaml.cs). -->
+    <Grid x:Name="root">
+        <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
+            <BlazorWebView.RootComponents>
+                <RootComponent Selector="#app" ComponentType="{x:Type ui:Routes}" />
+            </BlazorWebView.RootComponents>
+        </BlazorWebView>
+    </Grid>
 
 </ContentPage>

@@ -60,5 +60,19 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Issue page:** laid out like a film's page: cover · fields (series, publisher, cover date, story title, writers, artists, summary) · panels for the copy owned (format, variant, printing, UPC/ISBN, added) and the series' progress.
 - **Vault:** `Comics/<Series> (<Year>)/<Series> <Issue>.md` (no `#`: Obsidian links can't hold it; the heading keeps it) like film notes (writers and artists `[[linked]]`, a link to the series note), `_Series.md` listing owned and missing issues, and `Comics.base` with Issues, Series and Key issues views.
 
+## Milestone 5 (decided 2026-10-09)
+- **Phone scope:** browse, open, scan and add. Editing and deleting saved items stays on the PC (a film's or comic's page on the phone has no Edit or Delete). The phone needs the PC on the same Wi-Fi until the offline copy in milestone 7; without it the phone shows "Can't reach <PC>" with Try again.
+- **Test device:** emulator only for now. The emulator turned out not to run on the dev PC (no hypervisor driver), so the Android app is built and its screens are tested, but it has not run on a device; the add-on scan spike waits for a phone.
+- **"Scan with phone" button on the PC:** left out. Scanning starts on the phone; what the phone saves appears in the PC's open library and counts by itself.
+- **Bottom bar:** Movies · Scan · Comics for now, the scan button in the middle. With Wishlist and Stats it becomes the mocked Movies, Comics, Scan, Wishlist, Stats.
+- **Browse:** as mocked: title, "Do I own…?" search, format chips (comics: shelf chips), three covers across. No genre, decade, publisher or sort controls on the phone. The "…" opens *This phone* (which PC it is paired with, Forget this PC).
+- **Film and comic pages:** the PC's page in one column, read-only, trailer button kept.
+- **Scan:** as mocked: Movie / Comic / Auto switch (Auto by default), reticle, "N scanned · review", close and keyboard buttons. A banner at the top shows the last scan (looking up, the title found, not found, already owned, already scanned); tapping it reviews that scan. The wishlist alert takes the banner's place in milestone 6.
+- **Review:** the PC's editor in one column, opened on the best match with the scanned barcode and format filled in; "Review · 1 of 3" and Remove in the top bar; the save button at the bottom. After saving, the next scan opens; after the last, the library. A scan that found nothing opens the search step, with "Look it up as a comic" / "as a film" for a code that was taken for the wrong kind. The heart (send to wishlist) comes with the wishlist.
+- **Keyboard button:** opens the same Add screen as the PC (movie or comic by the switch), with a link over to the other kind.
+- **Pairing on the phone:** "Pair with your PC": Scan the code, or type the PC's address and the six-digit code shown under the QR code.
+- **Settings → Phone (PC):** as mocked: QR code, code with countdown, PC address, paired phones with Connected / Last seen and Unpair (no confirmation; pairing again takes seconds). "Connected" is text with a neutral dot, not green.
+
 ## Open
-- None. Design phase complete (2026-10-08).
+- Add-on scan spike and mDNS discovery: need a real phone (see ARCHITECTURE.md).
+- A scan queue that survives closing the app: with the offline queue in milestone 7.

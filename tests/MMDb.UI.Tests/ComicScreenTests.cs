@@ -27,6 +27,17 @@ public sealed class ComicLibraryTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task A_comic_saved_elsewhere_such_as_from_a_phone_shows_up_in_the_open_library()
+    {
+        var page = RenderLibrary();
+        page.Find(".empty h2").TextContent.ShouldBe("No comics yet");
+
+        await SeedComicAsync(TestComics.Saga7);
+
+        page.WaitForAssertion(() => Text(page.Find("section.series h3")).ShouldBe("Saga (2012)"));
+    }
+
+    [Fact]
     public void An_empty_collection_offers_to_add_a_comic()
     {
         var page = RenderLibrary();

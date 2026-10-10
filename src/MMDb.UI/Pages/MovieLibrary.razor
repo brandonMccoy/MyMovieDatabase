@@ -3,23 +3,38 @@
 @implements IDisposable
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
+@inject ShelfDevice Device
 
 <PageTitle>Movies · Shelf</PageTitle>
 
-<div class="topbar">
-    <SearchBox Value="@Q" ValueChanged="Search" />
-    <div class="spacer"></div>
-    <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
-</div>
+@if (Device.IsPhone)
+{
+    @* As mocked for the phone: title, "Do I own…?" search, format chips, covers. Adding is done by scanning. *@
+    <div class="appbar"><h1 class="ttl">Movies</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Do I own…?" />
+    </div>
+}
+else
+{
+    <div class="topbar">
+        <SearchBox Value="@Q" ValueChanged="Search" />
+        <div class="spacer"></div>
+        <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+    </div>
+}
 
 <div class="content">
-    <div class="section-head">
-        <h1>Movies</h1>
-        @if (_list is not null)
-        {
-            <span class="sub">@Plural(_list.Facets.FilmCount, "film") · @Plural(_list.Facets.DiscCount, "disc")</span>
-        }
-    </div>
+    @if (!Device.IsPhone)
+    {
+        <div class="section-head">
+            <h1>Movies</h1>
+            @if (_list is not null)
+            {
+                <span class="sub">@Plural(_list.Facets.FilmCount, "film") · @Plural(_list.Facets.DiscCount, "disc")</span>
+            }
+        </div>
+    }
 
     @if (_list is null)
     {
@@ -29,8 +44,16 @@
     {
         <div class="empty">
             <h2>Your shelf is empty</h2>
-            <p>Add the first movie you own. You can fill in as much or as little as you like.</p>
-            <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+            @if (Device.IsPhone)
+            {
+                <p>Scan the barcode of the first movie you own.</p>
+                <a class="btn primary" href="scan"><Icon Name="scan" />Scan</a>
+            }
+            else
+            {
+                <p>Add the first movie you own. You can fill in as much or as little as you like.</p>
+                <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+            }
         </div>
     }
     else
@@ -44,6 +67,8 @@
                         @onclick='() => SetQuery("format", format.ToString())'>@Formats.Name(format)<span class="n">@Count(_list.Facets.FormatCounts.GetValueOrDefault(format))</span></button>
             }
 
+            @if (!Device.IsPhone)
+            {
             <label class="select">Genre
                 <select value="@(Genre ?? "")" @onchange='e => SetQuery("genre", e.Value as string)'>
                     <option value="">Any</option>
@@ -70,6 +95,7 @@
                     <option value="@MovieSortOrder.Year">Year</option>
                 </select>
             </label>
+            }
         </div>
 
         @if (_list.Movies.Count == 0)
@@ -127,7 +153,18 @@
 
     private MovieSortOrder SelectedSort => Enum.TryParse<MovieSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : MovieSortOrder.RecentlyAdded;
 
-    protected override async Task OnParametersSetAsync()
+    protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
+
+    // Something was saved elsewhere (a phone, another screen): show it.
+    private void OnCollectionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         // Typing fires a load per keystroke; only the newest one may update the page.
         _loading?.Cancel();
@@ -162,6 +199,7 @@
 
     public void Dispose()
     {
+        Api.Changed -= OnCollectionChanged;
         _loading?.Cancel();
         _loading?.Dispose();
     }
