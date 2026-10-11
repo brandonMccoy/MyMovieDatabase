@@ -10,6 +10,8 @@
     <PackageReference Include="QRCoder" />
     <!-- Smaller copies of the covers for phones. Here rather than in Infrastructure, which the phone app also uses. -->
     <PackageReference Include="SkiaSharp" />
+    <!-- Windows keeps the keys set in Settings encrypted (see ProtectedKeyFile). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 
   <ItemGroup>

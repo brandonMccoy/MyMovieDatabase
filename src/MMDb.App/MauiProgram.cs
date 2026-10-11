@@ -2,12 +2,14 @@ using Microsoft.Extensions.Logging;
 using MMDb.UI;
 #if WINDOWS
 using Microsoft.Extensions.Configuration;
+using MMDb.Application.Metadata;
 using MMDb.Contracts;
 using MMDb.Infrastructure;
 using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
 using MMDb.Local;
 using MMDb.Server;
+using MMDb.Server.Keys;
 using MMDb.Server.Phone;
 #elif ANDROID
 using BarcodeScanning;
@@ -58,8 +60,10 @@ public static class MauiProgram
         var databasePath = Path.Combine(dataDirectory, "shelf.db");
         CoverFolder.Path = Path.Combine(dataDirectory, "covers");
 
-        // API keys stay on this PC, in user secrets (see docs/ARCHITECTURE.md).
+        // API keys are set in Settings and kept beside the database, encrypted by Windows; a developer's user
+        // secrets apply until then (see docs/ARCHITECTURE.md).
         builder.Configuration.AddUserSecrets(typeof(MauiProgram).Assembly, optional: true);
+        builder.Services.AddSingleton<IKeyStore>(new ProtectedKeyFile(Path.Combine(dataDirectory, "keys.dat")));
         builder.Services.AddShelf(
             new ShelfSettings
             {
@@ -84,6 +88,9 @@ public static class MauiProgram
         DatabaseBackup.Run(databasePath, Path.Combine(dataDirectory, "backups"), TimeProvider.System);
         // Off the UI thread's synchronization context, so blocking here can't deadlock.
         Task.Run(() => app.Services.MigrateShelfDatabaseAsync()).GetAwaiter().GetResult();
+
+        // Before anything is looked up.
+        app.Services.GetRequiredService<IKeysApi>().Load();
 
         // Catch the vault up in the background; how it went shows in the sidebar.
         _ = Task.Run(() => app.Services.GetRequiredService<IVaultApi>().StartAsync());

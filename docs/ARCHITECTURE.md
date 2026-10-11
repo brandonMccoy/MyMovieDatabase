@@ -145,15 +145,20 @@ Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details 
 - **Lookup by barcode:** a UPC already in the collection is answered from the database without any API call. Otherwise UPCitemdb's product name is cleaned (`RetailTitle`: packaging words, label prefixes like "Mill Creek -", bracketed parts; a bracketed year is kept) and searched on TMDB; the format comes from the name (combo packs count as the best disc).
 - **From TMDB:** directors from the crew, the top 10 billed actors, genres, runtime, US theatrical certification as the rating, overview, trailer (see below) and poster path.
 - **Covers:** saved at TMDB's `w500` (about 60–90 KB, ~300 MB for 4,000 films) when the film is saved; the poster path is kept so the phone can get smaller thumbnails later. A failed download leaves the film without a cover until its next save.
-- **Keys:** the TMDB key is read from the app's user secrets: `dotnet user-secrets set Tmdb:ApiKey <key> --project src/MMDb.App`. Either TMDB's API Read Access Token or the older API Key works. UPCitemdb's free tier needs no key (100 lookups a day, 6 a minute).
+- **Keys:** the TMDB key is set in Settings (see *API keys* below). Either TMDB's API Read Access Token or the older API Key works. UPCitemdb's free tier needs no key (100 lookups a day, 6 a minute).
 
 | Type | By barcode | By text search | Notes |
 |---|---|---|---|
 | Movie | UPCitemdb → product title | **TMDB** (rich metadata, posters) | No API maps UPC straight to TMDB. Take the UPC title, strip noise ("[Blu-ray]", "Widescreen"), detect format, then search TMDB. |
-| Comic issue | **Metron** `upc` (all 17 digits); if not listed, `upc_starts_with` the UPC + the issue number from the add-on | Metron by series words, year began, number | Token in user secrets (`Metron:Token`). 20 req/min, 5,000/day: a search fetches at most 6 issues; issue details cached 30 days, searches 1 day. GCD and Comic Vine have no barcode search, so they aren't used. |
+| Comic issue | **Metron** `upc` (all 17 digits); if not listed, `upc_starts_with` the UPC + the issue number from the add-on | Metron by series words, year began, number | Token set in Settings. 20 req/min, 5,000/day: a search fetches at most 6 issues; issue details cached 30 days, searches 1 day. GCD and Comic Vine have no barcode search, so they aren't used. |
 | Comic trade | **Open Library** Books API by ISBN (no key) | (enter by hand) | Cover from Open Library; format defaults to trade paperback. |
 
-API keys are kept in the PC's user secrets/config, never in the repo or built into the phone app. A paired phone is handed them (`GET /api/v1/keys`) so it can ask the same databases itself; see *The phone's copy*.
+**API keys** are typed into the PC's Settings screen (*Online databases*), never kept in the repo or built into the phone app. A paired phone is handed them (`GET /api/v1/keys`) so it can ask the same databases itself; see *The phone's copy*.
+
+- **Where they live:** `keys.dat` beside the database, encrypted by Windows for the signed-in account (DPAPI, `ProtectedKeyFile` behind the `IKeyStore` port). Not in the database, so not in its backups or in a copy of `shelf.db` handed to someone; another Windows account or PC can't read the file, and a file that can't be read counts as no keys.
+- **In use:** `InProcessKeysApi` (`IKeysApi`) loads the file at startup into the `TmdbSettings` / `MetronSettings` singletons the clients and `/keys` read on every request, so a change in Settings applies at once, without a restart, and reaches a phone on its next sync.
+- **Checked:** `IKeyChecker` makes one small request (TMDB `GET /authentication`; Metron, which has nothing made for it, a search for a barcode nothing carries) outside the lookup cache and without retries, 10 s at most. On save a key the service turns down is not kept; one that can't be checked (offline) is kept and shown as not checked. Every opening of Settings checks again, so a key withdrawn later shows there.
+- **Developers:** user secrets (`Tmdb:ApiKey`, `Metron:Token`, `dotnet user-secrets set … --project src/MMDb.App`) still apply until something is saved in Settings; from then on the file wins. The explicit live contract tests read them.
 
 **Trailers:** TMDB `GET /movie/{id}/videos` lists YouTube videos. Pick `site=YouTube`, `type=Trailer`, preferring `official=true`, then the newest. Store the key; the Trailer button opens `https://www.youtube.com/watch?v={key}` in the system browser/YouTube app (no in-app player). If TMDB has no trailer, fall back to a YouTube search link (`<title> <year> trailer`). The vault note includes the trailer link too.
 
@@ -253,7 +258,7 @@ The phone has its own SQLite database (`shelf.db` in the app's files, never back
 
 - **Time:** `TimeProvider` everywhere (testable).
 - **Logging:** `Microsoft.Extensions.Logging` + rolling file on the PC.
-- **Config:** user secrets for API keys (`Tmdb:ApiKey`, `Metron:Token`); the vault path is set in the app's Settings screen; phones are served on port 5243.
+- **Config:** API keys and the vault path are set in the app's Settings screen (keys in `keys.dat`, the path in the database); phones are served on port 5243.
 - **Backups:** the database file is copied on startup, keeping the last N copies.
 - **Static analysis:** nullable enabled, analyzers on, `TreatWarningsAsErrors` in `Directory.Build.props`.
 

@@ -61,7 +61,7 @@ public static partial class InfrastructureServices
         services.AddSingleton(settings.Tmdb);
         services.AddSingleton(settings.Metron);
 
-        services.AddHttpClient<IMovieMetadata, TmdbClient>(http => Configure(http, "https://api.themoviedb.org/3/"))
+        services.AddHttpClient<IMovieMetadata, TmdbClient>(http => Configure(http, TmdbClient.BaseAddress))
             .AddHttpMessageHandler(sp => CacheHandler(sp, TmdbClient.Source, uri =>
                 uri.AbsolutePath.Contains("/search/", StringComparison.Ordinal) ? TimeSpan.FromDays(1) : TimeSpan.FromDays(30)))
             .AddStandardResilienceHandler(Resilience);
@@ -71,10 +71,18 @@ public static partial class InfrastructureServices
             .AddStandardResilienceHandler(NoRetryWhenBusy);
 
         // An issue's details hardly change; searches and a series' issue list grow as new issues come out.
-        services.AddHttpClient<IComicMetadata, MetronClient>(http => Configure(http, "https://metron.cloud/api/"))
+        services.AddHttpClient<IComicMetadata, MetronClient>(http => Configure(http, MetronClient.BaseAddress))
             .AddHttpMessageHandler(sp => CacheHandler(sp, MetronClient.Source, uri =>
                 IssueDetails().IsMatch(uri.AbsolutePath) ? TimeSpan.FromDays(30) : TimeSpan.FromDays(1)))
             .AddStandardResilienceHandler(NoRetryWhenBusy);
+
+        // Someone is waiting on the Settings screen, and a key is checked every time it opens: one try, not kept.
+        services.AddHttpClient<IKeyChecker, KeyChecker>(http =>
+        {
+            http.Timeout = TimeSpan.FromSeconds(10);
+            http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            http.DefaultRequestHeaders.UserAgent.Add(UserAgent);
+        });
 
         services.AddHttpClient<IBookMetadata, OpenLibraryClient>(http =>
             {

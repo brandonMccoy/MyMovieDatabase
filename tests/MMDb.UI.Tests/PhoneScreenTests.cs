@@ -573,4 +573,13 @@ public sealed class PhoneBrowseTests : PhoneTestContext
         page.FindAll(".actions, .menu-wrap, a[href$='/edit'], .topbar .search").ShouldBeEmpty();
         page.Markup.ShouldContain("Brian K. Vaughan");
     }
+
+    [Fact]
+    public void A_missing_key_is_to_be_added_in_the_pcs_settings()
+    {
+        var notice = Render<MMDb.UI.Components.LookupProblem>(p => p.Add(x => x.Status, LookupStatus.NotConfigured));
+
+        Text(notice.Find(".notice")).ShouldBe("TMDB isn't set up on this PC yet. Add your TMDB key in Settings on the PC.");
+        notice.FindAll("a").ShouldBeEmpty();
+    }
 }

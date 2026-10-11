@@ -265,8 +265,16 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .setrow { display: grid; grid-template-columns: 170px 1fr auto; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: 13px; }
 .setrow:first-of-type { border-top: 0; }
 .setrow .lbl { color: var(--text-2); }
-.setrow .folder { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; font: 12.5px var(--mono); font-variant-ligatures: none; color: var(--text); overflow-wrap: anywhere; }
-.setrow .folder.unset { font-family: var(--font); color: var(--faint); }
+.setrow .folder, .setrow .apikey { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; font: 12.5px var(--mono); font-variant-ligatures: none; color: var(--text); overflow-wrap: anywhere; }
+.setrow .folder.unset, .setrow .apikey.unset { font-family: var(--font); color: var(--faint); }
+/* new: a key and what its service said about it, then the row it is typed in */
+.apikey-state { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.apikey-state .apikey { flex: 1; min-width: 0; }
+.apikey-state .sync-state, .apikey-state .warn { flex: none; }
+.apikey-actions { display: flex; gap: 8px; }
+.setrow.apikey-help { border-top: 0; padding-top: 0; }
+.apikey-help .warn { margin-bottom: 4px; }
+.apikey-help .link-btn { display: block; margin-top: 4px; }
 .sync-state { color: var(--text-2); font-size: 12.5px; }
 .warn { color: var(--accent); font-size: 12.5px; }
 

@@ -1,0 +1,182 @@
+@* Settings on the PC: the keys for the online databases. Each is checked with its service when Settings opens and when it is saved. *@
+@implements IDisposable
+@inject IKeysApi Keys
+
+<section class="set" aria-labelledby="online-heading">
+    <h3 id="online-heading">Online databases</h3>
+    <div class="desc">Used to fill in details when you scan or search. Keys are kept on this PC and on the phones you pair.</div>
+    @foreach (var key in Keys.Keys)
+    {
+        var about = Abouts[key.Service];
+        var editing = _editing == key.Service;
+        <div class="setrow apikey-row" data-service="@about.Name">
+            <span class="lbl">@about.Name <span class="small">· @about.For</span></span>
+            @if (editing)
+            {
+                <input @ref="_input" class="input mono apikey-input" type="password" autocomplete="off" spellcheck="false"
+                       aria-label="@about.Name @about.Word" placeholder="Paste your @about.Name @about.Word" disabled="@_saving"
+                       @bind="_typed" @bind:event="oninput" @onkeydown="OnKeyAsync" />
+                <span class="apikey-actions">
+                    <button type="button" class="btn sm primary save-key" disabled="@(!CanSave)" @onclick="SaveAsync">@(_saving ? "Checking…" : "Save")</button>
+                    <button type="button" class="btn sm cancel-key" disabled="@_saving" @onclick="Close">Cancel</button>
+                </span>
+            }
+            else
+            {
+                <div class="apikey-state">
+                    @if (key.State == KeyState.NotSet)
+                    {
+                        <div class="apikey unset">Not set</div>
+                    }
+                    else
+                    {
+                        <div class="apikey">••••••••••••@key.Ending</div>
+                        <span class="@(key.State == KeyState.Rejected ? "warn" : "sync-state")">@StateText(key.State, about)</span>
+                    }
+                </div>
+                <button type="button" class="btn sm change-key" @onclick="() => Edit(key.Service)">
+                    @(key.State == KeyState.NotSet ? $"Add {about.Word}" : "Change")
+                </button>
+            }
+        </div>
+        @if (editing)
+        {
+            <div class="setrow apikey-help">
+                <span></span>
+                <div>
+                    @if (_rejected)
+                    {
+                        <div class="warn" role="alert">@about.Name turned this @about.Word down, so it wasn't saved.</div>
+                    }
+                    <div class="small">@about.Hint</div>
+                    @if (key.State != KeyState.NotSet)
+                    {
+                        <button type="button" class="link-btn remove-key" disabled="@_saving" @onclick="Remove">Remove @about.Word</button>
+                    }
+                </div>
+                <span></span>
+            </div>
+        }
+        @if (key.Service == OnlineService.Tmdb)
+        {
+            <div class="setrow">
+                <span class="lbl">UPCitemdb <span class="small">· movie barcodes</span></span>
+                <div class="apikey unset">Free tier (no key)</div>
+                <span></span>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private static readonly Dictionary<OnlineService, About> Abouts = new()
+    {
+        [OnlineService.Tmdb] = new("TMDB", "movies, trailers", "key",
+            "From themoviedb.org, under Settings → API. The API Read Access Token and the older API Key both work."),
+        [OnlineService.Metron] = new("Metron", "comics", "token", "Make an API token in your account on metron.cloud."),
+    };
+
+    private OnlineService? _editing;
+    private string _typed = "";
+    private bool _saving;
+    private bool _rejected;
+    private bool _focus;
+    private ElementReference _input;
+
+    private bool CanSave => !_saving && !string.IsNullOrWhiteSpace(_typed);
+
+    protected override void OnInitialized()
+    {
+        Keys.Changed += OnChanged;
+        _ = Keys.CheckAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focus)
+        {
+            _focus = false;
+            await _input.FocusAsync();
+        }
+    }
+
+    private void Edit(OnlineService service)
+    {
+        Close();
+        _editing = service;
+        _focus = true;
+    }
+
+    private void Close()
+    {
+        _editing = null;
+        _typed = "";
+        _rejected = false;
+    }
+
+    private Task OnKeyAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Enter" when CanSave:
+                return SaveAsync();
+            case "Escape" when !_saving:
+                Close();
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_editing is not { } service)
+        {
+            return;
+        }
+
+        _saving = true;
+        _rejected = false;
+        try
+        {
+            if (await Keys.SaveAsync(service, _typed))
+            {
+                Close();
+            }
+            else
+            {
+                _rejected = true;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Remove()
+    {
+        if (_editing is { } service)
+        {
+            Keys.Remove(service);
+            Close();
+        }
+    }
+
+    private static string StateText(KeyState state, About about) => state switch
+    {
+        KeyState.Checking => "Checking…",
+        KeyState.Connected => "Connected",
+        KeyState.Rejected => $"{about.Name} turned this {about.Word} down",
+        _ => $"Not checked: couldn't reach {about.Name}",
+    };
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Keys.Changed -= OnChanged;
+
+    /// <param name="For">What Shelf looks up there.</param>
+    /// <param name="Word">What the service calls its key.</param>
+    /// <param name="Hint">Where to get one.</param>
+    private sealed record About(string Name, string For, string Word, string Hint);
+}

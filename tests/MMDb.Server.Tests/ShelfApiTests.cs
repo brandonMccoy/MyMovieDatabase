@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using MMDb.Contracts;
 using MMDb.Contracts.Comics;
+using MMDb.Contracts.Keys;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
 using MMDb.Contracts.Scans;
@@ -92,6 +93,19 @@ public sealed class ShelfApiTests : IAsyncLifetime
         using var response = await GetAsync("/api/v1/keys");
 
         (await ReadAsync<LookupKeysResponse>(response)).ShouldBe(new LookupKeysResponse("tmdb-key", null));
+    }
+
+    [Fact]
+    public async Task A_key_changed_in_settings_is_the_one_a_phone_is_handed_next()
+    {
+        _pc.HasKeys(tmdb: "old-key", metron: "metron-token");
+        await PairAsync();
+
+        (await _pc.Keys.SaveAsync(OnlineService.Tmdb, "new-key", Ct)).ShouldBeTrue();
+        _pc.Keys.Remove(OnlineService.Metron);
+
+        using var response = await GetAsync("/api/v1/keys");
+        (await ReadAsync<LookupKeysResponse>(response)).ShouldBe(new LookupKeysResponse("new-key", null));
     }
 
     [Fact]

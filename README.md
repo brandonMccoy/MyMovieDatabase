@@ -51,20 +51,10 @@ There are no installers yet; you build Shelf from source.
 
   Barcode lookups (UPCitemdb) and book lookups (Open Library) need no key. Without any keys you can still enter everything by hand.
 
-### 1. Get the code and store your keys
+### 1. Get the code
 
 ```bash
 git clone https://github.com/brandonMccoy/MyMovieDatabase.git
-```
-
-From the repository folder, save the keys in .NET user secrets on the PC. They never go into the repository or the phone app's package.
-
-```bash
-dotnet user-secrets set Tmdb:ApiKey <your TMDB key or read access token> --project src/MMDb.App
-```
-
-```bash
-dotnet user-secrets set Metron:Token <your Metron token> --project src/MMDb.App
 ```
 
 ### 2. Run the PC app
@@ -77,7 +67,13 @@ Then start `src\MMDb.App\bin\Debug\net10.0-windows10.0.19041.0\win-x64\MMDb.App.
 
 The first time it starts, Windows asks whether Shelf may accept connections; allow it on private networks so your phone can reach it. The collection is kept in `%LOCALAPPDATA%\Shelf` and backed up there each time the app starts.
 
-### 3. Install the phone app
+### 3. Add your keys
+
+Open **Settings → Online databases**, press **Add key** for TMDB (its API Read Access Token or the older API Key) and **Add token** for Metron, and paste each one in. Shelf checks a key with its service before keeping it, and again each time Settings opens. **Change** replaces or removes one.
+
+The keys are kept in `%LOCALAPPDATA%\Shelf\keys.dat`, encrypted by Windows for your account. They never go into the repository, the database or the phone app's package.
+
+### 4. Install the phone app
 
 Plug the phone in over USB, then:
 
@@ -85,7 +81,7 @@ Plug the phone in over USB, then:
 dotnet build src/MMDb.App/MMDb.App.csproj -f net10.0-android -t:Install
 ```
 
-### 4. Pair the phone with the PC
+### 5. Pair the phone with the PC
 
 1. On the PC, open **Settings**. The **Phone** section shows a QR code and a six-digit code.
 2. Open Shelf on the phone and scan the QR code, or type the PC's address and the code.

@@ -17,18 +17,24 @@ public sealed class LiveContractTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static TmdbClient Tmdb()
+    private static TmdbClient Tmdb() =>
+        new(new HttpClient { BaseAddress = new Uri("https://api.themoviedb.org/3/") }, new TmdbSettings { ApiKey = TmdbKey() });
+
+    private static MetronClient Metron() =>
+        new(new HttpClient { BaseAddress = new Uri("https://metron.cloud/api/") }, new MetronSettings { Token = MetronToken() });
+
+    private static string TmdbKey()
     {
         var key = Environment.GetEnvironmentVariable("Tmdb__ApiKey") ?? KeyFromUserSecrets("Tmdb:ApiKey");
         Assert.SkipWhen(string.IsNullOrWhiteSpace(key), "No TMDB key in user secrets or Tmdb__ApiKey.");
-        return new TmdbClient(new HttpClient { BaseAddress = new Uri("https://api.themoviedb.org/3/") }, new TmdbSettings { ApiKey = key });
+        return key!;
     }
 
-    private static MetronClient Metron()
+    private static string MetronToken()
     {
         var token = Environment.GetEnvironmentVariable("Metron__Token") ?? KeyFromUserSecrets("Metron:Token");
         Assert.SkipWhen(string.IsNullOrWhiteSpace(token), "No Metron token in user secrets or Metron__Token.");
-        return new MetronClient(new HttpClient { BaseAddress = new Uri("https://metron.cloud/api/") }, new MetronSettings { Token = token });
+        return token!;
     }
 
     private static string? KeyFromUserSecrets(string name)
@@ -41,6 +47,20 @@ public sealed class LiveContractTests
 
         using var secrets = JsonDocument.Parse(File.ReadAllText(path));
         return secrets.RootElement.TryGetProperty(name, out var key) ? key.GetString() : null;
+    }
+
+    [Fact(Explicit = true)]
+    public async Task Tmdb_and_metron_take_the_keys_and_turn_a_made_up_one_down()
+    {
+        var (tmdb, metron) = (TmdbKey(), MetronToken());
+        using var http = new HttpClient();
+        var checker = new KeyChecker(http);
+
+        (await checker.CheckTmdbAsync(tmdb, Ct)).ShouldBe(KeyCheck.Accepted);
+        (await checker.CheckTmdbAsync("0123456789abcdef0123456789abcdef", Ct)).ShouldBe(KeyCheck.Rejected);
+        (await checker.CheckTmdbAsync("eyJ.made.up", Ct)).ShouldBe(KeyCheck.Rejected);
+        (await checker.CheckMetronAsync(metron, Ct)).ShouldBe(KeyCheck.Accepted);
+        (await checker.CheckMetronAsync("made-up-token", Ct)).ShouldBe(KeyCheck.Rejected);
     }
 
     [Fact(Explicit = true)]

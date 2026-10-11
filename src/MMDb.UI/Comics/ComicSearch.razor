@@ -40,14 +40,10 @@
                 </p>
                 break;
             case LookupStatus.NotConfigured:
-                <p class="notice" role="alert">
-                    Metron isn't set up on this PC yet. Make an API token on metron.cloud, add it with
-                    <code class="mono">dotnet user-secrets set Metron:Token &lt;token&gt; --project src/MMDb.App</code>
-                    and restart Shelf.
-                </p>
+                <p class="notice" role="alert">Metron isn't set up on this PC yet. Make an API token on metron.cloud and add it in <SettingsLink />.</p>
                 break;
             case LookupStatus.KeyRejected:
-                <p class="notice" role="alert">@response.FailedService turned down the token on this PC. Check it in user secrets (Metron:Token).</p>
+                <p class="notice" role="alert">@response.FailedService turned down the token on this PC. Check it in <SettingsLink />.</p>
                 break;
             case LookupStatus.Busy:
                 <p class="notice" role="alert">

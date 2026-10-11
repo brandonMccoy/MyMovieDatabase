@@ -73,6 +73,22 @@ public sealed class OnlineServicesTests
     }
 
     [Fact]
+    public async Task A_key_is_checked_with_the_service_every_time()
+    {
+        using var sqlite = new InMemorySqlite();
+        var answers = new Queue<HttpStatusCode>([HttpStatusCode.OK, HttpStatusCode.Unauthorized]);
+        var http = new FakeHttp(_ => FakeHttp.Respond(answers.Dequeue(), "{}"));
+        await using var services = await ServicesAsync(sqlite, http);
+
+        var first = await services.GetRequiredService<IKeyChecker>().CheckTmdbAsync("eyJ.test", Ct);
+        var second = await services.GetRequiredService<IKeyChecker>().CheckTmdbAsync("eyJ.test", Ct);
+
+        first.ShouldBe(KeyCheck.Accepted);
+        second.ShouldBe(KeyCheck.Rejected, "a key taken once can be withdrawn later");
+        http.Requests.Count.ShouldBe(2);
+    }
+
+    [Fact]
     public async Task Posters_are_downloaded_at_the_stored_size()
     {
         using var sqlite = new InMemorySqlite();

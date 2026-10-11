@@ -1,0 +1,10 @@
+@* Where the keys for the online databases are set: a link on the PC; on a phone, words, because its keys come from the PC. *@
+@inject ShelfDevice Device
+@if (Device.IsPhone)
+{
+    <span>Settings on the PC</span>
+}
+else
+{
+    <a href="settings">Settings</a>
+}

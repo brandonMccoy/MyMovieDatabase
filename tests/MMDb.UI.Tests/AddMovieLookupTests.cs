@@ -363,16 +363,28 @@ public sealed class AddMovieLookupTests : ShelfTestContext
     }
 
     [Fact]
-    public void Without_a_tmdb_key_the_search_explains_how_to_set_one_up()
+    public void Without_a_tmdb_key_the_search_sends_you_to_settings_to_add_one()
     {
         Online.Tmdb.FailWith = MetadataProblem.NotConfigured;
         var page = RenderAdd();
 
         Search(page, "heat");
 
-        Notice(page).ShouldContain("TMDB isn't set up on this PC yet.");
-        page.Find(".notice code").TextContent.ShouldBe("dotnet user-secrets set Tmdb:ApiKey <key> --project src/MMDb.App");
+        Notice(page).ShouldBe("TMDB isn't set up on this PC yet. Add your TMDB key in Settings.");
+        page.Find(".notice a").GetAttribute("href").ShouldBe("settings");
         page.Find(".lookup-foot button").TextContent.ShouldBe("Enter manually");
+    }
+
+    [Fact]
+    public void A_tmdb_key_that_is_turned_down_is_to_be_checked_in_settings()
+    {
+        Online.Tmdb.FailWith = MetadataProblem.KeyRejected;
+        var page = RenderAdd();
+
+        Search(page, "heat");
+
+        Notice(page).ShouldBe("TMDB turned down the key on this PC. Check it in Settings.");
+        page.Find(".notice a").GetAttribute("href").ShouldBe("settings");
     }
 
     [Fact]

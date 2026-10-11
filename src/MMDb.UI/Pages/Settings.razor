@@ -73,6 +73,10 @@
                 }
             </section>
         }
+        @if (Services.GetService<IKeysApi>() is not null)
+        {
+            <OnlineDatabases />
+        }
     </div>
 </div>
 

@@ -49,7 +49,10 @@ internal sealed class TestPc : IAsyncDisposable
 
     public PhoneServer Server => _services.GetRequiredService<PhoneServer>();
 
-    /// <summary>Gives the PC keys for the online databases, as its user secrets would.</summary>
+    /// <summary>The keys as the PC's Settings screen sets them.</summary>
+    public IKeysApi Keys => _services.GetRequiredService<IKeysApi>();
+
+    /// <summary>Gives the PC keys for the online databases, as starting it with keys already set up would.</summary>
     public void HasKeys(string? tmdb, string? metron)
     {
         _services.GetRequiredService<TmdbSettings>().ApiKey = tmdb;

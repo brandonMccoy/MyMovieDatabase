@@ -8,7 +8,7 @@ using MMDb.Domain.Movies;
 
 namespace MMDb.Infrastructure.Metadata;
 
-/// <summary>TMDB settings. The key lives in user secrets on the PC (<c>Tmdb:ApiKey</c>), never in the repo.</summary>
+/// <summary>TMDB settings. The key is set in the PC's Settings screen (or its user secrets, <c>Tmdb:ApiKey</c>), never in the repo.</summary>
 public sealed class TmdbSettings
 {
     /// <summary>Either the "API Read Access Token" (sent as a bearer token) or the older "API Key".</summary>
@@ -24,6 +24,8 @@ public sealed class TmdbSettings
 internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovieMetadata
 {
     public const string Source = "TMDB";
+
+    public const string BaseAddress = "https://api.themoviedb.org/3/";
 
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
@@ -50,6 +52,19 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
         return movie?.ToDetails(settings.Region);
     }
 
+    /// <summary>A GET carrying the key the way TMDB takes that kind: a read access token as a bearer token, an older key in the query.</summary>
+    internal static HttpRequestMessage Request(string uri, string key)
+    {
+        key = key.Trim();
+        if (key.StartsWith("eyJ", StringComparison.Ordinal)) // read access tokens are JWTs
+        {
+            return new(HttpMethod.Get, uri) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", key) } };
+        }
+
+        var separator = uri.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        return new(HttpMethod.Get, $"{uri}{separator}api_key={Uri.EscapeDataString(key)}");
+    }
+
     /// <returns><see langword="null"/> for 404 Not Found.</returns>
     private async Task<T?> GetAsync<T>(string relativeUri, CancellationToken cancellationToken)
         where T : class
@@ -59,14 +74,7 @@ internal sealed class TmdbClient(HttpClient http, TmdbSettings settings) : IMovi
             throw new MetadataException(Source, MetadataProblem.NotConfigured);
         }
 
-        var key = settings.ApiKey.Trim();
-        var isToken = key.StartsWith("eyJ", StringComparison.Ordinal); // read access tokens are JWTs
-        using var request = new HttpRequestMessage(HttpMethod.Get, isToken ? relativeUri : $"{relativeUri}&api_key={Uri.EscapeDataString(key)}");
-        if (isToken)
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        }
-
+        using var request = Request(relativeUri, settings.ApiKey);
         using var response = await Http.SendAsync(http, request, Source, cancellationToken);
         switch (response.StatusCode)
         {

@@ -2,14 +2,10 @@
 @switch (Status)
 {
     case LookupStatus.NotConfigured:
-        <p class="notice" role="alert">
-            TMDB isn't set up on this PC yet. Add your TMDB key with
-            <code class="mono">dotnet user-secrets set Tmdb:ApiKey &lt;key&gt; --project src/MMDb.App</code>
-            and restart Shelf.
-        </p>
+        <p class="notice" role="alert">TMDB isn't set up on this PC yet. Add your TMDB key in <SettingsLink />.</p>
         break;
     case LookupStatus.KeyRejected:
-        <p class="notice" role="alert">@Service turned down the key on this PC. Check it in user secrets (Tmdb:ApiKey).</p>
+        <p class="notice" role="alert">@Service turned down the key on this PC. Check it in <SettingsLink />.</p>
         break;
     case LookupStatus.Busy:
         <p class="notice" role="alert">@Service is busy right now. Wait a moment and try again. @ChildContent</p>

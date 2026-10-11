@@ -41,7 +41,7 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Already owned:** the match says so; the editor shows the owned formats and "Saving adds 4K UHD to it", and the button reads "Add 4K UHD format". Saving adds the format to the existing film without touching its details. A UPC already in the collection links straight to the film.
 - **Find on TMDB (edit):** a button under the poster searches for the film's title and year; picking a match fills in the details and cover, keeps formats, UPCs and file paths, and outlines what changed from the saved film.
 - **Covers:** downloaded at w500 and kept on the PC; the phone will get small thumbnails (size decided then, ~60 MB for 4,000 at w185). Films without one keep the gradient placeholder.
-- **TMDB key:** user secrets for now; the Settings screen's "Online databases" section comes later. Until a key is set, the search says how to add one and manual entry still works.
+- **TMDB key:** user secrets for now; the Settings screen's "Online databases" section comes later (it came on 2026-10-11, see *Online databases*). Until a key is set, the search says how to add one and manual entry still works.
 
 ## Milestone 3 (decided 2026-10-09)
 - **Vault folder:** set in Settings, which for now has only its Obsidian vault section as mocked (folder + Change, last sync + note count, Rebuild vault). The sidebar footer shows the vault's state ("Vault synced · just now") and the Settings link. A film's page shows its note (`Movies/Heat (1995).md`), which opens it in Obsidian.
@@ -184,6 +184,21 @@ Settled while building it:
 - **Comics:** an issue is searched for as "Saga #7 comic" across all of Amazon (the word keeps other things named like the series out); a trade or hardcover by its name alone, "Saga Vol. 1". No format in a comic's search.
 - **The icon** is Amazon's own mark (the "a" with the smile), taken from Bootstrap Icons (MIT licence): the letter in the text colour, the smile in Amazon's orange. A first version drawn for Shelf was replaced the same day.
 - **Not built:** other shops; the link in the vault's wishlist notes; choosing another Amazon site than amazon.com.
+
+## Online databases (decided 2026-10-11)
+So that someone else installing Shelf can use their own keys ("set api keys manually").
+- **Where:** Settings → Online databases, as mocked: TMDB, UPCitemdb ("Free tier (no key)", nothing to set) and Metron, each key shown as dots and its last four characters.
+- **Editing:** **Add key** / **Add token** / **Change** turns the row into a box to paste into, with Save and Cancel (Enter and Esc too) and, under it, where to get one and **Remove key**. One row at a time. The key is never shown again in full.
+- **Kept:** in a file beside the database, encrypted by Windows for the account, not in `shelf.db`. Another PC or account means typing the keys in again.
+- **Checked:** on Save and every time Settings opens. Turned down on Save: "TMDB turned this key down, so it wasn't saved." and the box stays open. Can't reach the service: kept, "Not checked: couldn't reach TMDB". States are words, not colours; a key turned down is amber.
+- **At once:** no restart; a paired phone gets the change on its next sync.
+
+Settled while building it:
+- **The line under the heading** says the keys are kept on this PC "and on the phones you pair" (the mockup's "only on this PC" was from before the phone looked things up itself).
+- **Metron takes a token**, not the mockup's username and password.
+- **"Add your key in Settings"** replaces the `dotnet user-secrets` command in the Add screens' messages: a link on the PC, "Settings on the PC" on the phone.
+- **User secrets** still work for a developer until a key is saved in Settings.
+- **Not built:** removing a key doesn't ask first (pasting it back undoes it); no key for UPCitemdb's paid tier; changing keys from the phone.
 
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.

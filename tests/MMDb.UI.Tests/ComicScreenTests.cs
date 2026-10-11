@@ -355,14 +355,27 @@ public sealed class ComicEditorTests : ShelfTestContext
     }
 
     [Fact]
-    public void Without_a_metron_token_the_search_says_how_to_add_one()
+    public void Without_a_metron_token_the_search_sends_you_to_settings_to_add_one()
     {
         Online.Metron.FailWith = MetadataProblem.NotConfigured;
         var page = RenderAdd();
 
         Search(page, "saga 7");
 
-        Text(page.WaitForElement(".notice")).ShouldContain("dotnet user-secrets set Metron:Token <token> --project src/MMDb.App");
+        Text(page.WaitForElement(".notice")).ShouldBe("Metron isn't set up on this PC yet. Make an API token on metron.cloud and add it in Settings.");
+        page.Find(".notice a").GetAttribute("href").ShouldBe("settings");
+    }
+
+    [Fact]
+    public void A_metron_token_that_is_turned_down_is_to_be_checked_in_settings()
+    {
+        Online.Metron.FailWith = MetadataProblem.KeyRejected;
+        var page = RenderAdd();
+
+        Search(page, "saga 7");
+
+        Text(page.WaitForElement(".notice")).ShouldBe("Metron turned down the token on this PC. Check it in Settings.");
+        page.Find(".notice a").GetAttribute("href").ShouldBe("settings");
     }
 
     [Fact]

@@ -7,7 +7,7 @@ using MMDb.Domain.Comics;
 
 namespace MMDb.Infrastructure.Metadata;
 
-/// <summary>Metron settings. The API token lives in user secrets on the PC (<c>Metron:Token</c>), never in the repo.</summary>
+/// <summary>Metron settings. The API token is set in the PC's Settings screen (or its user secrets, <c>Metron:Token</c>), never in the repo.</summary>
 public sealed class MetronSettings
 {
     /// <summary>Made on metron.cloud under your account's API tokens.</summary>
@@ -18,6 +18,8 @@ public sealed class MetronSettings
 internal sealed class MetronClient(HttpClient http, MetronSettings settings) : IComicMetadata
 {
     public const string Source = ComicLookup.MetronService;
+
+    public const string BaseAddress = "https://metron.cloud/api/";
 
     /// <summary>Pages of a series' issue list read at most (100 issues a page).</summary>
     public const int MaxPages = 20;
@@ -84,6 +86,9 @@ internal sealed class MetronClient(HttpClient http, MetronSettings settings) : I
         }
     }
 
+    internal static HttpRequestMessage Request(string uri, string token) =>
+        new(HttpMethod.Get, uri) { Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token.Trim()) } };
+
     /// <returns><see langword="null"/> for 404 Not Found.</returns>
     private async Task<T?> GetAsync<T>(string uri, CancellationToken cancellationToken)
         where T : class
@@ -93,9 +98,7 @@ internal sealed class MetronClient(HttpClient http, MetronSettings settings) : I
             throw new MetadataException(Source, MetadataProblem.NotConfigured);
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.Token.Trim());
-
+        using var request = Request(uri, settings.Token);
         using var response = await Http.SendAsync(http, request, Source, cancellationToken);
         switch (response.StatusCode)
         {

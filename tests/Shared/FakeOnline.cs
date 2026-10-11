@@ -31,6 +31,11 @@ internal sealed class FakeOnline
 
     public FakeFileOpener Player { get; } = new();
 
+    public FakeKeyChecker Keys { get; } = new();
+
+    /// <summary>Not online either: where the PC keeps the keys set in Settings.</summary>
+    public FakeKeyStore KeyStore { get; } = new();
+
     /// <summary>Settings for an in-memory database; the cover folder is never touched because the store is faked.</summary>
     public static ShelfSettings Settings(InMemorySqlite sqlite) => new()
     {
@@ -48,7 +53,55 @@ internal sealed class FakeOnline
         .Replace(ServiceDescriptor.Singleton<IBookMetadata>(Books))
         .Replace(ServiceDescriptor.Singleton<ICoverSource>(ComicCovers))
         .Replace(ServiceDescriptor.Singleton<IFolderWatcher>(Watcher))
-        .Replace(ServiceDescriptor.Singleton<IFileOpener>(Player));
+        .Replace(ServiceDescriptor.Singleton<IFileOpener>(Player))
+        .Replace(ServiceDescriptor.Singleton<IKeyChecker>(Keys))
+        .Replace(ServiceDescriptor.Singleton<IKeyStore>(KeyStore));
+}
+
+/// <summary>Takes any key but the ones in <see cref="Rejected"/>, and remembers what it was asked.</summary>
+internal sealed class FakeKeyChecker : IKeyChecker
+{
+    private readonly List<string> _asked = [];
+
+    public HashSet<string> Rejected { get; } = [];
+
+    /// <summary>The services can't be reached.</summary>
+    public bool Offline { get; set; }
+
+    /// <summary>While set, a check waits for it.</summary>
+    public TaskCompletionSource? Hold { get; set; }
+
+    /// <summary>"TMDB key-1", "Metron token-1", in the order asked.</summary>
+    public IReadOnlyList<string> Asked { get { lock (_asked) { return [.. _asked]; } } }
+
+    public Task<KeyCheck> CheckTmdbAsync(string key, CancellationToken cancellationToken = default) => CheckAsync("TMDB", key, cancellationToken);
+
+    public Task<KeyCheck> CheckMetronAsync(string token, CancellationToken cancellationToken = default) => CheckAsync("Metron", token, cancellationToken);
+
+    private async Task<KeyCheck> CheckAsync(string service, string key, CancellationToken cancellationToken)
+    {
+        lock (_asked)
+        {
+            _asked.Add($"{service} {key}");
+        }
+
+        if (Hold is { } hold)
+        {
+            await hold.Task.WaitAsync(cancellationToken);
+        }
+
+        return Offline ? KeyCheck.Unknown : Rejected.Contains(key) ? KeyCheck.Rejected : KeyCheck.Accepted;
+    }
+}
+
+/// <summary>Keeps the keys in memory.</summary>
+internal sealed class FakeKeyStore : IKeyStore
+{
+    public SavedKeys? Saved { get; set; }
+
+    public SavedKeys? Load() => Saved;
+
+    public void Save(SavedKeys keys) => Saved = keys;
 }
 
 /// <summary>Finds films whose title contains the search text (ignoring case), in the order they were added.</summary>
