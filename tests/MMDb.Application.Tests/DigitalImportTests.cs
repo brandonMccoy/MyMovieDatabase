@@ -237,6 +237,23 @@ public sealed class DigitalImportTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_size_of_the_films_files_is_kept_and_other_files_do_not_count()
+    {
+        var paths = await MatchedAsync("Heat.1995.1080p.BluRay.mkv", "arrival_2016.mp4", "movie_final_v2.mp4");
+        File.WriteAllBytes(paths[0], new byte[3000]);
+        File.WriteAllBytes(paths[1], new byte[500]);
+        File.WriteAllBytes(paths[2], new byte[70]);
+        Status.LinkedBytes.ShouldBe(0);
+
+        (await AddTickedAsync()).ShouldBe(2);
+        Status.LinkedBytes.ShouldBe(3500);
+
+        File.WriteAllBytes(paths[1], new byte[900]);
+        await RescanAsync();
+        Status.LinkedBytes.ShouldBe(3900);
+    }
+
+    [Fact]
     public async Task Adding_makes_each_ticked_file_a_film_with_a_digital_copy()
     {
         var paths = await MatchedAsync("Heat.1995.1080p.BluRay.mkv", "heat.mkv", "movie_final_v2.mp4");

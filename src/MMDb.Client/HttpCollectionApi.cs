@@ -28,6 +28,7 @@ public sealed class HttpCollectionApi(PcLink pc) : ICollectionApi
                 ("format", request.Format?.ToString()),
                 ("genre", request.Genre),
                 ("decade", request.Decade?.ToString(CultureInfo.InvariantCulture)),
+                ("director", request.Director),
                 ("sort", request.Sort.ToString())),
             cancellationToken);
     }

@@ -96,6 +96,9 @@ public sealed record MovieFolderDto
     /// <summary>Video files in the folder that are a film's digital copy already.</summary>
     public int LinkedCount { get; init; }
 
+    /// <summary>The size of those files together, in bytes.</summary>
+    public long LinkedBytes { get; init; }
+
     public IReadOnlyList<ImportFileDto> Files { get; init; } = [];
 
     public IReadOnlyList<SkippedFileDto> Skipped { get; init; } = [];

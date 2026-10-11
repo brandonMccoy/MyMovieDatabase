@@ -98,6 +98,7 @@ public sealed class HttpCollectionApiTests : IAsyncLifetime
         new MovieListRequest { Format = MovieFormatKind.Dvd },
         new MovieListRequest { Genre = "Crime" },
         new MovieListRequest { Decade = 1970, Sort = MovieSortOrder.Title },
+        new MovieListRequest { Director = "Michael Mann" },
         new MovieListRequest { Sort = MovieSortOrder.Year },
         new MovieListRequest { Search = "nothing like this" },
     ];

@@ -580,3 +580,66 @@ a.vault-line:hover { color: var(--text); }
   .imp .file, .imp .arrow, .imp .conf { display: none; }
   .imp.gone { grid-template-columns: minmax(0,1fr) auto; }
 }
+
+/* ---------- Stats (from the mockup; bars are links, tips are CSS) ---------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.tile { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 14px 16px; }
+.tile .k { font-size: 12px; color: var(--muted); }
+.tile .v { font: 400 38px/1.1 var(--serif); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tile .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 14px; }
+.chart { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 16px 18px 18px; min-width: 0; }
+.chart.wide { grid-column: 1 / -1; }
+.chart h4 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+.chart .cap { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+.chart .none { color: var(--muted); font-size: 13px; }
+.stack { display: flex; gap: 2px; height: 14px; }
+.stack .seg { display: block; height: 100%; min-width: 3px; flex-basis: 0; }
+.stack .seg:first-child { border-radius: 4px 0 0 4px; }
+.stack .seg:last-child { border-radius: 0 4px 4px 0; }
+/* Lit with a layer, not a filter: a filter would light the tip as well. */
+.stack .seg:hover { background-image: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16)); }
+.stack .seg.uhd, .legend i.uhd { background: var(--c-uhd); }
+.stack .seg.br, .legend i.br { background: var(--c-br); }
+.stack .seg.dvd, .legend i.dvd { background: var(--c-dvd); }
+.stack .seg.dig, .legend i.dig { background: var(--c-digital); }
+.legend { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); }
+.legend a { display: inline-flex; align-items: center; gap: 7px; color: inherit; text-decoration: none; }
+.legend a:hover { color: var(--text); }
+.legend i { width: 10px; height: 10px; border-radius: 2px; }
+.legend b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+/* new: the gridlines' numbers get a margin of their own on the right, so a tall last bar can't cover them */
+.cols { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; align-items: end; height: 150px; margin-top: 8px; padding-right: 38px; border-bottom: 1px solid var(--line); position: relative; }
+.cols .col { position: relative; height: 100%; display: flex; align-items: flex-end; justify-content: center; cursor: default; text-decoration: none; }
+.cols a.col { cursor: pointer; }
+.cols .col i { position: relative; display: block; width: 100%; max-width: 28px; background: var(--c-uhd); border-radius: 4px 4px 0 0; }
+.cols .col i.on { min-height: 2px; }
+.cols .col:hover i { background-image: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16)); }
+.xlabels { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; margin-top: 6px; padding-right: 38px; font-size: 11px; color: var(--muted); text-align: center; white-space: nowrap; }
+.gridline { position: absolute; left: 0; right: 38px; border-top: 1px dashed var(--line-soft); font-size: 10.5px; color: var(--faint); }
+.gridline span { position: absolute; left: 100%; width: 38px; top: -8px; text-align: right; font-variant-numeric: tabular-nums; }
+.hbars { display: grid; gap: 9px; }
+.hbar { position: relative; display: grid; grid-template-columns: 150px 1fr 44px; gap: 10px; align-items: center; font-size: 13px; cursor: default; color: inherit; text-decoration: none; }
+a.hbar { cursor: pointer; }
+.hbar .lbl { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.hbar:hover .lbl { color: var(--text); }
+.hbar .track { height: 10px; }
+.hbar .track i { display: block; height: 100%; min-width: 2px; background: var(--c-br); border-radius: 0 4px 4px 0; }
+.hbar:hover .track i { background-image: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.16)); }
+.hbar .num { text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* new: the mockup's tooltip, without script. It sits over what it describes. */
+.stack .seg { position: relative; }
+.stack .seg:hover::after, .stack .seg:focus-visible::after,
+.cols .col:hover i::after, .cols a.col:focus-visible i::after,
+.hbar:hover::after, a.hbar:focus-visible::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 7px); transform: translateX(-50%); z-index: 10;
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: 5px; padding: 6px 9px;
+  font: 12px/1.3 var(--font); color: var(--text); box-shadow: 0 8px 20px rgba(0,0,0,.4); white-space: nowrap; pointer-events: none;
+}
+.stack .seg.tip-start::after, .cols .col.tip-start i::after, .hbar::after { left: 0; transform: none; }
+.stack .seg.tip-end::after, .cols .col.tip-end i::after { left: auto; right: 0; transform: none; }
+.chip.director { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.chip.director svg { width: 11px; height: 11px; }
+@media (max-width: 900px) {
+  .charts { grid-template-columns: minmax(0,1fr); }
+}

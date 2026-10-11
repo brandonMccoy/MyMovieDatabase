@@ -28,6 +28,9 @@ public interface IMovieRepository
     /// <summary>Read-only: the films owned digitally, each with its video file if it has one.</summary>
     Task<IReadOnlyList<DigitalCopy>> ListDigitalAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Read-only: every film as the Stats screen counts it.</summary>
+    Task<IReadOnlyList<FilmTally>> ListTalliesAsync(CancellationToken cancellationToken = default);
+
     void Add(Movie movie);
 
     void Remove(Movie movie);
@@ -35,6 +38,12 @@ public interface IMovieRepository
     /// <exception cref="ConcurrencyConflictException">The movie was changed or deleted by someone else since it was loaded.</exception>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>What the Stats screen counts of a film.</summary>
+/// <param name="CreatedAt">When the film joined the collection.</param>
+public sealed record FilmTally(int? Year, IReadOnlyList<string> Directors, DateTimeOffset CreatedAt, IReadOnlyList<FormatTally> Formats);
+
+public sealed record FormatTally(MediaFormat Format, DateTimeOffset AddedAt);
 
 /// <summary>A film's digital copy: what the folder import needs to know of it.</summary>
 /// <param name="FilePath">The video file on the PC, if one is linked.</param>

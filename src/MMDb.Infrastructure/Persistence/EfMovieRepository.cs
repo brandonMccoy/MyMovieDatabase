@@ -92,6 +92,21 @@ internal sealed class EfMovieRepository(ShelfDbContext db) : IMovieRepository
             m.CoverImage))];
     }
 
+    // The four columns that are counted, and each format with when it was added.
+    public async Task<IReadOnlyList<FilmTally>> ListTalliesAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await db.Movies.AsNoTracking()
+            .Select(m => new
+            {
+                m.Year,
+                m.Directors,
+                m.CreatedAt,
+                Formats = m.Formats.Select(f => new { f.Format, f.AddedAt }).ToList(),
+            })
+            .ToListAsync(cancellationToken);
+        return [.. rows.Select(m => new FilmTally(m.Year, m.Directors, m.CreatedAt, [.. m.Formats.Select(f => new FormatTally(f.Format, f.AddedAt))]))];
+    }
+
     public void Add(Movie movie) => db.Movies.Add(movie);
 
     public void Remove(Movie movie) => db.Movies.Remove(movie);

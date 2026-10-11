@@ -101,6 +101,26 @@ public sealed class MovieLibraryTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task A_director_in_the_address_lists_that_directors_films_until_the_chip_is_cleared()
+    {
+        await SeedAsync(Heat);
+        await SeedAsync(Film("Alien", 1979) with { Directors = ["Ridley Scott"] });
+        Navigation.NavigateTo("movies?director=Michael%20Mann");
+
+        var page = Render<MovieLibrary>();
+
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Heat"]));
+        var chip = page.Find(".chip.director");
+        chip.TextContent.ShouldBe("Directed by Michael Mann");
+        page.Find(".chip").TextContent.ShouldBe("All1");
+
+        Navigation.NavigateTo(chip.GetAttribute("href")!);
+
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Alien", "Heat"], ignoreOrder: true));
+        page.FindAll(".chip.director").ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Format_chips_show_counts_and_filter()
     {
         await SeedAsync(Heat);

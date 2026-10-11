@@ -5,6 +5,7 @@ using MMDb.Application.Devices;
 using MMDb.Application.Digital;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
+using MMDb.Application.Stats;
 using MMDb.Application.Vault;
 using MMDb.Application.Wishlist;
 
@@ -29,6 +30,7 @@ public static class ApplicationServices
         services.AddScoped<VaultSync>();
         services.AddSingleton<ImportDesk>();
         services.AddScoped<DigitalImport>();
+        services.AddScoped<StatsSource>();
         return services;
     }
 }

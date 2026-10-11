@@ -1,0 +1,225 @@
+@page "/stats"
+@implements IDisposable
+@inject ICollectionApi Api
+@inject IServiceProvider Services
+
+<PageTitle>Stats · Shelf</PageTitle>
+
+<div class="topbar">
+    <SearchBox />
+</div>
+
+<div class="content">
+    <div class="section-head"><h1>Stats</h1><span class="sub">Whole collection</span></div>
+
+    @if (_stats is null)
+    {
+        @* Loading: in-process this is a blink, so no spinner. *@
+    }
+    else if (IsEmpty(_stats))
+    {
+        <div class="empty">
+            <h2>Nothing to count yet</h2>
+            <p>The numbers appear once there is a movie or a comic in your collection.</p>
+            <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+        </div>
+    }
+    else
+    {
+        var copies = _stats.DiscCount + _stats.DigitalCount;
+        <div class="tiles">
+            <div class="tile">
+                <div class="k">Films</div><div class="v">@Number(_stats.FilmCount)</div>
+                <div class="d">@AddedThisMonth(_stats.FilmsAddedThisMonth)</div>
+            </div>
+            <div class="tile">
+                <div class="k">Discs</div><div class="v">@Number(_stats.DiscCount)</div>
+                <div class="d">@Plural(_stats.FilmsOnSeveralFormats, "film") on 2+ formats</div>
+            </div>
+            <div class="tile">
+                <div class="k">Digital</div><div class="v">@Number(_stats.DigitalCount)</div>
+                @if (_digital?.Folder.LinkedBytes is > 0 and var bytes)
+                {
+                    <div class="d">@FileSize.Text(bytes) on this PC</div>
+                }
+            </div>
+            <div class="tile">
+                <div class="k">Comic issues</div><div class="v">@Number(_stats.IssueCount)</div>
+                <div class="d">@AddedThisMonth(_stats.IssuesAddedThisMonth)</div>
+                @if (_stats.CollectedCount > 0)
+                {
+                    <div class="d">@(_stats.CollectedCount == 1 ? "1 trade or HC" : $"{Number(_stats.CollectedCount)} trades & HCs")</div>
+                }
+            </div>
+            <div class="tile">
+                <div class="k">Series</div><div class="v">@Number(_stats.SeriesCount)</div>
+                <div class="d">@Plural(_stats.CompleteSeriesCount, "complete run")</div>
+            </div>
+            <div class="tile">
+                <div class="k">Wishlist</div><div class="v">@Number(_stats.WishlistMovieCount + _stats.WishlistComicCount)</div>
+                <div class="d">@Plural(_stats.WishlistMovieCount, "movie") · @Plural(_stats.WishlistComicCount, "comic")</div>
+            </div>
+        </div>
+
+        <div class="charts">
+            <section class="chart wide" aria-labelledby="chart-formats">
+                <h4 id="chart-formats">Copies by format</h4>
+                <div class="cap">@Plural(copies, "copy", "copies") · @Plural(_stats.DiscCount, "disc") + @Number(_stats.DigitalCount) digital</div>
+                @if (copies == 0)
+                {
+                    <div class="none">No films yet.</div>
+                }
+                else
+                {
+                    var owned = _stats.Formats.Where(f => f.Count > 0).ToList();
+                    <div class="stack" role="list">
+                        @foreach (var format in owned)
+                        {
+                            var count = Formats.IsDisc(format.Format) ? Plural(format.Count, "disc") : Plural(format.Count, "copy", "copies");
+                            var tip = $"{Formats.Name(format.Format)} · {count} ({Math.Round(format.Count * 100.0 / copies)}%)";
+                            var side = format == owned[0] ? "tip-start" : format == owned[^1] ? "tip-end" : null;
+                            <a class="seg @Formats.CssClass(format.Format) @side" role="listitem" style="flex-grow:@format.Count" href="@FormatHref(format.Format)" aria-label="@tip" data-tip="@tip"></a>
+                        }
+                    </div>
+                    <div class="legend">
+                        @foreach (var format in _stats.Formats)
+                        {
+                            <a href="@FormatHref(format.Format)"><i class="@Formats.CssClass(format.Format)"></i>@Formats.Name(format.Format) <b>@Number(format.Count)</b></a>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="chart" aria-labelledby="chart-added">
+                <h4 id="chart-added">Items added per month</h4>
+                <div class="cap">Movies and comics, last 12 months</div>
+                <ColumnChart Bars="Months(_stats)" />
+            </section>
+
+            <section class="chart" aria-labelledby="chart-decades">
+                <h4 id="chart-decades">Films by decade</h4>
+                <div class="cap">By year of release@(_stats.FilmsWithoutYear > 0 ? $" · {Plural(_stats.FilmsWithoutYear, "film")} without a year" : null)</div>
+                @if (_stats.Decades.Count == 0)
+                {
+                    <div class="none">No films with a year yet.</div>
+                }
+                else
+                {
+                    <ColumnChart Bars="Decades(_stats)" />
+                }
+            </section>
+
+            <section class="chart" aria-labelledby="chart-directors">
+                <h4 id="chart-directors">Top directors</h4>
+                <div class="cap">Films owned</div>
+                @if (_stats.TopDirectors.Count == 0)
+                {
+                    <div class="none">No films with a director yet.</div>
+                }
+                else
+                {
+                    <BarList Bars="Directors(_stats)" />
+                }
+            </section>
+
+            <section class="chart" aria-labelledby="chart-publishers">
+                <h4 id="chart-publishers">Comics by publisher</h4>
+                <div class="cap">Issues owned</div>
+                @if (_stats.Publishers.Count == 0)
+                {
+                    <div class="none">No comic issues yet.</div>
+                }
+                else
+                {
+                    <BarList Bars="Publishers(_stats)" />
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private IStatsApi? _api;
+    private IDigitalApi? _digital;
+    private StatsDto? _stats;
+    private long _bytesShown;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _api = Services.GetService<IStatsApi>();
+        _digital = Services.GetService<IDigitalApi>();
+        Api.Changed += OnCollectionChanged;
+        if (_digital is not null)
+        {
+            _bytesShown = _digital.Folder.LinkedBytes;
+            _digital.Changed += OnFolderChanged;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_api is not null)
+        {
+            _stats = await _api.GetAsync();
+        }
+    }
+
+    // Something was saved elsewhere (a phone, another screen): count again.
+    private void OnCollectionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    // The movie folder tells of every step of a scan or an import; only the size on the Digital tile is shown here.
+    private void OnFolderChanged()
+    {
+        var bytes = _digital!.Folder.LinkedBytes;
+        if (Interlocked.Exchange(ref _bytesShown, bytes) != bytes)
+        {
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static bool IsEmpty(StatsDto stats) =>
+        stats.FilmCount + stats.IssueCount + stats.CollectedCount + stats.WishlistMovieCount + stats.WishlistComicCount == 0;
+
+    private static IReadOnlyList<ChartBar> Months(StatsDto stats) => [.. stats.AddedByMonth.Select(m =>
+    {
+        var name = CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(m.Month);
+        var added = m.Count == 0 ? "nothing added" : Plural(m.Count, "item") + " added";
+        return new ChartBar(name, m.Count, $"{name} {m.Year.ToString(CultureInfo.InvariantCulture)} · {added}");
+    })];
+
+    private static IReadOnlyList<ChartBar> Decades(StatsDto stats) => [.. stats.Decades.Select(d =>
+    {
+        var decade = d.Decade.ToString(CultureInfo.InvariantCulture);
+        return new ChartBar(decade + "s", d.Count, $"{decade}s · {Plural(d.Count, "film")}", "movies?decade=" + decade);
+    })];
+
+    private static IReadOnlyList<ChartBar> Directors(StatsDto stats) => [.. stats.TopDirectors.Select(d =>
+        new ChartBar(d.Name, d.Count, $"{d.Name} · {Plural(d.Count, "film")}", "movies?director=" + Uri.EscapeDataString(d.Name)))];
+
+    private static IReadOnlyList<ChartBar> Publishers(StatsDto stats) => [.. stats.Publishers.Select(p => p.Name is { } name
+        ? new ChartBar(name, p.Count, $"{name} · {Plural(p.Count, "issue")}", $"comics?shelf={ComicShelfKind.Issues}&publisher={Uri.EscapeDataString(name)}")
+        : new ChartBar("Other", p.Count, $"Other publishers · {Plural(p.Count, "issue")}"))];
+
+    private static string FormatHref(MovieFormatKind format) => "movies?format=" + format;
+
+    private static string AddedThisMonth(int n) => n == 0 ? "None this month" : $"+{Number(n)} this month";
+
+    private static string Number(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Plural(int n, string one, string? many = null) => $"{Number(n)} {(n == 1 ? one : many ?? one + "s")}";
+
+    public void Dispose()
+    {
+        Api.Changed -= OnCollectionChanged;
+        if (_digital is not null)
+        {
+            _digital.Changed -= OnFolderChanged;
+        }
+    }
+}

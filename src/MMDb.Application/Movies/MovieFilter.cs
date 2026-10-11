@@ -28,6 +28,7 @@ internal static class MovieFilter
             .Where(m => terms.All(term => Matches(m, term) || crediting[term].Contains(m.Id)))
             .Where(m => query.Genre is null || m.Genres.Contains(query.Genre, StringComparer.OrdinalIgnoreCase))
             .Where(m => query.Decade is null || DecadeOf(m) == query.Decade)
+            .Where(m => query.Director is null || m.Directors.Any(d => Compare.Compare(d, query.Director, Loose) == 0))
             .ToList();
 
         var facets = new MovieFacets(

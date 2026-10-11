@@ -1,0 +1,34 @@
+@* Upright bars over a shared baseline, two gridlines, a label under each bar (months, decades). *@
+<div class="cols" role="list">
+    <div class="gridline" style="bottom:50%"><span>@Number(Top / 2)</span></div>
+    <div class="gridline" style="bottom:100%"><span>@Number(Top)</span></div>
+    @for (var i = 0; i < Bars.Count; i++)
+    {
+        var bar = Bars[i];
+        var height = ChartAxis.Percent(bar.Value, Top);
+        @* The first and last bars' tips open inward, so they stay inside the window. *@
+        var side = i < 2 ? "tip-start" : i >= Bars.Count - 2 ? "tip-end" : null;
+        if (bar.Href is not null && bar.Value > 0)
+        {
+            <a class="col @side" role="listitem" href="@bar.Href" aria-label="@bar.Tip"><i class="on" style="height:@height" data-tip="@bar.Tip"></i></a>
+        }
+        else
+        {
+            <div class="col @side" role="listitem" aria-label="@bar.Tip"><i class="@(bar.Value > 0 ? "on" : null)" style="height:@height" data-tip="@bar.Tip"></i></div>
+        }
+    }
+</div>
+<div class="xlabels" aria-hidden="true">
+    @foreach (var bar in Bars)
+    {
+        <span>@bar.Label</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ChartBar> Bars { get; set; } = [];
+
+    private int Top => ChartAxis.Top(Bars.Count == 0 ? 0 : Bars.Max(b => b.Value));
+
+    private static string Number(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+}

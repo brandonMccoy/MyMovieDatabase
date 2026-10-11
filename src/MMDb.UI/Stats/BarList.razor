@@ -1,0 +1,27 @@
+@* A ranked list: name, a bar as long as its share of the longest, the number. *@
+<div class="hbars" role="list">
+    @foreach (var bar in Bars)
+    {
+        var width = ChartAxis.Percent(bar.Value, Longest);
+        if (bar.Href is not null)
+        {
+            <a class="hbar" role="listitem" href="@bar.Href" aria-label="@bar.Tip" data-tip="@bar.Tip">
+                <span class="lbl">@bar.Label</span><span class="track"><i style="width:@width"></i></span><span class="num">@Number(bar.Value)</span>
+            </a>
+        }
+        else
+        {
+            <div class="hbar" role="listitem" aria-label="@bar.Tip" data-tip="@bar.Tip">
+                <span class="lbl">@bar.Label</span><span class="track"><i style="width:@width"></i></span><span class="num">@Number(bar.Value)</span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ChartBar> Bars { get; set; } = [];
+
+    private int Longest => Bars.Count == 0 ? 0 : Bars.Max(b => b.Value);
+
+    private static string Number(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
+}

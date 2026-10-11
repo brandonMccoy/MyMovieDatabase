@@ -55,7 +55,7 @@ src/
   MMDb.Domain/          Entities (Movie, Comic, WishlistMovie, WishlistComic), value objects
                         (Upc, ComicBarcode, Isbn), validation. No dependencies.
   MMDb.Application/     Use cases (LookupBarcode, SearchMetadata, AddMovie,
-                        AddComic, UpdateX, Wishlist ops, Query). Defines ports:
+                        AddComic, UpdateX, Wishlist ops, Query, Stats). Defines ports:
                         IMovieRepository, IComicRepository, IMovieMetadata,
                         IBarcodeLookup, IPosterSource,
                         IVaultWriter, ICoverStore. Uses TimeProvider for time.
@@ -159,6 +159,15 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 - **State:** `ImportDesk` (Application, one per app) holds what the last scan found and what was looked up, as an immutable status the screens read; `DigitalImport` (scoped) has the use cases; `IDigitalApi` / `InProcessDigitalApi` hand it to the UI. PC only: the phone has no `IDigitalApi`.
 - **Play file:** opens the film's file with the OS default player (`IFileOpener`: `Process.Start` with `UseShellExecute`), only if it is a video file that exists: a path can be typed by hand or come from a phone, and opening runs whatever it names. PC only; the phone shows the format but no play button.
 
+## Stats (PC only)
+
+- `StatsSource` (Application) counts the whole collection in one go: `IMovieRepository.ListTalliesAsync` (year, directors, when it was added, and each format with when it was added), `IComicRepository.ListTalliesAsync` (format, series, number, publisher, when it was added), the series Metron described and two counts of the wishlist. No credits, summaries or covers are read; the adding up is in memory.
+- Months are calendar months in the PC's time zone (`TimeProvider.LocalTimeZone`). "Items added per month" counts copies (a film's formats by `AddedAt`, comics by `CreatedAt`) for this month and the eleven before.
+- Runs and complete runs are told as the comics library tells them (`ComicFilter.RunKey`, `ComicFilter.SeriesOf`), so the tile agrees with "N of M" there.
+- `IStatsApi` / `InProcessStatsApi` hand the screen a `StatsDto`. The phone has no `IStatsApi`, so it has no Stats link; it gets one with its offline copy (milestone 7).
+- **Size on disk:** not part of the stats read. The movie-folder scan notes each video file's size as it lists the folder (`ImportStatus.LinkedBytes`: the files that are a film's digital copy), and the Digital tile shows `IDigitalApi.Folder.LinkedBytes`.
+- **Bars are links** into the libraries' own addresses: `movies?format=`, `movies?decade=`, `movies?director=` (`MovieQuery.Director`: the whole name, ignoring case and accents) and `comics?shelf=Issues&publisher=`.
+
 ## Barcode scanning
 
 - Library: `BarcodeScanning.Native.Maui` (Google ML Kit on Android). It's fast, but **ML Kit does not read UPC add-ons** (checked on a phone, 2026-10-10: the main barcode is read, the add-on never).
@@ -237,8 +246,8 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 5. Server API + pairing + Android app with scanner. (The add-on scan spike and mDNS wait for a real phone.)
 6. Wishlist + wishlist match on scan. (Done 2026-10-10; the "likely" match away from home comes with milestone 7.)
 6b. Digital folder import + watch folder, Play file. (Done 2026-10-10.)
-7. Offline cache/queue on phone: the phone knows the movie and comic collection and the wishlist without the PC. Built last (decided 2026-10-10), after 8.
-8. Stats screen.
+7. Offline cache/queue on phone: the phone knows the movie and comic collection and the wishlist without the PC, and gets its Stats tab. Built last (decided 2026-10-10), after 8.
+8. Stats screen. (Done 2026-10-10, on the PC.)
 
 Each milestone ships with its tests (see [TESTING.md](TESTING.md)).
 

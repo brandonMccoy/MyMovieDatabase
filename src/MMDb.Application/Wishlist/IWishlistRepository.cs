@@ -42,6 +42,9 @@ public interface IWishlistRepository
 
     void Remove(WishlistComic comic);
 
+    /// <summary>How many films and how many comics are on the wishlist.</summary>
+    Task<(int Movies, int Comics)> CountAsync(CancellationToken cancellationToken = default);
+
     /// <exception cref="ConcurrencyConflictException">The item was changed or removed by someone else since it was loaded.</exception>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

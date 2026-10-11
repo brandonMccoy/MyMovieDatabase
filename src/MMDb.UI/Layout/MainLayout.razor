@@ -19,6 +19,10 @@
                 <NavLink href="wishlist" Match="NavLinkMatch.Prefix">
                     <Icon Name="heart" />Wishlist<span class="count">@Counts.Wishlist?.ToString("N0", CultureInfo.InvariantCulture)</span>
                 </NavLink>
+                @if (Services.GetService<IStatsApi>() is not null)
+                {
+                    <NavLink href="stats"><Icon Name="chart" />Stats</NavLink>
+                }
             </nav>
         </div>
         <div class="side-foot">

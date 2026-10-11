@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Enumeration;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Vault;
@@ -253,6 +254,7 @@ public sealed class DigitalImport(
                                 ? [.. s.Files.Where(f => !Paths.Equals(f.Path, file.Path))]
                                 : Change(s.Files, file.Path, f => f with { Ticked = false, State = FileMatchState.Check }),
                             LinkedCount = s.LinkedCount + (saved ? 1 : 0),
+                            LinkedBytes = s.LinkedBytes + (saved ? SizeOf(file.Path) : 0),
                             Progress = s.Progress is { } progress ? progress with { Done = progress.Done + 1 } : null,
                         });
                     }
@@ -419,13 +421,14 @@ public sealed class DigitalImport(
             return;
         }
 
-        if (VideoFiles(folder) is not { } found)
+        if (VideoFiles(folder) is not { } files)
         {
             // Its drive may only be unplugged: nothing is called missing, and what was waiting is forgotten.
             Watch(desk.Update(s => new() { State = ImportFolderState.FolderMissing, Folder = folder, Watch = s.Watch }));
             return;
         }
 
+        var found = files.ConvertAll(f => f.Path);
         var copies = await movies.ListDigitalAsync(cancellationToken);
         var linked = copies.Select(c => c.FilePath).OfType<string>().Select(FullPath).ToHashSet(Paths);
         var loose = found.Where(f => !linked.Contains(f)).ToList();
@@ -438,11 +441,13 @@ public sealed class DigitalImport(
 
         var skipped = (await skips.ListAsync(cancellationToken)).ToHashSet(Paths);
         var owned = await OwnedAsync(cancellationToken);
+        var unlinked = loose.ToHashSet(Paths);
         Watch(desk.Update(s => s with
         {
             State = ImportFolderState.Ready,
             VideoFileCount = found.Count,
             LinkedCount = found.Count - loose.Count,
+            LinkedBytes = files.Where(f => !unlinked.Contains(f.Path)).Sum(f => f.Size),
             Files = Settle(Merge(s.Files, loose.Where(f => !skipped.Contains(f)), folder), owned, copies, []),
             Skipped = [.. loose.Where(skipped.Contains)],
             Missing = [.. gone.Select(c => new MissingFile(c.MovieId, c.Title, c.Year, c.FilePath!, c.Formats.Count == 1, c.CoverImage))],
@@ -576,8 +581,11 @@ public sealed class DigitalImport(
     private void Watch(ImportStatus status) =>
         desk.Watch(status is { Watch: true, State: ImportFolderState.Ready } ? status.Folder : null);
 
-    /// <returns>Every video file in the folder and under it, by path; <see langword="null"/> if the folder can't be read.</returns>
-    private static List<string>? VideoFiles(string folder)
+    /// <returns>
+    /// Every video file in the folder and under it, by path, with its size (which listing a folder gives for
+    /// free); <see langword="null"/> if the folder can't be read.
+    /// </returns>
+    private static List<(string Path, long Size)>? VideoFiles(string folder)
     {
         if (!Directory.Exists(folder))
         {
@@ -587,11 +595,28 @@ public sealed class DigitalImport(
         try
         {
             var everywhere = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
-            return [.. Directory.EnumerateFiles(folder, "*", everywhere).Where(ReleaseNameParser.IsVideoFile).Order(Paths)];
+            var entries = new FileSystemEnumerable<(string Path, long Size)>(
+                folder, (ref FileSystemEntry entry) => (entry.ToSpecifiedFullPath(), entry.Length), everywhere)
+            {
+                ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory,
+            };
+            return [.. entries.Where(f => ReleaseNameParser.IsVideoFile(f.Path)).OrderBy(f => f.Path, Paths)];
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return null;
+        }
+    }
+
+    private static long SizeOf(string path)
+    {
+        try
+        {
+            return new FileInfo(path).Length;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return 0;
         }
     }
 

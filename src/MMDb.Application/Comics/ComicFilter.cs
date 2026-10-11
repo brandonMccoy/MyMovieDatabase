@@ -37,7 +37,14 @@ internal static class ComicFilter
         };
     }
 
-    private static (string, int?) RunKey(Comic comic) => ((comic.Series ?? "").ToUpperInvariant(), comic.SeriesYear);
+    private static (string, int?) RunKey(Comic comic) => RunKey(comic.Series, comic.SeriesYear);
+
+    /// <summary>What makes single issues one run: the series' name, whatever its case, and the year it began.</summary>
+    public static (string, int?) RunKey(string? series, int? seriesYear) => ((series ?? "").ToUpperInvariant(), seriesYear);
+
+    /// <summary>The Metron series a run is: the one most of its copies are linked to.</summary>
+    public static int? SeriesOf(IEnumerable<int?> metronSeriesIds) =>
+        metronSeriesIds.OfType<int>().GroupBy(id => id).OrderByDescending(g => g.Count()).Select(g => (int?)g.Key).FirstOrDefault();
 
     // While searching, only what matched is shown: a run's gaps would be every issue that didn't.
     private static IEnumerable<SeriesRun> Runs(IEnumerable<Comic> singles, IReadOnlyList<ComicSeries> known, IReadOnlyList<WishlistComic> wanted, ComicSort sort, bool showMissing)
@@ -47,7 +54,7 @@ internal static class ComicFilter
         var runs = singles.GroupBy(RunKey).Select(group =>
         {
             var copies = group.ToList();
-            var metronId = copies.Select(c => c.MetronSeriesId).OfType<int>().GroupBy(id => id).OrderByDescending(g => g.Count()).Select(g => (int?)g.Key).FirstOrDefault();
+            var metronId = SeriesOf(copies.Select(c => c.MetronSeriesId));
             var facts = metronId is { } id ? byMetronId.GetValueOrDefault(id) : null;
             return (Run: Run(copies, facts, metronId, wantedIssues, showMissing), Latest: copies.Max(c => c.CreatedAt));
         });

@@ -32,8 +32,8 @@ public static class ShelfEndpoints
         var paired = api.MapGroup("").AddEndpointFilter(RequireDeviceAsync);
         paired.MapGet("/session", (HttpContext http, PhoneServer server) => new SessionResponse(server.PcName, ((PairedDevice)http.Items[DeviceItem]!).Name));
 
-        paired.MapGet("/movies", (string? search, MovieFormatKind? format, string? genre, int? decade, MovieSortOrder? sort, ICollectionApi api, CancellationToken ct) =>
-            api.ListMoviesAsync(new() { Search = search, Format = format, Genre = genre, Decade = decade, Sort = sort ?? MovieSortOrder.RecentlyAdded }, ct));
+        paired.MapGet("/movies", (string? search, MovieFormatKind? format, string? genre, int? decade, string? director, MovieSortOrder? sort, ICollectionApi api, CancellationToken ct) =>
+            api.ListMoviesAsync(new() { Search = search, Format = format, Genre = genre, Decade = decade, Director = director, Sort = sort ?? MovieSortOrder.RecentlyAdded }, ct));
         paired.MapGet("/movies/lookup", (string q, ICollectionApi api, CancellationToken ct) => api.LookupMovieAsync(q, ct));
         paired.MapGet("/movies/{id:guid}", async Task<Results<Ok<MovieDto>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
             await api.GetMovieAsync(id, ct) is { } movie ? TypedResults.Ok(movie) : TypedResults.NotFound());

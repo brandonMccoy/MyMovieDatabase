@@ -139,6 +139,21 @@ public sealed class MovieListTests
     }
 
     [Fact]
+    public async Task Filtering_by_director_takes_the_whole_name_ignoring_case_and_accents()
+    {
+        await using var shelf = await TestShelf.CreateAsync();
+        await shelf.AddAsync(Film("Amélie", 2001, directors: ["Jean-Pierre Jeunet"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Delicatessen", 1991, directors: ["Marc Caro", "Jean-Pierre Jeunet"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Jean de Florette", 1986, directors: ["Claude Berri"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Micmacs", 2009, directors: ["Jean-Pierre Jeunet Jr."]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Produced") with { Crew = [new("Jean-Pierre Jeunet", "Producer", "Production")] }, MediaFormat.Dvd);
+
+        (await TitlesAsync(shelf, new() { Director = "jean-pierre jeunet" })).ShouldBe(["Amélie", "Delicatessen"], ignoreOrder: true);
+        (await TitlesAsync(shelf, new() { Director = "Jean" })).ShouldBeEmpty();
+        (await shelf.ListAsync(new() { Director = "Claude Berri" })).Facets.MatchingCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Facets_count_the_whole_collection_and_options()
     {
         await using var shelf = await TestShelf.CreateAsync();

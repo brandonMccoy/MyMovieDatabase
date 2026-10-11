@@ -85,6 +85,9 @@ public sealed record ImportStatus
     /// <summary>Of those, the ones that are a film's digital copy already.</summary>
     public int LinkedCount { get; init; }
 
+    /// <summary>The size of those files together, in bytes.</summary>
+    public long LinkedBytes { get; init; }
+
     /// <summary>Waiting for review, by <see cref="ImportFile.Name"/>.</summary>
     public IReadOnlyList<ImportFile> Files { get; init; } = [];
 

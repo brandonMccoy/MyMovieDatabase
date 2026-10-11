@@ -25,6 +25,9 @@ public interface IComicRepository
     /// <summary>Read-only: every series fetched from Metron.</summary>
     Task<IReadOnlyList<ComicSeries>> ListSeriesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Read-only: every comic as the Stats screen counts it.</summary>
+    Task<IReadOnlyList<ComicTally>> ListTalliesAsync(CancellationToken cancellationToken = default);
+
     void Add(Comic comic);
 
     void Remove(Comic comic);
@@ -34,3 +37,7 @@ public interface IComicRepository
     /// <exception cref="Movies.ConcurrencyConflictException">The comic was changed or deleted by someone else since it was loaded.</exception>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
+
+/// <summary>What the Stats screen counts of a comic copy.</summary>
+public sealed record ComicTally(
+    ComicFormat Format, string? Series, int? SeriesYear, string? Number, string? Publisher, int? MetronSeriesId, DateTimeOffset CreatedAt);

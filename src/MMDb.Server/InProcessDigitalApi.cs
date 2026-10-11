@@ -140,6 +140,7 @@ public sealed class InProcessDigitalApi : IDigitalApi, IDisposable
         Watch = status.Watch,
         VideoFileCount = status.VideoFileCount,
         LinkedCount = status.LinkedCount,
+        LinkedBytes = status.LinkedBytes,
         Files = [.. status.Files.Select(file => _files.GetValue(file, ToDto))],
         Skipped = [.. status.Skipped.Select(path => new SkippedFileDto(path, Name(status.Folder, path)))],
         Missing = [.. status.Missing.Select(m => new MissingFileDto(m.MovieId, m.Title, m.Year, m.Path, m.OnlyCopy, _covers.For(m.CoverImage)))],

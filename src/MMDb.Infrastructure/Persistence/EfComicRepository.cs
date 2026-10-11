@@ -34,6 +34,11 @@ internal sealed class EfComicRepository(ShelfDbContext db) : IComicRepository
     public async Task<IReadOnlyList<ComicSeries>> ListSeriesAsync(CancellationToken cancellationToken = default) =>
         await db.ComicSeries.AsNoTracking().ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ComicTally>> ListTalliesAsync(CancellationToken cancellationToken = default) =>
+        await db.Comics.AsNoTracking()
+            .Select(c => new ComicTally(c.Format, c.Series, c.SeriesYear, c.Number, c.Publisher, c.MetronSeriesId, c.CreatedAt))
+            .ToListAsync(cancellationToken);
+
     public void Add(Comic comic) => db.Comics.Add(comic);
 
     public void Remove(Comic comic) => db.Comics.Remove(comic);

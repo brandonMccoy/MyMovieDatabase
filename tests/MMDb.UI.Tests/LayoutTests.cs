@@ -43,10 +43,29 @@ public sealed class LayoutTests : ShelfTestContext
         layout.WaitForAssertion(() => layout.FindAll(".nav .count").Select(c => c.TextContent).ShouldBe(["1", "1", "1"]));
     }
 
+    [Theory]
+    [InlineData("", "Movies0")]
+    [InlineData("?format=Dvd", "Movies0")]
+    [InlineData("movies/new", "Movies0")]
+    [InlineData("import", "Movies0")]
+    [InlineData("comics?shelf=Issues", "Comics0")]
+    [InlineData("wishlist", "Wishlist0")]
+    [InlineData("wishlist/movies/new", "Wishlist0")]
+    [InlineData("stats", "Stats")]
+    [InlineData("settings", "Settings")]
+    public void The_sidebar_lights_up_the_screen_you_are_on_and_no_other(string address, string lit)
+    {
+        Navigation.NavigateTo(address);
+
+        var layout = RenderLayout();
+
+        layout.WaitForAssertion(() => layout.FindAll(".nav a.active").Select(a => a.TextContent.Trim()).ShouldBe([lit]));
+    }
+
     [Fact]
     public void Only_built_screens_appear_in_the_sidebar()
     {
-        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Comics0", "Wishlist0", "Settings"]);
+        RenderLayout().FindAll(".nav a").Select(a => a.TextContent.Trim()).ShouldBe(["Movies0", "Comics0", "Wishlist0", "Stats", "Settings"]);
     }
 }
 

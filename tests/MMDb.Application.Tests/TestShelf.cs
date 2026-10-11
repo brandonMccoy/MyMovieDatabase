@@ -6,6 +6,7 @@ using MMDb.Application.Devices;
 using MMDb.Application.Digital;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
+using MMDb.Application.Stats;
 using MMDb.Application.Vault;
 using MMDb.Application.Wishlist;
 using MMDb.Domain;
@@ -133,6 +134,8 @@ internal sealed class TestShelf : IAsyncDisposable
     public Task<Movie?> GetAsync(Guid id) => Movies((catalog, ct) => catalog.GetAsync(id, ct));
 
     public Task<MovieList> ListAsync(MovieQuery? query = null) => Movies((catalog, ct) => catalog.ListAsync(query ?? new(), ct));
+
+    public Task<CollectionStats> StatsAsync() => Use<StatsSource, CollectionStats>((stats, ct) => stats.ReadAsync(ct));
 
     public async ValueTask DisposeAsync()
     {

@@ -77,6 +77,9 @@ internal sealed class EfWishlistRepository(ShelfDbContext db) : IWishlistReposit
 
     public void Remove(WishlistComic comic) => db.WishlistComics.Remove(comic);
 
+    public async Task<(int Movies, int Comics)> CountAsync(CancellationToken cancellationToken = default) =>
+        (await db.WishlistMovies.CountAsync(cancellationToken), await db.WishlistComics.CountAsync(cancellationToken));
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         try

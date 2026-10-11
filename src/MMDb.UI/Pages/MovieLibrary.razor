@@ -67,6 +67,12 @@ else
                         @onclick='() => SetQuery("format", format.ToString())'>@Formats.Name(format)<span class="n">@Count(_list.Facets.FormatCounts.GetValueOrDefault(format))</span></button>
             }
 
+            @if (!string.IsNullOrWhiteSpace(Director))
+            {
+                @* Set by a bar on the Stats screen; the chip takes it off again. *@
+                <a class="chip on director" href="@Navigation.GetUriWithQueryParameter("director", (string?)null)" aria-label="Directed by @Director: clear">Directed by @Director<Icon Name="x" /></a>
+            }
+
             @if (!Device.IsPhone)
             {
             <label class="select">Genre
@@ -144,6 +150,8 @@ else
 
     [SupplyParameterFromQuery(Name = "decade")] public int? Decade { get; set; }
 
+    [SupplyParameterFromQuery(Name = "director")] public string? Director { get; set; }
+
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
 
     private MovieFormatKind? SelectedFormat => Enum.TryParse<MovieFormatKind>(Format, ignoreCase: true, out var f) && Enum.IsDefined(f) ? f : null;
@@ -169,7 +177,7 @@ else
         _loading = new CancellationTokenSource();
         var token = _loading.Token;
 
-        var request = new MovieListRequest { Search = Q, Format = SelectedFormat, Genre = Genre, Decade = Decade, Sort = SelectedSort };
+        var request = new MovieListRequest { Search = Q, Format = SelectedFormat, Genre = Genre, Decade = Decade, Director = Director, Sort = SelectedSort };
         try
         {
             var list = await Api.ListMoviesAsync(request, token);

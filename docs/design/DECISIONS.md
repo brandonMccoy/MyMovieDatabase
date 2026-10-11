@@ -123,6 +123,25 @@ Settled while building it (2026-10-10):
 - **TMDB is only asked on the import screen:** the scan at startup and the watcher only count files, so the "N new files" line costs no lookups.
 - **Not built:** hiding samples or extras by themselves (they show up once and are skipped by hand); several files per film; a sidebar line for missing files.
 
+## Milestone 8 (decided 2026-10-10)
+Built before milestone 7 (the phone's offline copy), which stays last. Screens as built: [m8-preview](m8-preview).
+- **Screen:** as mocked: six tiles (Films, Discs, Digital, Comic issues, Series, Wishlist), then the charts. In the sidebar under Wishlist.
+- **Films by decade:** added. The whole collection was imported in one month, so "Items added per month" is one tall bar for a year; films by decade of release has something to say from the first day. The two share a row, under "Copies by format"; "Top directors" and "Comics by publisher" share the next.
+- **PC only for now:** the phone's Stats tab (the fifth in the mocked bottom bar) comes with the offline copy in milestone 7.
+- **Digital tile:** "1.9 TB on this PC" is the size of the films' video files in the movie folder. Sizes are read while the folder is listed anyway (startup, the watcher), never by a pass of their own.
+- **Bars open the library:** a format opens Movies on that format, a decade on that decade, a director on that director's films, a publisher opens Comics on that publisher's issues. A month and "Other" open nothing. The hover tip with the exact number is kept.
+
+Settled while building it (2026-10-10):
+- **Director filter:** Movies takes a director from the address (`movies?director=…`) and shows a "Directed by …" chip in the filter row; clicking the chip clears it. It matches the director's whole name, so a bar's number and the list it opens agree (the search box would also find the films a director only produced or wrote). There is no control to pick a director in the library itself.
+- **What counts:** "Items added" counts copies: each format of a film in the month it was added, and each comic copy. "+N this month" counts films (and single issues) new to the collection this calendar month. "N films on 2+ formats" counts Digital as a format. Months begin by the PC's clock.
+- **Comics:** the tile and the publisher chart count single issues, as mocked ("Issues owned"); trades and hardcovers get a line of their own under the tile ("3 trades & HCs"). A complete run is one with every issue Metron lists, the library's "12 of 12". Up to six publishers are listed; with more, the five biggest and "Other" (which also takes issues without a publisher).
+- **Top directors:** six, ties A–Z; a film with two directors counts for both.
+- **Tips:** drawn in CSS over the bar (the mockup's followed the mouse with script).
+- **Axis numbers:** in a margin right of the bars (the mockup had them over the plot, where a tall last bar covers them). The top of a chart is a round, even number at or above the tallest bar, with a second line halfway.
+- **Sidebar:** the Movies link no longer lights up on Wishlist and Stats as well (it lit on everything but Comics and Settings).
+- **Empty:** with nothing in the collection or on the wishlist the screen says "Nothing to count yet"; a chart with nothing to draw says so in a line.
+- **Not built:** the mockup's note that every chart could offer a table view; clickable tiles.
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

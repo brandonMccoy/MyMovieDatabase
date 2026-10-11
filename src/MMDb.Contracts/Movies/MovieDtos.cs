@@ -91,6 +91,9 @@ public sealed record MovieListRequest
     /// <summary>First year of the decade, e.g. 1990.</summary>
     public int? Decade { get; init; }
 
+    /// <summary>Only films this person directed: the whole name, ignoring case and accents.</summary>
+    public string? Director { get; init; }
+
     public MovieSortOrder Sort { get; init; } = MovieSortOrder.RecentlyAdded;
 }
 
