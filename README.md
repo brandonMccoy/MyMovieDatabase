@@ -69,7 +69,7 @@ The first time it starts, Windows asks whether Shelf may accept connections; all
 
 ### 3. Add your keys
 
-Open **Settings → Online databases**, press **Add key** for TMDB (its API Read Access Token or the older API Key) and **Add token** for Metron, and paste each one in. Shelf checks a key with its service before keeping it, and again each time Settings opens. **Change** replaces or removes one.
+Open **Settings → Online databases**, press **Add key** for TMDB (its API Read Access Token or the older API Key) and **Add token** for Metron, and paste each one in. Shelf checks a key with its service before keeping it, and again each time Settings opens. **Change** replaces or removes one, and a paired phone picks the change up the next time it syncs.
 
 The keys are kept in `%LOCALAPPDATA%\Shelf\keys.dat`, encrypted by Windows for your account. They never go into the repository, the database or the phone app's package.
 
@@ -92,8 +92,8 @@ Both devices must be on the same Wi-Fi. Pairing is done once; after it the phone
 
 ### Adding movies and comics
 
-- **On the PC:** press **Add movie** or **Add comic** and type a title (add the year to narrow it down), a series and issue number, or a UPC. A USB barcode scanner works too. Pick the right match, change anything you like, and save.
-- **On the phone:** tap the round scan button and point the camera at the barcode on the back. Keep scanning; each item waits in a queue until you review it. **Auto** tells films, comic issues and books apart by their barcodes; switch to **Movie** or **Comic** if it guesses wrong.
+- **On the PC:** press **Add movie** or **Add comic** and type a title (add the year to narrow it down), a series and issue number, or a UPC. The screen opens with the cursor in the search box, so you can type straight away, or scan with a USB barcode scanner. Pick the right match, change anything you like, and save.
+- **On the phone:** tap the round scan button and point the camera at the barcode on the back. Keep scanning; each item waits in a queue until you review it. **Auto** tells films, comic issues and books apart by their barcodes; switch to **Movie** or **Comic** if it guesses wrong. When you open an Add screen to type a name instead, the keyboard comes up by itself.
 - A film you already own on another format is added as a new format of the same film. The same copy of a comic is turned down as a duplicate; a different cover or printing counts as its own copy.
 
 ### Wishlist
