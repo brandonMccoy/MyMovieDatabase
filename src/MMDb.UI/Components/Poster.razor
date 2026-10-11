@@ -8,7 +8,9 @@
     @if (ImageUrl is not null)
     {
         @* A broken image hides itself so the placeholder shows through. *@
-        <img src="@ImageUrl.AbsoluteUri" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'" />
+        @* Decoded with the page, not after it: an image decoded "async" is left out of the picture until its turn
+           comes, and with a screenful of covers the WebView's budget for those runs out, so some never appear. *@
+        <img src="@ImageUrl.AbsoluteUri" alt="" loading="lazy" decoding="sync" onerror="this.style.display='none'" />
     }
     @ChildContent
 </div>

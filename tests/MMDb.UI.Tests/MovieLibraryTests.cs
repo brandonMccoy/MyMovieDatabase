@@ -184,4 +184,19 @@ public sealed class MovieLibraryTests : ShelfTestContext
         page.FindAll(".card .poster img").Select(i => i.GetAttribute("src")).ShouldBe([heat.CoverUrl!.AbsoluteUri]);
         page.FindAll(".card .poster:not(.has-image) .pt").Select(t => t.TextContent).ShouldBe(["Home Movie"]);
     }
+
+    // With a thousand films, covers marked decoding="async" loaded but were never drawn: the WebView only decodes
+    // so many of those at a time, and a wide window of w500 posters is more than that. Seen on the PC, 2026-10-10.
+    [Fact]
+    public async Task Covers_are_decoded_with_the_page_so_none_is_left_undrawn()
+    {
+        await SeedAsync(Heat with { TmdbId = 949, PosterPath = "/heat.jpg" });
+
+        var page = Render<MovieLibrary>();
+
+        page.WaitForElement(".card");
+        var cover = page.Find(".card .poster img");
+        cover.GetAttribute("decoding").ShouldBe("sync");
+        cover.GetAttribute("loading").ShouldBe("lazy", "covers far down the list still wait until they are scrolled near");
+    }
 }
