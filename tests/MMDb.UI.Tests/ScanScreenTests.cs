@@ -122,11 +122,11 @@ public sealed class ScanScreenTests : PhoneTestContext
     public void A_scan_made_while_the_pc_is_away_waits_in_the_queue()
     {
         var page = RenderScan();
-        Link.PcUp = false;
+        Signal = false;
 
         Scanner.Read(HeatUpc);
 
-        page.WaitForAssertion(() => Toast(page).ShouldBe("Couldn't ask the PC It stays in the queue to try again."));
+        page.WaitForAssertion(() => Toast(page).ShouldBe("Couldn't look it up It stays in the queue to try again."));
         page.Find(".toast").HasAttribute("disabled").ShouldBeTrue();
         Queue.Items.ShouldHaveSingleItem().State.ShouldBe(ScanState.Failed);
     }
@@ -466,15 +466,15 @@ public sealed class ScanReviewTests : PhoneTestContext
     [Fact]
     public async Task Scans_the_pc_hasnt_answered_for_are_listed_and_can_be_tried_again()
     {
-        Link.PcUp = false;
+        Signal = false;
         var item = await ScanAsync(HeatUpc);
 
         var page = RenderReview();
 
         RelativeLocation.ShouldBe("scan/review");
-        Text(page.Find(".scans li")).ShouldBe($"{HeatUpc} Couldn't ask the PCTry again");
+        Text(page.Find(".scans li")).ShouldBe($"{HeatUpc} Couldn't look it upTry again");
 
-        Link.PcUp = true;
+        Signal = true;
         page.Find(".scans button.btn.sm:not(.ghost)").Click();
 
         page.WaitForAssertion(() => RelativeLocation.ShouldBe($"movies/new?scan={item.Id}"));
@@ -483,7 +483,7 @@ public sealed class ScanReviewTests : PhoneTestContext
     [Fact]
     public async Task A_waiting_scan_can_be_dropped_from_the_list()
     {
-        Link.PcUp = false;
+        Signal = false;
         await ScanAsync(HeatUpc);
         var page = RenderReview();
 

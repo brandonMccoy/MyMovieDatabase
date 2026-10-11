@@ -12,6 +12,12 @@ public sealed record PairResponse(string Token, Guid DeviceId, string PcName);
 /// <summary>Answer to a paired phone checking that it can still reach the PC.</summary>
 public sealed record SessionResponse(string PcName, string DeviceName);
 
+/// <summary>
+/// The PC's keys for the online databases, handed to a paired phone so it can look things up by itself.
+/// <see langword="null"/> for one the PC has no key for.
+/// </summary>
+public sealed record LookupKeysResponse(string? TmdbApiKey, string? MetronToken);
+
 public enum PhoneServerState
 {
     /// <summary>Not started (yet).</summary>

@@ -40,12 +40,13 @@ Status: **draft v1** (2026-10-08). Look & feel and the detailed feature list are
 │  MMDb.App (MAUI, Android)                                          │
 │   ├─ Blazor UI (MMDb.UI, same components)                          │
 │   ├─ Camera barcode scanner                                        │
-│   ├─ MMDb.Client (typed HTTP client)                               │
-│   └─ Local cache + offline queue (SQLite, milestone 7)             │
+│   ├─ MMDb.Local over its own SQLite: a copy of the PC's collection │
+│   ├─ Metadata providers ───► internet APIs (keys from the PC)      │
+│   └─ MMDb.Client: pairing, sync, changes waiting to be sent        │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-The PC owns all data and does all metadata lookups (API keys live only on the PC). The phone is a client: it scans, shows results, lets you edit, and sends the result to the PC.
+The PC owns the data: its database is the one true copy. The phone keeps a copy of it and runs the same code over that copy, so it browses, searches, looks things up and saves wherever it is; what it saves is sent to the PC when that is next in reach, and the PC's answer replaces the phone's (see *The phone's copy*).
 
 ## Solution layout
 
@@ -62,12 +63,19 @@ src/
   MMDb.Infrastructure/  EF Core + SQLite, metadata provider adapters, vault
                         writer, cover store, HTTP resilience (retry, rate limit).
   MMDb.Contracts/       Request/response DTOs shared by server and client.
-  MMDb.Server/          Library hosted inside the PC app (PhoneHost): ASP.NET Core
-                        minimal API over ICollectionApi, pairing, device tokens,
-                        the PC's certificate; in-process APIs for the PC's screens.
-  MMDb.Client/          The phone's side: PcLink (pairing, certificate pin, token),
-                        HttpCollectionApi, covers kept on the phone. Offline queue
-                        and sync come in milestone 7.
+  MMDb.Local/           A collection on this device, for whichever app has a database:
+                        InProcessCollectionApi and InProcessStatsApi over the use
+                        cases, and the mapping to the contracts. No ASP.NET Core,
+                        so it runs on Android too.
+  MMDb.Server/          PC only. Library hosted inside the PC app (PhoneHost):
+                        ASP.NET Core minimal API over ICollectionApi, pairing,
+                        device tokens, the PC's certificate, rows and smaller
+                        covers for phones; vault, digital and phone APIs for the
+                        PC's screens.
+  MMDb.Client/          The phone's side: PcLink (pairing, certificate pin, token,
+                        the PC's keys), ShelfSync and Outbox (the copy and what
+                        waits to be sent), PhoneCollectionApi, HttpCollectionApi
+                        (straight to the PC), covers kept on the phone.
   MMDb.UI/              Razor class library: pages, components, design system
                         (CSS tokens). Shared by both platforms.
   MMDb.App/             MAUI Blazor Hybrid host. Windows: starts the server
@@ -79,12 +87,13 @@ tests/                      (each added when its layer first has code)
   MMDb.Infrastructure.Tests/  EF mappings/migrations, providers (recorded HTTP),
                               vault output (snapshot)
   MMDb.Server.Tests/          HTTP API on an in-memory TestServer
-  MMDb.Client.Tests/          client against the in-memory server, and real HTTPS on loopback
+  MMDb.Client.Tests/          the phone as the app builds it (own SQLite, faked online databases)
+                              against the in-memory server; real HTTPS on loopback
   MMDb.UI.Tests/              bUnit component tests
   MMDb.E2E.Tests/             Playwright over WebView2 (few critical journeys)
 ```
 
-Dependency rule: `Domain ← Application ← Infrastructure/Server`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Server.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it is `MMDb.Client.HttpCollectionApi`, which sends each call to the PC. The same screens therefore run in both places; `ShelfDevice.IsPhone` switches the frame (bottom bar instead of sidebar) and hides what the phone doesn't do (editing and deleting saved items). `ICollectionApi.Changed` tells open screens on the PC that something was saved, so a phone's additions appear in the PC's library and counts by themselves.
+Dependency rule: `Domain ← Application ← Infrastructure ← Local ← Server/Client`; `UI` depends only on `Contracts` and an `ICollectionApi` interface (declared in `MMDb.Contracts`). On Windows that interface is `MMDb.Local.InProcessCollectionApi`, which calls the use cases directly (one DI scope per call, like a request); on Android it is `MMDb.Client.PhoneCollectionApi`, which does the same over the phone's own database and queues what is saved for the PC. The same screens therefore run in both places; `ShelfDevice.IsPhone` switches the frame (bottom bar instead of sidebar) and hides what the phone doesn't do (editing and deleting what the PC has). `ICollectionApi.Changed` tells open screens on the PC that something was saved, so a phone's additions appear in the PC's library and counts by themselves.
 
 **Data on the PC:** `%LOCALAPPDATA%\Shelf\shelf.db`, backed up on startup to `backups\` (SQLite online backup, newest 10 kept), then migrated. Downloaded covers live in `covers\` beside it (one file per film and poster, `<movie id>-<TMDB poster file>`); the WebView serves that folder as `https://covers.shelf.example/`. Set `SHELF_DATA_DIR` to run against another folder (scratch data, E2E). Schema changes: `dotnet ef migrations add <Name> --project src/MMDb.Infrastructure --output-dir Persistence/Migrations` (local tool, `dotnet tool restore`); a test fails if the model has changes without a migration.
 
@@ -121,9 +130,9 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - Comics match by Metron series (else series name and starting year) and issue number, a book by ISBN (else title); any cover or printing counts (`WishlistComic.IsFor`). Saving a copy takes the issue or book off the wishlist (`ComicCatalog`).
 - **Got it:** `LookupWishlistMovieAsync` / `LookupWishlistComicAsync` return the wish's TMDB or Metron entry as an ordinary lookup, so the review screen opens on it. A wishlist item's own page uses the same lookup for what the wishlist doesn't keep (overview, credits, summary); the lookup cache makes reopening it free.
 - **Missing issues:** the library's missing tiles ("#159–167") have "+ Wishlist"; `WantMissingIssuesAsync` takes the numbers from the series' issue list and adds each issue as an item of its own (they have no Metron entry or cover until bought). Tiles say "On wishlist" where they are (`RunEntry.Wanted`); wanted and unwanted issues never share a tile.
-- **Away from home:** the phone can't reach the PC, so it matches the scanned barcode against barcodes in its cached collection and wishlist. If that finds nothing, it calls UPCitemdb directly over mobile data (free tier, no key) and fuzzy-matches the product title against cached wishlist titles. The result is marked "likely" and the scan joins the queue for a proper lookup at home.
+- **Away from home:** nothing special. The phone runs the same lookup against its own copy with its own access to the online databases, so the match is the real one (the "likely" match once planned, by product name alone, was never built).
 
-**Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue (`ScanInbox`, kept while the app is open; it is persisted with the offline queue in milestone 7) for review, one by one, in the same editor the PC uses.
+**Scan queue:** the phone can scan several barcodes in a row. Each one is looked up in the background and waits in a queue (`ScanInbox`) for review, one by one, in the same editor the PC uses. The queue is kept in the phone's database (`IScanQueueStore`), so it is still there after the app was closed; what was found before comes from the lookup cache. With no signal a scan waits ("Couldn't look it up") and is tried again whenever the queue is next on screen; a barcode the phone's copy already has is answered without any signal.
 
 **Manual entry** uses the same review screen: the user types a title (movies) or series + issue (comics), the server searches the same providers by text, and the user picks or ignores the suggestions.
 
@@ -143,7 +152,7 @@ Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details 
 | Comic issue | **Metron** `upc` (all 17 digits); if not listed, `upc_starts_with` the UPC + the issue number from the add-on | Metron by series words, year began, number | Token in user secrets (`Metron:Token`). 20 req/min, 5,000/day: a search fetches at most 6 issues; issue details cached 30 days, searches 1 day. GCD and Comic Vine have no barcode search, so they aren't used. |
 | Comic trade | **Open Library** Books API by ISBN (no key) | (enter by hand) | Cover from Open Library; format defaults to trade paperback. |
 
-API keys are kept in the PC's user secrets/config, never in the phone app or the repo.
+API keys are kept in the PC's user secrets/config, never in the repo or built into the phone app. A paired phone is handed them (`GET /api/v1/keys`) so it can ask the same databases itself; see *The phone's copy*.
 
 **Trailers:** TMDB `GET /movie/{id}/videos` lists YouTube videos. Pick `site=YouTube`, `type=Trailer`, preferring `official=true`, then the newest. Store the key; the Trailer button opens `https://www.youtube.com/watch?v={key}` in the system browser/YouTube app (no in-app player). If TMDB has no trailer, fall back to a YouTube search link (`<title> <year> trailer`). The vault note includes the trailer link too.
 
@@ -159,12 +168,12 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 - **State:** `ImportDesk` (Application, one per app) holds what the last scan found and what was looked up, as an immutable status the screens read; `DigitalImport` (scoped) has the use cases; `IDigitalApi` / `InProcessDigitalApi` hand it to the UI. PC only: the phone has no `IDigitalApi`.
 - **Play file:** opens the film's file with the OS default player (`IFileOpener`: `Process.Start` with `UseShellExecute`), only if it is a video file that exists: a path can be typed by hand or come from a phone, and opening runs whatever it names. PC only; the phone shows the format but no play button.
 
-## Stats (PC only)
+## Stats
 
 - `StatsSource` (Application) counts the whole collection in one go: `IMovieRepository.ListTalliesAsync` (year, directors, when it was added, and each format with when it was added), `IComicRepository.ListTalliesAsync` (format, series, number, publisher, when it was added), the series Metron described and two counts of the wishlist. No credits, summaries or covers are read; the adding up is in memory.
 - Months are calendar months in the PC's time zone (`TimeProvider.LocalTimeZone`). "Items added per month" counts copies (a film's formats by `AddedAt`, comics by `CreatedAt`) for this month and the eleven before.
 - Runs and complete runs are told as the comics library tells them (`ComicFilter.RunKey`, `ComicFilter.SeriesOf`), so the tile agrees with "N of M" there.
-- `IStatsApi` / `InProcessStatsApi` hand the screen a `StatsDto`. The phone has no `IStatsApi`, so it has no Stats link; it gets one with its offline copy (milestone 7).
+- `IStatsApi` / `InProcessStatsApi` hand the screen a `StatsDto`. The phone has them too, counting its own copy: Stats is the fifth tab of its bottom bar, the same screen in one column (no "on this PC" size, which needs `IDigitalApi`).
 - **Size on disk:** not part of the stats read. The movie-folder scan notes each video file's size as it lists the folder (`ImportStatus.LinkedBytes`: the files that are a film's digital copy), and the Digital tile shows `IDigitalApi.Folder.LinkedBytes`.
 - **Bars are links** into the libraries' own addresses: `movies?format=`, `movies?decade=`, `movies?director=` (`MovieQuery.Director`: the whole name, ignoring case and accents) and `comics?shelf=Issues&publisher=`.
 
@@ -188,11 +197,29 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
   - The code exists only while Settings shows it, works once and for five minutes; five wrong guesses throw it away and close pairing for a minute.
   - The token is 32 random bytes; the PC stores only its SHA-256 (`PairedDevices` table) and when the phone was last seen.
   - The certificate (`phone.pfx` beside the database, ECDSA P-256, 20 years) is made on first run and kept, so paired phones keep recognizing the PC.
-- **API:** REST + JSON under `/api/v1`, one endpoint per `ICollectionApi` call plus `pair`, `session`, `scans` and `covers/{name}`; everything but `health` and `pair` needs `Authorization: Bearer <token>` (401 otherwise). A save that doesn't go through answers 400/404/409 with the same response body the PC's screens get. DTOs live in `MMDb.Contracts` (`ShelfJson`: camelCase, enums by name), so client and server can't drift.
-- **Covers:** pages ask for stored covers under `https://covers.shelf.example/` on both devices. On the PC the web view maps that host to the cover folder; on the phone the app intercepts the request, fetches `covers/{name}` over the link and keeps the file (thumbnails come with the offline copy in milestone 7).
-- **PC away:** until milestone 7 the phone shows "Can't reach <PC>" with Try again whenever a request fails.
-- **Offline phone (confirmed):** the phone keeps a read-only cached copy of the collection and wishlist (metadata + small cover thumbnails), so "do I already own this?" works in a store. Scans made away from home are queued and sent when the PC is reachable. Sync uses `UpdatedAt`/`Version` (`GET /changes?since=`).
+- **API:** REST + JSON under `/api/v1`, one endpoint per `ICollectionApi` call plus `pair`, `session`, `keys`, `sync`, `sync/rows`, `scans` and `covers/{name}`; everything but `health` and `pair` needs `Authorization: Bearer <token>` (401 otherwise). A save that doesn't go through answers 400/404/409 with the same response body the PC's screens get. DTOs live in `MMDb.Contracts` (`ShelfJson`: camelCase, enums by name), so client and server can't drift.
+- **Covers:** pages ask for stored covers under `https://covers.shelf.example/` on both devices. On the PC the web view maps that host to the cover folder; on the phone the app intercepts the request and answers from its own cover folder (`CoverShelf`), fetching from the PC what isn't there yet. A page that shows one cover large (`Poster` with `Large`) asks with `?full=1` and gets the PC's own file while the PC is connected, kept under `covers/full`; otherwise the medium copy.
+- **PC away:** the phone carries on with its copy. Only a phone that never synced shows "Can't reach <PC>" with Try again.
 - **Windows firewall:** the first time the PC app listens, Windows asks whether to allow it; allowing it on private networks is enough. Shelf adds no rule itself. A VPN on the PC can block devices on the home network until its local-network access setting is on.
+
+## The phone's copy
+
+The phone has its own SQLite database (`shelf.db` in the app's files, never backed up by Android) with the PC's schema, created by the same migrations, and its own cover folder beside it. `PhoneServices.AddShelfPhone` puts it together: `MMDb.Local` over that database, plus the link, the sync and the outbox.
+
+- **Reading:** every screen reads the copy through `PhoneCollectionApi` → `InProcessCollectionApi`, at home too. Search, runs and missing issues, wishlist matches and Stats are the PC's own code, so they can't differ.
+- **Looking up:** the phone asks TMDB, UPCitemdb, Metron and Open Library itself, with the PC's keys. `PcLink` gets them from `GET /keys` when it pairs and at every sync, keeps them with the pairing in Android's keystore (`SecureLinkStore`), and drops them when the PC answers 401 (unpaired) or the PC is forgotten. The phone has a lookup cache of its own. Metron's limits are per account, so PC and phone share them.
+- **Saving:** a save is made in the copy at once and added to the `Outbox` (a JSON list in the copy's `Settings` table: the request as it was made, the row it made or changed, and a few words for the user). Editing and deleting what the PC has throws `NotSupportedException`: the screens don't offer it.
+  - Something the outbox made exists only on the phone until it is sent (`IPhoneSync.IsUnsent`), so it can still be removed there, which drops its changes from the outbox.
+  - A wish made on the phone and changed or taken off again before it was sent rewrites or drops the change that made it, so nothing in the outbox ever points at a row the PC doesn't know.
+  - Missing issues wanted as a run are queued issue by issue, for the same reason.
+- **Syncing** (`ShelfSync`, one at a time): when the app opens or comes back to the front, after every save, "Sync now", and when the phone's network changes (`Connectivity.ConnectivityChanged` → `NetworkChangedAsync`, which tries after 1, 5 and 15 seconds until the PC answers: Android reports Wi-Fi a little before the PC can be reached over it).
+  1. `GET /keys`: finds out whether the PC is there before anything waits on it.
+  2. **Push:** each change in the outbox is asked of the PC through `HttpCollectionApi`, in order. Saved, already owned, or (for a wish) not there any more all count as done; anything else is noted for the user ("1 change couldn't be sent: …") and dropped. A PC that stops answering leaves the rest in the outbox.
+  3. **Pull:** `GET /sync` lists every row's key and stamp (`Version` and cover name; for a comic series when it was fetched) for Movies, Comics, ComicSeries, WishlistMovies and WishlistComics. The phone removes the rows the PC no longer has and asks for the ones whose stamp differs (`POST /sync/rows`, 100 at a time), which arrive as SQLite holds them and are written over its own (`CollectionCopy`; a film's formats travel with it). Rows the phone made itself are replaced by the PC's this way.
+  4. **Covers**, in the background: the phone fetches every cover the copy shows that it doesn't have (`covers/{name}?size=medium`, about 342 px wide, scaled by the PC with SkiaSharp in `CoverSizes`), and clears out files no row shows any more once they are an hour old.
+- **Nothing else writes while it matters:** saves and the writes of a pull take turns. After a push the copy is held until the pull is through; without one (the first, long pull) saves go on between requests, and a pull that finds something newly saved stops and starts over with a push.
+- **Same schema only:** rows travel as they are, so the manifest names the PC's newest migration; if the phone's differs nothing is written and the phone says to update both.
+- **What the PC doesn't get:** the phone's lookup cache and scan queue.
 
 ## Obsidian vault (one-way mirror)
 
@@ -244,9 +271,9 @@ API keys are kept in the PC's user secrets/config, never in the phone app or the
 3. Vault writer + `CLAUDE.md` + Bases.
 4. Comics (Metron, Open Library by ISBN), on the PC.
 5. Server API + pairing + Android app with scanner. (The add-on scan spike and mDNS wait for a real phone.)
-6. Wishlist + wishlist match on scan. (Done 2026-10-10; the "likely" match away from home comes with milestone 7.)
+6. Wishlist + wishlist match on scan. (Done 2026-10-10. Away from home the phone now does the real lookup itself; see 7.)
 6b. Digital folder import + watch folder, Play file. (Done 2026-10-10.)
-7. Offline cache/queue on phone: the phone knows the movie and comic collection and the wishlist without the PC, and gets its Stats tab. Built last (decided 2026-10-10), after 8.
+7. The phone's own copy: it knows the collection and wishlist without the PC, looks things up and saves by itself, sends what it saved when the PC is next in reach, and has its Stats tab. Built last, after 8. (Built 2026-10-10; not yet run on a phone, see TESTING.md, *Phone hardware*.)
 8. Stats screen. (Done 2026-10-10, on the PC.)
 
 Each milestone ships with its tests (see [TESTING.md](TESTING.md)).

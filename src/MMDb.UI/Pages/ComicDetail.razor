@@ -31,7 +31,7 @@ else if (_comic is not null)
     <div class="hero"><div class="backdrop" style="@PosterColors.Style(_comic.Series ?? _comic.DisplayName)"></div></div>
     <div class="detail comic">
         <div>
-            <Poster Title="@(_comic.Series ?? _comic.DisplayName)" Subtitle="@(collected || _comic.Number is null ? null : "#" + _comic.Number)" ImageUrl="_comic.CoverUrl" />
+            <Poster Title="@(_comic.Series ?? _comic.DisplayName)" Subtitle="@(collected || _comic.Number is null ? null : "#" + _comic.Number)" ImageUrl="_comic.CoverUrl" Large />
         </div>
 
         <div>
@@ -75,14 +75,28 @@ else if (_comic is not null)
                 </div>
             </div>
             }
+            else if (IsUnsent)
+            {
+                @* Added on this phone and not sent yet: it exists only here, so it can still be taken back here. *@
+                <div class="actions">
+                    <button type="button" class="btn" @onclick="AskToDelete"><Icon Name="x" />Remove</button>
+                </div>
+            }
 
             @if (_confirmingDelete)
             {
                 <div class="confirm" role="alertdialog" aria-label="Delete comic">
-                    <div><b>Delete @_comic.DisplayName?</b> This removes this copy from your collection.</div>
+                    @if (Device.IsPhone)
+                    {
+                        <div><b>Remove @_comic.DisplayName?</b> It hasn't been sent to your PC yet, so this takes it back.</div>
+                    }
+                    else
+                    {
+                        <div><b>Delete @_comic.DisplayName?</b> This removes this copy from your collection.</div>
+                    }
                     <div class="confirm-actions">
                         <button type="button" class="btn" @onclick="() => _confirmingDelete = false">Cancel</button>
-                        <button type="button" class="btn danger" @onclick="DeleteAsync">Delete</button>
+                        <button type="button" class="btn danger" @onclick="DeleteAsync">@(Device.IsPhone ? "Remove" : "Delete")</button>
                     </div>
                 </div>
             }
@@ -159,6 +173,8 @@ else if (_comic is not null)
     private bool _loaded;
     private bool _menuOpen;
     private bool _confirmingDelete;
+
+    private bool IsUnsent => _comic is not null && Services.GetService<IPhoneSync>()?.IsUnsent(_comic.Id) == true;
 
     [Parameter] public Guid Id { get; set; }
 

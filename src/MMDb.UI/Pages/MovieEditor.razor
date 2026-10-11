@@ -49,7 +49,7 @@ else if (_loaded && _mode == Mode.Search)
         <div class="section-head">
             <h1>@(IsNew ? "Add movie" : "Find on TMDB")</h1>
         </div>
-        <MovieSearch State="_search" OnPick="Pick" SearchOnOpen="!IsNew">
+        <MovieSearch State="_search" OnPick="Pick" SearchOnOpen="!IsNew || !string.IsNullOrWhiteSpace(Q)">
             <Footer>
                 @if (IsNew)
                 {
@@ -333,6 +333,9 @@ else if (_form is not null)
     /// <summary>A scan from the phone's queue to review.</summary>
     [SupplyParameterFromQuery(Name = "scan")] public Guid? Scan { get; set; }
 
+    /// <summary>What to search for straight away.</summary>
+    [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
     /// <summary>A film on the wishlist that has been bought.</summary>
     [SupplyParameterFromQuery(Name = "wish")] public Guid? Wish { get; set; }
 
@@ -405,6 +408,13 @@ else if (_form is not null)
         _candidate = null;
         _baseline = null;
         _search = new();
+
+        // Sent here by a search of the collection that found nothing: look the same words up online.
+        if (Scan is null && Wish is null && !string.IsNullOrWhiteSpace(Q))
+        {
+            _search.Query = Q.Trim();
+        }
+
         if (_scan?.Response?.Movie is { } found)
         {
             _search.Answer(_scan.Code, found);

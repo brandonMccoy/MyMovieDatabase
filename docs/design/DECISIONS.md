@@ -17,7 +17,7 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 
 - **Wishlist:** separate Movies and Comics tabs. Wanted format shown as a dashed badge; "Upgrade" tag when the film is owned on another format. "Got it" → review screen → moves to collection.
 - **Stats:** kept. Headline tiles, discs by format, items added per month, top directors, comics by publisher.
-- **Phone browsing works offline:** the phone stores a full copy of collection + wishlist, refreshed on home Wi-Fi. Offline it is read-only except scans, which queue and sync later. Search answers "do I own this?" in a store. Bottom nav: Movies, Comics, Scan, Wishlist, Stats.
+- **Phone browsing works offline:** the phone stores a full copy of collection + wishlist, refreshed on home Wi-Fi. Offline it is read-only except scans, which queue and sync later (widened in milestone 7: the phone looks things up and saves by itself; see below). Search answers "do I own this?" in a store. Bottom nav: Movies, Comics, Scan, Wishlist, Stats.
 
 - **Wishlist alert on scan:** an amber banner over the camera as soon as a scan matches the wishlist, repeated on the review screen; saving removes it from the wishlist. Also works away from home (marked "likely").
 - **Digital format:** the fourth format. Digital copies store the file path; **Play file** opens it on the PC.
@@ -142,7 +142,37 @@ Settled while building it (2026-10-10):
 - **Empty:** with nothing in the collection or on the wishlist the screen says "Nothing to count yet"; a chart with nothing to draw says so in a line.
 - **Not built:** the mockup's note that every chart could offer a table view; clickable tiles.
 
+## Milestone 7 (decided 2026-10-10)
+The phone becomes an app in its own right, with the PC still the one true copy. This replaces "read-only except scans" above and milestone 5's "the phone needs the PC".
+- **Same access as the PC:** the phone looks films and comics up itself (TMDB, UPCitemdb, Metron, Open Library), on Wi-Fi or mobile data. Scan, Add, Add to wishlist and Got it work anywhere there is internet, with the usual search and review screens.
+- **Keys:** the PC hands its TMDB key and Metron token to a phone when it pairs and again at each sync. The phone keeps them in Android's keystore and drops them on "Forget this PC" or once the PC says it is unpaired. They are still never in the repo or built into the app. (Changes the rule that keys never reach the phone.)
+- **Its own copy:** the phone keeps the whole collection and wishlist, with covers, and its screens always show that copy, at home too.
+- **Changes away from home:** what is saved on the phone shows there at once and is sent to the PC, in order, when it is next reachable. Removing a wish and changing a wanted format need no lookup, so they also work with no signal.
+- **No signal at all:** browse, search and Stats work; scans wait in the queue (which now survives closing the app) and are looked up when there is internet again; anything else that needs a lookup waits.
+- **Still PC only:** editing and deleting saved items. The exception: something added on the phone and not sent yet can be removed there (it exists only on the phone until then).
+- **When the PC disagrees:** the PC's rules decide as each change arrives. A film it already has gets the format added. A change that leaves things as they are (the format or copy is already owned, the wish is already gone) is dropped without a word. Anything else is shown once on the phone: "1 change couldn't be sent", with what it was.
+- **Syncing:** when the app opens, when it comes back to the front, when the phone's network changes (Wi-Fi comes back while Shelf is on screen; added 2026-10-11 after the first run on the phone, where nothing happened on reconnecting), after each save at home, and "Sync now" under This phone.
+- **Covers on the phone:** medium copies (about 340 px wide, roughly 140 MB for 4,000 films), made by the PC. Something saved on the phone fetches its own cover.
+- **The grey line** under the title, as mocked, in two wordings: "Away from your PC · collection as of 8:12 AM" and "Away from your PC · **3 changes** to send". Nothing is shown at home with nothing to send.
+- **One search:** "Do I own…?" lists films, comics and wishlist items together, as mocked: Owned with format badges, On wishlist, "4 of 12" for a series. The mockup's "Not owned" rows are left out; a search that finds nothing offers "Look it up", which opens Add with the text typed.
+- **Stats:** the fifth tab, the PC's screen in one column, without the "on this PC" size line.
+- **"Can't reach <PC>":** only before the first sync; after that the phone always has something to show.
+
+Settled while building it (2026-10-10):
+- **First time:** after pairing the phone shows "Copying your collection" until it has the films, comics and wishlist; covers follow in the background, and a page that needs one sooner fetches it.
+- **The grey line** sits under the title on Movies, Comics, Wishlist and Stats. At home it shows nothing, also while changes are on their way. The time reads "today 8:12 AM", "yesterday 6:40 PM", then the date.
+- **What the PC wouldn't take** is shown in the same place, with OK to dismiss it: "1 change couldn't be sent: Dune (2021) on the wishlist".
+- **This phone** (the "…" on a tab) gets "Your collection on this phone": as of when, how many changes are waiting, and **Sync now**.
+- **Removing something not sent yet:** its page has **Remove** where the PC has Edit and Delete, and asks first. A format added on the phone to a film the PC already has is not the phone's to remove. A wish is taken off with the × as always; if it was never sent, nothing is.
+- **One search** is on the Movies and Comics tabs (the Wishlist tab keeps its own). A film or book row opens its page; a series row opens the issues owned that match, where a single issue is answered for. Finding nothing reads "Not on your shelf" with **Look it up**, which opens Add movie or Add comic with the words typed and searches at once.
+- **Large covers:** a film, comic or wishlist item on its own page asks the PC for the full cover while the PC is in reach (and keeps it); away, the medium copy is shown.
+- **Scans with no signal** read "Couldn't look it up" and are tried again whenever the scan or review screen is opened. A barcode already in the collection is answered without signal.
+- **The "likely" wishlist match** by product name was dropped: the phone does the real lookup itself.
+- **Forgetting the PC** keeps the copy and what is waiting, so pairing again (the way to follow a PC that got a new address) sends it; pairing with another PC replaces the copy with that PC's at the first sync.
+- **Different versions:** if Shelf on the phone and on the PC keep the collection differently (one was updated without the other), they don't sync and the phone says to update both.
+- **Not built:** progress for the covers; telling apart "no signal" from "the PC is off" in the grey line (it speaks of the PC only).
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.
-- A scan queue that survives closing the app: with the offline queue in milestone 7.
+- ~~A scan queue that survives closing the app~~: part of milestone 7.

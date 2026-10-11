@@ -51,6 +51,7 @@ public static partial class InfrastructureServices
         services.AddScoped<IDeviceRepository, EfDeviceRepository>();
         services.AddScoped<IWishlistRepository, EfWishlistRepository>();
         services.AddSingleton<LookupCache>();
+        services.AddSingleton<CollectionCopy>();
         services.AddSingleton<ICoverStore>(new FileCoverStore(settings.CoverDirectory));
         services.AddSingleton<ISettingStore, SettingStore>();
         services.AddSingleton<ISkippedFileStore, SkippedFileStore>();

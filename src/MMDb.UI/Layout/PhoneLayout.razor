@@ -3,9 +3,11 @@
 @using MMDb.Contracts.Phone
 @using MMDb.UI.Phone
 @inject IPcLink Link
+@inject IPhoneSync Sync
 @inject NavigationManager Navigation
 
-@* The phone's frame: pairing first, then the screens with the bottom bar; the PC being away takes over the page. *@
+@* The phone's frame: pairing first, then its copy of the collection once (the only time the PC has to be there),
+   then the screens with the bottom bar, which show that copy wherever the phone is. *@
 <IconSprite />
 <div class="phone-app @(Path == "scan" ? "see-through" : null)">
     @if (!_started)
@@ -16,9 +18,30 @@
     {
         <PairScreen />
     }
-    else if (Link.State == PcLinkState.Unreachable && Path != "phone")
+    else if (Sync.Status.SyncedAt is null && Path != "phone")
     {
-        <PcAway OnRetry="RetryAsync" />
+        @* Nothing to show yet. *@
+        @if (Sync.Status.State == PhoneSyncState.WrongVersion)
+        {
+            <div class="phone-notice" role="alert">
+                <div class="brand"><div class="brand-mark"><Icon Name="film" Class="i14" /></div><span class="brand-name">Shelf</span></div>
+                <h1>Update Shelf</h1>
+                <p>Shelf on this phone and on @(Link.PcName ?? "your PC") are different versions. Update both, then try again.</p>
+                <button type="button" class="btn primary" @onclick="RetryAsync">Try again</button>
+            </div>
+        }
+        else if (Link.State == PcLinkState.Unreachable)
+        {
+            <PcAway OnRetry="RetryAsync" />
+        }
+        else
+        {
+            <div class="phone-notice" role="status">
+                <div class="brand"><div class="brand-mark"><Icon Name="film" Class="i14" /></div><span class="brand-name">Shelf</span></div>
+                <h1>Copying your collection</h1>
+                <p>From @(Link.PcName ?? "your PC"), so this phone has it wherever you are. Covers follow in the background.</p>
+            </div>
+        }
     }
     else
     {
@@ -26,18 +49,11 @@
             <ErrorBoundary @ref="_boundary">
                 <ChildContent>@Body</ChildContent>
                 <ErrorContent Context="error">
-                    @if (error is PcUnavailableException)
-                    {
-                        <PcAway OnRetry="RetryAsync" />
-                    }
-                    else
-                    {
-                        <div class="phone-notice" role="alert">
-                            <h1>Something went wrong</h1>
-                            <p>Shelf couldn't show this screen.</p>
-                            <button type="button" class="btn" @onclick="Recover">Try again</button>
-                        </div>
-                    }
+                    <div class="phone-notice" role="alert">
+                        <h1>Something went wrong</h1>
+                        <p>Shelf couldn't show this screen.</p>
+                        <button type="button" class="btn" @onclick="Recover">Try again</button>
+                    </div>
                 </ErrorContent>
             </ErrorBoundary>
         </div>
@@ -48,6 +64,7 @@
                 <NavLink href="comics" class="@(IsComics ? "on" : null)" ActiveClass=""><Icon Name="book" /><span>Comics</span></NavLink>
                 <a href="scan" class="scan" aria-label="Scan"><span class="scanbtn"><Icon Name="scan" /></span></a>
                 <NavLink href="wishlist" class="@(IsWishlist ? "on" : null)" ActiveClass=""><Icon Name="heart" /><span>Wishlist</span></NavLink>
+                <NavLink href="stats" class="@(Path == "stats" ? "on" : null)" ActiveClass=""><Icon Name="chart" /><span>Stats</span></NavLink>
             </nav>
         }
     }
@@ -56,6 +73,7 @@
 @code {
     private ErrorBoundary? _boundary;
     private bool _started;
+    private bool _fetching;
 
     private string Path => new Uri(Navigation.Uri).AbsolutePath.Trim('/');
 
@@ -71,18 +89,19 @@
     protected override async Task OnInitializedAsync()
     {
         Link.Changed += OnChanged;
+        Sync.Changed += OnSyncChanged;
         Navigation.LocationChanged += OnLocationChanged;
         await Link.StartAsync();
         _started = true;
 
-        // The screens load meanwhile; a PC that is off can take seconds to not answer.
+        // The screens show the phone's copy meanwhile; a PC that is off can take seconds to not answer.
         StateHasChanged();
-        await Link.CheckAsync();
+        await Sync.SyncAsync();
     }
 
     private async Task RetryAsync()
     {
-        await Link.CheckAsync();
+        await Sync.SyncAsync();
         Recover();
     }
 
@@ -90,14 +109,29 @@
 
     private void OnChanged() => InvokeAsync(() =>
     {
-        // Back in touch: whatever screen failed can be shown again.
-        if (Link.State == PcLinkState.Connected)
+        // Just paired: fetch the collection.
+        if (Link.State == PcLinkState.Connected && Sync.Status is { SyncedAt: null, State: PhoneSyncState.Idle } && !_fetching)
         {
-            Recover();
+            _fetching = true;
+            _ = FetchAsync();
         }
 
         StateHasChanged();
     });
+
+    private async Task FetchAsync()
+    {
+        try
+        {
+            await Sync.SyncAsync();
+        }
+        finally
+        {
+            _fetching = false;
+        }
+    }
+
+    private void OnSyncChanged() => InvokeAsync(StateHasChanged);
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(() =>
     {
@@ -108,6 +142,7 @@
     public void Dispose()
     {
         Link.Changed -= OnChanged;
+        Sync.Changed -= OnSyncChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }

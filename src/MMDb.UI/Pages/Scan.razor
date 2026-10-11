@@ -69,6 +69,7 @@
     protected override async Task OnInitializedAsync()
     {
         Queue.Changed += OnQueueChanged;
+        _ = Queue.RestoreAsync();
         _scanner = Services.GetService<IBarcodeScanner>();
         Use(Queue.Mode);
         _start = _scanner is null
@@ -102,7 +103,7 @@
     private string Headline(ScanItem item) => item.State switch
     {
         ScanState.LookingUp => "Looking it up…",
-        ScanState.Failed => "Couldn't ask the PC",
+        ScanState.Failed => "Couldn't look it up",
         _ when item.IsOwned => $"You already own {item.Title}",
         _ when item.IsWanted => $"{item.Title} is on your wishlist",
         _ => item.Title ?? "Not found",

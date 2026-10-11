@@ -26,7 +26,7 @@ else if (_item is not null)
     <div class="hero"><div class="backdrop" style="@PosterColors.Style(_item.Series ?? _item.DisplayName)"></div></div>
     <div class="detail comic wish">
         <div>
-            <Poster Title="@(_item.Series ?? _item.DisplayName)" Subtitle="@(collected || _item.Number is null ? null : "#" + _item.Number)" ImageUrl="_item.CoverUrl" />
+            <Poster Title="@(_item.Series ?? _item.DisplayName)" Subtitle="@(collected || _item.Number is null ? null : "#" + _item.Number)" ImageUrl="_item.CoverUrl" Large />
         </div>
 
         <div>

@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MMDb.Contracts\MMDb.Contracts.csproj" />
+    <!-- The phone keeps its own copy of the collection and runs the same code over it as the PC. -->
+    <ProjectReference Include="..\MMDb.Local\MMDb.Local.csproj" />
   </ItemGroup>
 
 </Project>

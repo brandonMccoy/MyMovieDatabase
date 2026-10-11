@@ -9,6 +9,7 @@
 @if (Device.IsPhone)
 {
     <div class="appbar"><h1 class="ttl">Wishlist</h1><a class="right" href="@AddHref" aria-label="Add to wishlist"><Icon Name="plus" /></a></div>
+    <MMDb.UI.Phone.AwayLine />
     <div class="topbar">
         <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Search wishlist…" Label="Search wishlist" />
     </div>

@@ -4,9 +4,9 @@ using MMDb.Contracts.Movies;
 using MMDb.Domain;
 using MMDb.Domain.Movies;
 using MMDb.Infrastructure.Metadata;
-using MMDb.Server.Wishlist;
+using MMDb.Local.Wishlist;
 
-namespace MMDb.Server.Movies;
+namespace MMDb.Local.Movies;
 
 /// <summary>Translates between the wire contracts and the domain.</summary>
 internal static class MovieMapping

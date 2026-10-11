@@ -4,6 +4,8 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using MMDb.Application.Metadata;
 using MMDb.Contracts;
+using MMDb.Infrastructure.Metadata;
+using MMDb.Infrastructure.Persistence;
 using MMDb.Server.Http;
 
 namespace MMDb.Server.Phone;
@@ -54,6 +56,9 @@ public sealed class PhoneHost(IServiceProvider shelf) : IAsyncDisposable
             .AddSingleton(shelf.GetRequiredService<PhoneServer>())
             .AddSingleton(shelf.GetRequiredService<ICoverStore>())
             .AddSingleton(shelf.GetRequiredService<TimeProvider>())
+            .AddSingleton(shelf.GetRequiredService<TmdbSettings>())
+            .AddSingleton(shelf.GetRequiredService<MetronSettings>())
+            .AddSingleton(shelf.GetRequiredService<CollectionCopy>())
             .AddShelfApi();
         return builder;
     }

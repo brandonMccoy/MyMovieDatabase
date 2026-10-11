@@ -3,10 +3,10 @@ using MMDb.Contracts.Movies;
 using MMDb.Contracts.Wishlist;
 using MMDb.Domain.Movies;
 using MMDb.Domain.Wishlist;
-using MMDb.Server.Comics;
-using MMDb.Server.Movies;
+using MMDb.Local.Comics;
+using MMDb.Local.Movies;
 
-namespace MMDb.Server.Wishlist;
+namespace MMDb.Local.Wishlist;
 
 /// <summary>Translates between the wire contracts and the domain.</summary>
 internal static class WishlistMapping

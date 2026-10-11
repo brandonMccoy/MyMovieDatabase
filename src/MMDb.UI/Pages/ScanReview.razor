@@ -28,7 +28,7 @@
             {
                 <li @key="item.Id">
                     <span class="code-chip"><Icon Name="scan" />@item.Code</span>
-                    <span class="scan-state">@(item.State == ScanState.LookingUp ? "Looking it up…" : "Couldn't ask the PC")</span>
+                    <span class="scan-state">@(item.State == ScanState.LookingUp ? "Looking it up…" : "Couldn't look it up")</span>
                     @if (item.State == ScanState.Failed)
                     {
                         <button type="button" class="btn sm" @onclick="() => Queue.RetryAsync(item)">Try again</button>
@@ -44,7 +44,11 @@
     /// <summary>The scan to review; without it, the oldest one that is ready.</summary>
     [SupplyParameterFromQuery(Name = "item")] public Guid? Item { get; set; }
 
-    protected override void OnInitialized() => Queue.Changed += OnQueueChanged;
+    protected override void OnInitialized()
+    {
+        Queue.Changed += OnQueueChanged;
+        _ = Queue.RestoreAsync();
+    }
 
     protected override void OnParametersSet() => OpenNext();
 

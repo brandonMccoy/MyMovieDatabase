@@ -1,11 +1,13 @@
 @page "/phone"
 @implements IDisposable
 @using MMDb.Contracts.Phone
+@using MMDb.UI.Phone
 @inject IServiceProvider Services
+@inject TimeProvider Clock
 
 <PageTitle>This phone · Shelf</PageTitle>
 
-@* Phone only: which PC this phone is paired with, and forgetting it. *@
+@* Phone only: which PC this phone is paired with, how fresh its copy of the collection is, and forgetting the PC. *@
 <div class="topbar">
     <a class="btn ghost back" href=""><Icon Name="back" />Movies</a>
 </div>
@@ -32,18 +34,63 @@
             }
         </section>
     }
+    @if (_sync is not null && _link is not null and not { State: PcLinkState.NotPaired })
+    {
+        var status = _sync.Status;
+        <section class="set" aria-labelledby="copy-heading">
+            <h3 id="copy-heading">Your collection on this phone</h3>
+            <div class="desc">
+                @if (status.SyncedAt is { } at)
+                {
+                    <span>As of @CopyAge.When(at, Clock)</span>
+                }
+                else
+                {
+                    <span>Not copied yet</span>
+                }
+                @if (status.Waiting > 0)
+                {
+                    <span> · @CopyAge.Changes(status.Waiting) to send</span>
+                }
+            </div>
+            <button type="button" class="btn sm" disabled="@(_syncing || status.State == PhoneSyncState.Syncing)" @onclick="SyncAsync">
+                @(_syncing || status.State == PhoneSyncState.Syncing ? "Syncing…" : "Sync now")
+            </button>
+        </section>
+    }
 </div>
 
 @code {
     private IPcLink? _link;
+    private IPhoneSync? _sync;
     private bool _confirming;
+    private bool _syncing;
 
     protected override void OnInitialized()
     {
         _link = Services.GetService<IPcLink>();
+        _sync = Services.GetService<IPhoneSync>();
         if (_link is not null)
         {
             _link.Changed += OnChanged;
+        }
+
+        if (_sync is not null)
+        {
+            _sync.Changed += OnChanged;
+        }
+    }
+
+    private async Task SyncAsync()
+    {
+        _syncing = true;
+        try
+        {
+            await _sync!.SyncAsync();
+        }
+        finally
+        {
+            _syncing = false;
         }
     }
 
@@ -54,6 +101,11 @@
         if (_link is not null)
         {
             _link.Changed -= OnChanged;
+        }
+
+        if (_sync is not null)
+        {
+            _sync.Changed -= OnChanged;
         }
     }
 }

@@ -5,8 +5,11 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Sync;
 using MMDb.Contracts.Wishlist;
 using MMDb.Domain.Devices;
+using MMDb.Infrastructure.Metadata;
+using MMDb.Infrastructure.Persistence;
 using MMDb.Server.Phone;
 
 namespace MMDb.Server.Http;
@@ -31,6 +34,9 @@ public static class ShelfEndpoints
 
         var paired = api.MapGroup("").AddEndpointFilter(RequireDeviceAsync);
         paired.MapGet("/session", (HttpContext http, PhoneServer server) => new SessionResponse(server.PcName, ((PairedDevice)http.Items[DeviceItem]!).Name));
+
+        // A paired phone looks things up itself, away from home too, so it gets what the PC uses for that.
+        paired.MapGet("/keys", (TmdbSettings tmdb, MetronSettings metron) => new LookupKeysResponse(Blank(tmdb.ApiKey), Blank(metron.Token)));
 
         paired.MapGet("/movies", (string? search, MovieFormatKind? format, string? genre, int? decade, string? director, MovieSortOrder? sort, ICollectionApi api, CancellationToken ct) =>
             api.ListMoviesAsync(new() { Search = search, Format = format, Genre = genre, Decade = decade, Director = director, Sort = sort ?? MovieSortOrder.RecentlyAdded }, ct));
@@ -78,10 +84,20 @@ public static class ShelfEndpoints
         paired.MapGet("/wishlist/comics/{id:guid}/lookup", async Task<Results<Ok<ComicLookupResponse>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
             await api.LookupWishlistComicAsync(id, ct) is { } found ? TypedResults.Ok(found) : TypedResults.NotFound());
 
+        // A phone keeps its own copy of the collection: it compares keys and stamps, then asks for the rows it lacks.
+        paired.MapGet("/sync", async (CollectionCopy copy, CancellationToken ct) =>
+            new SyncManifest(await copy.SchemaAsync(ct), [.. (await copy.ListAsync(ct)).Select(t => new SyncTable(t.Name, t.Stamps))]));
+        paired.MapPost("/sync/rows", async Task<Results<Ok<SyncRowsResponse>, BadRequest>> (SyncRowsRequest request, CollectionCopy copy, CancellationToken ct) =>
+            CollectionCopy.Tables.Contains(request.Table)
+                ? TypedResults.Ok(new SyncRowsResponse([.. (await copy.ReadAsync(request.Table, request.Keys, ct)).Select(r => new SyncRow(r.Key, r.Values, r.Parts))]))
+                : TypedResults.BadRequest());
+
         paired.MapPost("/scans", (ScanRequest request, ICollectionApi api, CancellationToken ct) => api.LookupScanAsync(request, ct));
         paired.MapGet("/covers/{name}", CoverAsync);
         return app;
     }
+
+    private static string? Blank(string? key) => string.IsNullOrWhiteSpace(key) ? null : key.Trim();
 
     private static async Task<IResult> PairAsync(PairRequest request, DeviceGate gate, PhoneServer server, CancellationToken cancellationToken) =>
         await gate.PairAsync(request.Code, request.DeviceName, cancellationToken) is { } pairing
@@ -117,11 +133,17 @@ public static class ShelfEndpoints
         _ => StatusCodes.Status409Conflict,
     });
 
-    private static async Task<IResult> CoverAsync(string name, ICoverStore covers, HttpContext http, CancellationToken cancellationToken)
+    private static async Task<IResult> CoverAsync(string name, string? size, ICoverStore covers, HttpContext http, CancellationToken cancellationToken)
     {
         if (await covers.ReadAsync(name, cancellationToken) is not { } image)
         {
             return TypedResults.NotFound();
+        }
+
+        // A phone keeps a copy of every cover, so it asks for them smaller.
+        if (size == "medium")
+        {
+            image = CoverSizes.Medium(image, name);
         }
 
         // A cover's name changes whenever its picture does, so the phone can keep it for good.

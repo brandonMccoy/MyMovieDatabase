@@ -7,14 +7,14 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Scans;
 using MMDb.Contracts.Wishlist;
-using MMDb.Server.Comics;
-using MMDb.Server.Movies;
-using MMDb.Server.Wishlist;
+using MMDb.Local.Comics;
+using MMDb.Local.Movies;
+using MMDb.Local.Wishlist;
 
-namespace MMDb.Server;
+namespace MMDb.Local;
 
 /// <summary>
-/// <see cref="ICollectionApi"/> for the PC app: calls the use cases directly, no HTTP.
+/// <see cref="ICollectionApi"/> over the database on this device (the PC, or a phone's own copy): calls the use cases directly, no HTTP.
 /// Each call gets its own DI scope (and so its own database unit of work), like a web request.
 /// </summary>
 public sealed class InProcessCollectionApi(IServiceScopeFactory scopes, CoverLinks covers) : ICollectionApi
@@ -109,7 +109,7 @@ public sealed class InProcessCollectionApi(IServiceScopeFactory scopes, CoverLin
         Saved(With<WishlistCatalog, int>(wishlist => wishlist.FetchMissingCoversAsync(cancellationToken)), got => got > 0 ? SaveStatus.Saved : SaveStatus.NotFound);
 
     /// <summary>Tells open screens of a change made past this API (films added by the folder import).</summary>
-    internal void RaiseChanged() => Changed?.Invoke();
+    public void RaiseChanged() => Changed?.Invoke();
 
     private async Task<TResult> Saved<TResult>(Task<TResult> saving, Func<TResult, SaveStatus> status)
     {

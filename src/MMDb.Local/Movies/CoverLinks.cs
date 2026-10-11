@@ -1,4 +1,4 @@
-namespace MMDb.Server.Movies;
+namespace MMDb.Local.Movies;
 
 /// <summary>Where the UI loads stored covers from (on the PC, a WebView host name mapped to the cover folder).</summary>
 public sealed class CoverLinks(Uri baseUri)

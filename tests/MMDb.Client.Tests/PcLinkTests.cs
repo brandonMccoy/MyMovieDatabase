@@ -140,7 +140,7 @@ public sealed class PcLinkTests : IAsyncLifetime
 
         Link.Address.ShouldBe("192.168.1.24:5243");
         _phone.Store.Record!.Hosts.ShouldBe([TestPc.Address, "172.20.0.1"]);
-        _phone.Transport.Asked.ShouldBe(["172.20.0.1/api/v1/pair", "192.168.1.24/api/v1/pair", "192.168.1.24/api/v1/movies"]);
+        _phone.Transport.Asked.ShouldBe(["172.20.0.1/api/v1/pair", "192.168.1.24/api/v1/pair", "192.168.1.24/api/v1/keys", "192.168.1.24/api/v1/movies"]);
     }
 
     [Fact]

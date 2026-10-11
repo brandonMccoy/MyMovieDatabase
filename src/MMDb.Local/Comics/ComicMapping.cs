@@ -3,10 +3,10 @@ using MMDb.Application.Metadata;
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Domain.Comics;
-using MMDb.Server.Movies;
-using MMDb.Server.Wishlist;
+using MMDb.Local.Movies;
+using MMDb.Local.Wishlist;
 
-namespace MMDb.Server.Comics;
+namespace MMDb.Local.Comics;
 
 /// <summary>Translates between the comic contracts and the domain.</summary>
 internal static class ComicMapping

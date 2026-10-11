@@ -6,12 +6,14 @@ using MMDb.Contracts;
 using MMDb.Infrastructure;
 using MMDb.Infrastructure.Metadata;
 using MMDb.Infrastructure.Persistence;
+using MMDb.Local;
 using MMDb.Server;
 using MMDb.Server.Phone;
 #elif ANDROID
 using BarcodeScanning;
 using MMDb.Client;
 using MMDb.Contracts;
+using MMDb.Infrastructure;
 using MMDb.UI.Scanning;
 #endif
 
@@ -26,16 +28,21 @@ public static class MauiProgram
 
         builder.Services.AddMauiBlazorWebView();
 #if ANDROID
-        // The phone is a client of the PC: it pairs once, then asks the PC for everything over the home network.
+        // The phone pairs with the PC once and keeps its own copy of the PC's collection, in the app's own
+        // files (not its cache, which Android may empty). The keys for the online databases come from the PC.
         builder.UseBarcodeScanning();
+        var phoneData = FileSystem.AppDataDirectory;
         builder.Services.AddSingleton(ShelfDevice.Phone);
         builder.Services.AddSingleton<ILinkStore, SecureLinkStore>();
         builder.Services.AddSingleton<IPcTransport, TlsTransport>();
         builder.Services.AddSingleton(new PhoneIdentity(PhoneName()));
-        builder.Services.AddSingleton<PcLink>();
-        builder.Services.AddSingleton<IPcLink>(services => services.GetRequiredService<PcLink>());
-        builder.Services.AddSingleton<ICollectionApi, HttpCollectionApi>();
-        builder.Services.AddSingleton(services => new CoverShelf(services.GetRequiredService<PcLink>(), Path.Combine(FileSystem.CacheDirectory, "covers")));
+        builder.Services.AddShelfPhone(
+            new ShelfSettings
+            {
+                ConnectionString = InfrastructureServices.SqliteConnectionString(Path.Combine(phoneData, "shelf.db")),
+                CoverDirectory = Path.Combine(phoneData, "covers"),
+            },
+            CoverFolder.BaseUri);
         builder.Services.AddSingleton<CameraScanner>();
         builder.Services.AddSingleton<IBarcodeScanner>(services => services.GetRequiredService<CameraScanner>());
 #endif
@@ -90,6 +97,19 @@ public static class MauiProgram
 
         // Listen for paired phones; Settings shows whether that worked. The PC's certificate is kept beside the database.
         _ = Task.Run(() => new PhoneHost(app.Services).StartAsync(Path.Combine(dataDirectory, "phone.pfx")));
+#elif ANDROID
+        // Off the UI thread's synchronization context, so blocking here can't deadlock.
+        Task.Run(() => app.Services.StartShelfPhoneAsync()).GetAwaiter().GetResult();
+
+        // Back on a network (perhaps the one at home) with Shelf still on screen: nothing else would notice.
+        var sync = app.Services.GetRequiredService<ShelfSync>();
+        Connectivity.Current.ConnectivityChanged += (_, e) =>
+        {
+            if (e.NetworkAccess != NetworkAccess.None)
+            {
+                _ = sync.NetworkChangedAsync();
+            }
+        };
 #endif
 
         return app;

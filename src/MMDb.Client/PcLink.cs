@@ -11,7 +11,10 @@ namespace MMDb.Client;
 /// <param name="Hosts">The PC's addresses; the one that answered last comes first.</param>
 /// <param name="Fingerprint">SHA-256 of the PC's certificate, in hex.</param>
 /// <param name="Token">Proves it is this phone. Kept in the phone's secure storage.</param>
-public sealed record PcLinkRecord(IReadOnlyList<string> Hosts, int Port, string Fingerprint, string Token, string PcName);
+/// <param name="TmdbApiKey">The PC's TMDB key, handed over so the phone can look films up by itself.</param>
+/// <param name="MetronToken">The PC's Metron token, likewise for comics.</param>
+public sealed record PcLinkRecord(
+    IReadOnlyList<string> Hosts, int Port, string Fingerprint, string Token, string PcName, string? TmdbApiKey = null, string? MetronToken = null);
 
 /// <summary>Port: where the phone keeps <see cref="PcLinkRecord"/> between runs.</summary>
 public interface ILinkStore
@@ -40,6 +43,15 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
 
     public event Action? Changed;
 
+    /// <summary>The keys in <see cref="Keys"/> arrived, changed or were dropped. May be raised on any thread.</summary>
+    public event Action? KeysChanged;
+
+    /// <summary>
+    /// The PC's keys for the online databases, which let this phone look things up away from home. Empty until
+    /// the PC has handed them over, and again once the phone is unpaired.
+    /// </summary>
+    public LookupKeysResponse Keys => new(_record?.TmdbApiKey, _record?.MetronToken);
+
     public PcLinkState State { get; private set; } = PcLinkState.NotPaired;
 
     public string? PcName => _record?.PcName;
@@ -50,6 +62,7 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
     {
         Use(await store.LoadAsync(cancellationToken));
         Set(_record is null ? PcLinkState.NotPaired : PcLinkState.Unknown);
+        KeysChanged?.Invoke();
     }
 
     public Task<PairStatus> PairAsync(string qrText, CancellationToken cancellationToken = default) =>
@@ -94,6 +107,7 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
         {
             using var response = await SendAsync(HttpMethod.Get, "session", content: null, cancellationToken);
             Set(PcLinkState.Connected);
+            await RefreshKeysAsync(cancellationToken);
         }
         catch (PcUnavailableException)
         {
@@ -108,6 +122,21 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
         await store.ClearAsync(cancellationToken);
         Use(null);
         Set(PcLinkState.NotPaired);
+        KeysChanged?.Invoke();
+    }
+
+    /// <summary>Asks the PC for its keys for the online databases and keeps them with the pairing.</summary>
+    /// <exception cref="PcUnavailableException">The PC didn't answer, or it no longer knows this phone.</exception>
+    public async Task RefreshKeysAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await SendAsync(HttpMethod.Get, "keys", content: null, cancellationToken);
+        if (!response.IsSuccessStatusCode || await response.Content.ReadFromJsonAsync<LookupKeysResponse>(ShelfJson.Options, cancellationToken) is not { } keys)
+        {
+            // A Shelf on the PC from before phones looked things up themselves.
+            return;
+        }
+
+        await KeepKeysAsync(keys, cancellationToken);
     }
 
     /// <summary>Sends a request to the PC with this phone's token, trying each of the PC's addresses.</summary>
@@ -147,6 +176,9 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 response.Dispose();
+
+                // Unpaired on the PC: its keys go too.
+                await KeepKeysAsync(new(null, null), cancellationToken);
                 Set(PcLinkState.Unpaired);
                 throw new PcUnavailableException("The PC no longer knows this phone.");
             }
@@ -197,6 +229,16 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
                 await store.SaveAsync(record, cancellationToken);
                 Use(record);
                 Set(PcLinkState.Connected);
+                KeysChanged?.Invoke();
+                try
+                {
+                    await RefreshKeysAsync(cancellationToken);
+                }
+                catch (PcUnavailableException)
+                {
+                    // Paired all the same; the keys come with the next check.
+                }
+
                 return PairStatus.Paired;
             }
         }
@@ -222,6 +264,27 @@ public sealed class PcLink(ILinkStore store, IPcTransport transport, PhoneIdenti
         }
 
         Set(PcLinkState.Connected);
+    }
+
+    private async Task KeepKeysAsync(LookupKeysResponse keys, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (_record is not { } record || (record.TmdbApiKey == keys.TmdbApiKey && record.MetronToken == keys.MetronToken))
+            {
+                return;
+            }
+
+            _record = record with { TmdbApiKey = keys.TmdbApiKey, MetronToken = keys.MetronToken };
+            await store.SaveAsync(_record, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        KeysChanged?.Invoke();
     }
 
     private void Use(PcLinkRecord? record)

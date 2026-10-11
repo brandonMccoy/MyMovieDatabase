@@ -1,11 +1,11 @@
 using MMDb.Application.Stats;
 using MMDb.Contracts;
 using MMDb.Contracts.Stats;
-using MMDb.Server.Movies;
+using MMDb.Local.Movies;
 
-namespace MMDb.Server;
+namespace MMDb.Local;
 
-/// <summary><see cref="IStatsApi"/> for the PC app: counts the collection directly, one DI scope per call.</summary>
+/// <summary><see cref="IStatsApi"/> over the database on this device: counts the collection directly, one DI scope per call.</summary>
 public sealed class InProcessStatsApi(IServiceScopeFactory scopes) : IStatsApi
 {
     public async Task<StatsDto> GetAsync(CancellationToken cancellationToken = default)

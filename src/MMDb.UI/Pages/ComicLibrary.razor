@@ -9,6 +9,7 @@
 @if (Device.IsPhone)
 {
     <div class="appbar"><h1 class="ttl">Comics</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
+    <MMDb.UI.Phone.AwayLine />
     <div class="topbar">
         <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Do I own…?" Label="Search comics" Library="comics" />
     </div>
@@ -22,6 +23,13 @@ else
     </div>
 }
 
+@if (Device.IsPhone && !string.IsNullOrWhiteSpace(Q) && Shelf is null)
+{
+    @* Picking a series there comes back here with a shelf chosen, which shows the issues themselves. *@
+    <MMDb.UI.Phone.OwnSearch Query="@Q" LookUpHref="comics/new" />
+}
+else
+{
 <div class="content">
     @if (!Device.IsPhone)
     {
@@ -158,6 +166,7 @@ else
         }
     }
 </div>
+}
 
 @code {
     private static readonly (ComicShelfKind Shelf, string Label)[] Shelves =

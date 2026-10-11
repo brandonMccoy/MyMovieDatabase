@@ -6,6 +6,7 @@
     <Project Path="src/MMDb.Contracts/MMDb.Contracts.csproj" />
     <Project Path="src/MMDb.Domain/MMDb.Domain.csproj" />
     <Project Path="src/MMDb.Infrastructure/MMDb.Infrastructure.csproj" />
+    <Project Path="src/MMDb.Local/MMDb.Local.csproj" />
     <Project Path="src/MMDb.Server/MMDb.Server.csproj" />
     <Project Path="src/MMDb.UI/MMDb.UI.csproj" />
   </Folder>

@@ -2,15 +2,28 @@
 @implements IDisposable
 @inject ICollectionApi Api
 @inject IServiceProvider Services
+@inject ShelfDevice Device
 
 <PageTitle>Stats · Shelf</PageTitle>
 
-<div class="topbar">
-    <SearchBox />
-</div>
+@if (Device.IsPhone)
+{
+    @* The PC's screen in one column, counted from the phone's own copy. *@
+    <div class="appbar"><h1 class="ttl">Stats</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
+    <MMDb.UI.Phone.AwayLine />
+}
+else
+{
+    <div class="topbar">
+        <SearchBox />
+    </div>
+}
 
 <div class="content">
-    <div class="section-head"><h1>Stats</h1><span class="sub">Whole collection</span></div>
+    @if (!Device.IsPhone)
+    {
+        <div class="section-head"><h1>Stats</h1><span class="sub">Whole collection</span></div>
+    }
 
     @if (_stats is null)
     {
@@ -21,7 +34,14 @@
         <div class="empty">
             <h2>Nothing to count yet</h2>
             <p>The numbers appear once there is a movie or a comic in your collection.</p>
-            <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+            @if (Device.IsPhone)
+            {
+                <a class="btn primary" href="scan"><Icon Name="scan" />Scan</a>
+            }
+            else
+            {
+                <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+            }
         </div>
     }
     else

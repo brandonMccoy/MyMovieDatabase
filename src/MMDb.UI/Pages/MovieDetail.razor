@@ -30,7 +30,7 @@ else if (_movie is not null)
     <div class="hero"><div class="backdrop" style="@PosterColors.Style(_movie.Title)"></div></div>
     <div class="detail">
         <div>
-            <Poster Title="@_movie.Title" Subtitle="@Directors(" & ")" ImageUrl="_movie.CoverUrl" />
+            <Poster Title="@_movie.Title" Subtitle="@Directors(" & ")" ImageUrl="_movie.CoverUrl" Large />
         </div>
 
         <div>
@@ -77,15 +77,27 @@ else if (_movie is not null)
                     }
                 </div>
                 }
+                else if (IsUnsent)
+                {
+                    @* Added on this phone and not sent yet: it exists only here, so it can still be taken back here. *@
+                    <button type="button" class="btn" @onclick="AskToDelete"><Icon Name="x" />Remove</button>
+                }
             </div>
 
             @if (_confirmingDelete)
             {
                 <div class="confirm" role="alertdialog" aria-label="Delete movie">
-                    <div><b>Delete @_movie.Title?</b> This removes the film and every format you own it on.</div>
+                    @if (Device.IsPhone)
+                    {
+                        <div><b>Remove @_movie.Title?</b> It hasn't been sent to your PC yet, so this takes it back.</div>
+                    }
+                    else
+                    {
+                        <div><b>Delete @_movie.Title?</b> This removes the film and every format you own it on.</div>
+                    }
                     <div class="confirm-actions">
                         <button type="button" class="btn" @onclick="() => _confirmingDelete = false">Cancel</button>
-                        <button type="button" class="btn danger" @onclick="DeleteAsync">Delete</button>
+                        <button type="button" class="btn danger" @onclick="DeleteAsync">@(Device.IsPhone ? "Remove" : "Delete")</button>
                     </div>
                 </div>
             }
@@ -176,6 +188,8 @@ else if (_movie is not null)
     private bool _menuOpen;
     private bool _confirmingDelete;
     private Tab _tab = Tab.Cast;
+
+    private bool IsUnsent => _movie is not null && Services.GetService<IPhoneSync>()?.IsUnsent(_movie.Id) == true;
 
     private enum Tab
     {

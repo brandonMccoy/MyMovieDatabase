@@ -19,10 +19,10 @@ public enum ScanState
 {
     LookingUp,
 
-    /// <summary>The PC answered; <see cref="ScanItem.Response"/> has what it found (which may be nothing).</summary>
+    /// <summary>Looked up; <see cref="ScanItem.Response"/> has what was found (which may be nothing).</summary>
     Ready,
 
-    /// <summary>The PC could not be asked.</summary>
+    /// <summary>The online databases could not be asked (no signal): it waits to be tried again.</summary>
     Failed,
 }
 
@@ -49,7 +49,7 @@ public sealed class ScanItem
     /// <summary>The lookup in progress, for callers that want to wait for it.</summary>
     public Task Lookup { get; internal set; } = Task.CompletedTask;
 
-    /// <summary>What it was looked up as, once the PC answered.</summary>
+    /// <summary>What it was looked up as, once it was.</summary>
     public ProductKind? Kind => Response?.Kind;
 
     /// <summary>The best match's name, "Heat (1995)" or "Saga #7"; <see langword="null"/> if nothing was found.</summary>
@@ -76,12 +76,13 @@ public sealed class ScanItem
 }
 
 /// <summary>
-/// The phone's scan queue: every barcode scanned is looked up by the PC in the background and waits here to
-/// be reviewed. It lives as long as the app is open.
+/// The phone's scan queue: every barcode scanned is looked up in the background and waits here to be reviewed.
+/// With a <see cref="IScanQueueStore"/> (the phone has one) it is still there after the app was closed.
 /// </summary>
-public sealed class ScanInbox(ICollectionApi api)
+public sealed class ScanInbox(ICollectionApi api, IScanQueueStore? store = null)
 {
     private readonly List<ScanItem> _items = [];
+    private Task? _restoring;
 
     public event Action? Changed;
 
@@ -113,8 +114,45 @@ public sealed class ScanInbox(ICollectionApi api)
         });
         _items.Add(item);
         item.Lookup = LookUpAsync(item);
+        Keep();
         return (item, true);
     }
+
+    /// <summary>
+    /// Brings back what was waiting when the app was last closed and looks it up again (what was found before
+    /// is remembered, so that costs nothing), and tries again for what couldn't be looked up. Called whenever
+    /// the queue comes on screen.
+    /// </summary>
+    public Task RestoreAsync()
+    {
+        _restoring ??= LoadAsync();
+        return _restoring.IsCompleted ? RetryFailedAsync() : _restoring;
+    }
+
+    private async Task LoadAsync()
+    {
+        if (store is null)
+        {
+            return;
+        }
+
+        foreach (var kept in await store.LoadAsync())
+        {
+            if (!_items.Exists(i => i.Code == kept.Code))
+            {
+                var item = new ScanItem(kept.Code, kept.Kind);
+                _items.Add(item);
+                item.Lookup = LookUpAsync(item);
+            }
+        }
+
+        Changed?.Invoke();
+    }
+
+    private Task RetryFailedAsync() =>
+        Task.WhenAll(_items.Where(i => i.State == ScanState.Failed).ToList().Select(i => RetryAsync(i)));
+
+    private void Keep() => _ = store?.SaveAsync([.. _items.Select(i => new QueuedScan(i.Code, i.AskedAs))]);
 
     /// <summary>Looks the code up again, as a film or a comic if given: a comic whose add-on wasn't read looks like a film.</summary>
     public Task RetryAsync(ScanItem item, ProductKind? asKind = null)
@@ -122,6 +160,7 @@ public sealed class ScanInbox(ICollectionApi api)
         ArgumentNullException.ThrowIfNull(item);
         item.AskedAs = asKind ?? item.AskedAs;
         item.Lookup = LookUpAsync(item);
+        Keep();
         return item.Lookup;
     }
 
@@ -129,6 +168,7 @@ public sealed class ScanInbox(ICollectionApi api)
     {
         if (_items.RemoveAll(i => i.Id == id) > 0)
         {
+            Keep();
             Changed?.Invoke();
         }
     }
@@ -140,8 +180,18 @@ public sealed class ScanInbox(ICollectionApi api)
         Changed?.Invoke();
         try
         {
-            item.Response = await api.LookupScanAsync(new ScanRequest(item.Code, item.AskedAs));
-            item.State = ScanState.Ready;
+            var response = await api.LookupScanAsync(new ScanRequest(item.Code, item.AskedAs));
+
+            // No signal: nothing to review yet. What the phone knows by itself (a barcode it owns) needs none.
+            if (response.Movie?.Status == LookupStatus.Unavailable || response.Comic?.Status == LookupStatus.Unavailable)
+            {
+                item.State = ScanState.Failed;
+            }
+            else
+            {
+                item.Response = response;
+                item.State = ScanState.Ready;
+            }
         }
         catch (PcUnavailableException)
         {

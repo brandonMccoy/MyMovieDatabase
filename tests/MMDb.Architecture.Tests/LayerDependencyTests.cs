@@ -14,8 +14,9 @@ public sealed class LayerDependencyTests
         ["MMDb.Contracts"] = [],
         ["MMDb.Application"] = ["MMDb.Domain"],
         ["MMDb.Infrastructure"] = ["MMDb.Application", "MMDb.Domain"],
-        ["MMDb.Server"] = ["MMDb.Application", "MMDb.Infrastructure", "MMDb.Contracts", "MMDb.Domain"],
-        ["MMDb.Client"] = ["MMDb.Contracts"],
+        ["MMDb.Local"] = ["MMDb.Application", "MMDb.Infrastructure", "MMDb.Contracts", "MMDb.Domain"],
+        ["MMDb.Server"] = ["MMDb.Local", "MMDb.Application", "MMDb.Infrastructure", "MMDb.Contracts", "MMDb.Domain"],
+        ["MMDb.Client"] = ["MMDb.Local", "MMDb.Application", "MMDb.Infrastructure", "MMDb.Contracts", "MMDb.Domain"],
         ["MMDb.UI"] = ["MMDb.Contracts"],
     };
 

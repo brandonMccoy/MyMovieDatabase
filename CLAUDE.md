@@ -16,4 +16,4 @@ Collection tracker for physical movies and comics (separate collections): Window
 
 - **Every change ships with tests.** Follow [docs/TESTING.md](docs/TESTING.md): behavior over implementation, real SQLite (never EF InMemory), recorded fixtures for external APIs, no live network in the normal suite.
 - Look & feel and features are designed **together with the user**; don't invent UI or features unilaterally.
-- API keys go in user secrets, never in the repo or the phone app.
+- API keys go in user secrets on the PC, never in the repo or built into the phone app. A paired phone receives them from its PC and keeps them in Android's keystore.

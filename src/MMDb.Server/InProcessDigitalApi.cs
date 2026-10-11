@@ -5,7 +5,8 @@ using MMDb.Contracts;
 using MMDb.Contracts.Digital;
 using MMDb.Contracts.Movies;
 using MMDb.Infrastructure.Metadata;
-using MMDb.Server.Movies;
+using MMDb.Local;
+using MMDb.Local.Movies;
 
 namespace MMDb.Server;
 

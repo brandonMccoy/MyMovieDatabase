@@ -8,6 +8,7 @@ using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
 using MMDb.Contracts.Scans;
+using MMDb.Contracts.Sync;
 using MMDb.Testing;
 
 namespace MMDb.Server.Tests;
@@ -71,6 +72,107 @@ public sealed class ShelfApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_paired_phone_is_handed_the_keys_the_pc_looks_things_up_with()
+    {
+        _pc.HasKeys(tmdb: " tmdb-key ", metron: "metron-token");
+        await PairAsync();
+
+        using var response = await GetAsync("/api/v1/keys");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldBe("""{"tmdbApiKey":"tmdb-key","metronToken":"metron-token"}""");
+    }
+
+    [Fact]
+    public async Task A_key_the_pc_doesnt_have_is_left_out()
+    {
+        _pc.HasKeys(tmdb: "tmdb-key", metron: " ");
+        await PairAsync();
+
+        using var response = await GetAsync("/api/v1/keys");
+
+        (await ReadAsync<LookupKeysResponse>(response)).ShouldBe(new LookupKeysResponse("tmdb-key", null));
+    }
+
+    [Fact]
+    public async Task The_manifest_names_the_schema_and_lists_every_copied_row_with_its_stamp()
+    {
+        await PairAsync();
+        var heat = (await _pc.Api.AddMovieAsync(Heat, Ct)).Movie.ShouldNotBeNull();
+        await _pc.Api.AddComicAsync(Saga7, Ct);
+
+        using var response = await GetAsync("/api/v1/sync");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var json = await JsonAsync(response);
+        json.GetProperty("schema").GetString().ShouldNotBeNull().ShouldMatch(@"^\d{14}_\w+$");
+        var tables = json.GetProperty("tables").EnumerateArray().ToDictionary(t => t.GetProperty("name").GetString()!, t => t.GetProperty("rows"));
+        tables.Keys.ShouldBe(["Movies", "Comics", "ComicSeries", "WishlistMovies", "WishlistComics"]);
+        tables["Movies"].EnumerateObject().ShouldHaveSingleItem().ShouldSatisfyAllConditions(
+            row => row.Name.ShouldBe(heat.Id.ToString().ToUpperInvariant()),
+            row => row.Value.GetString().ShouldBe("1|"));
+        tables["Comics"].EnumerateObject().Count().ShouldBe(1);
+        tables["WishlistMovies"].EnumerateObject().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Rows_are_sent_as_the_database_holds_them_a_film_with_its_formats()
+    {
+        await PairAsync();
+        var heat = (await _pc.Api.AddMovieAsync(Heat, Ct)).Movie.ShouldNotBeNull();
+        var key = heat.Id.ToString().ToUpperInvariant();
+
+        using var response = await SendJsonAsync(HttpMethod.Post, "/api/v1/sync/rows", new SyncRowsRequest("Movies", [key, "NOT-THERE"]));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var row = (await JsonAsync(response)).GetProperty("rows").EnumerateArray().ShouldHaveSingleItem();
+        row.GetProperty("key").GetString().ShouldBe(key);
+        var values = row.GetProperty("values");
+        values.GetProperty("Title").GetString().ShouldBe("Heat");
+        values.GetProperty("Year").GetInt32().ShouldBe(1995);
+        values.GetProperty("Version").GetInt32().ShouldBe(1);
+        values.GetProperty("Directors").GetString().ShouldBe("""["Michael Mann"]""");
+        values.GetProperty("CoverImage").ValueKind.ShouldBe(JsonValueKind.Null);
+        var format = row.GetProperty("parts").EnumerateArray().ShouldHaveSingleItem();
+        format.GetProperty("MovieId").GetString().ShouldBe(key);
+        format.GetProperty("Format").GetString().ShouldBe("Uhd4K");
+        format.GetProperty("Upc").GetString().ShouldBe(HeatUpc);
+    }
+
+    [Theory]
+    [InlineData("PairedDevices")]
+    [InlineData("Settings")]
+    [InlineData("LookupCache")]
+    [InlineData("Movies; DROP TABLE Movies")]
+    public async Task Only_the_collections_rows_are_handed_out(string table)
+    {
+        await PairAsync();
+
+        using var response = await SendJsonAsync(HttpMethod.Post, "/api/v1/sync/rows", new SyncRowsRequest(table, ["x"]));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task A_phone_gets_a_cover_smaller_when_it_asks_for_that()
+    {
+        await PairAsync();
+        using var bitmap = new SkiaSharp.SKBitmap(500, 750);
+        using var encoded = bitmap.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 90);
+        var stored = encoded.ToArray();
+        await _pc.Online.Covers.SaveAsync("heat.jpg", stored, Ct);
+
+        using var full = await GetAsync("/api/v1/covers/heat.jpg");
+        using var medium = await GetAsync("/api/v1/covers/heat.jpg?size=medium");
+
+        (await full.Content.ReadAsByteArrayAsync(Ct)).ShouldBe(stored);
+        medium.Content.Headers.ContentType?.MediaType.ShouldBe("image/jpeg");
+        using var codec = SkiaSharp.SKCodec.Create(await medium.Content.ReadAsStreamAsync(Ct));
+        codec.Info.Width.ShouldBe(342);
+        codec.Info.Height.ShouldBe(513);
+    }
+
+    [Fact]
     public async Task Unversioned_api_path_is_not_found()
     {
         using var response = await GetAsync("/api/health");
@@ -80,6 +182,9 @@ public sealed class ShelfApiTests : IAsyncLifetime
 
     [Theory]
     [InlineData("GET", "/api/v1/session")]
+    [InlineData("GET", "/api/v1/keys")]
+    [InlineData("GET", "/api/v1/sync")]
+    [InlineData("POST", "/api/v1/sync/rows")]
     [InlineData("GET", "/api/v1/movies")]
     [InlineData("GET", "/api/v1/movies/lookup?q=heat")]
     [InlineData("GET", "/api/v1/movies/0198c1a0-0000-7000-8000-000000000001")]

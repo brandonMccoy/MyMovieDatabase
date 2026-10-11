@@ -1,0 +1,155 @@
+@implements IDisposable
+@inject ICollectionApi Api
+
+@* Phone only, as mocked: "Do I own…?" answered in one list across films, comics and the wishlist, from the
+   phone's own copy. The mockup's "Not owned" rows are left out; finding nothing offers to look it up instead. *@
+@if (_found is { } found)
+{
+    @if (found.IsEmpty)
+    {
+        <div class="content">
+            <div class="empty">
+                <h2>Not on your shelf</h2>
+                <p>Nothing you own or want matches “@found.Query”.</p>
+                <a class="btn primary" href="@($"{LookUpHref}?q={Uri.EscapeDataString(found.Query)}")"><Icon Name="search" />Look it up</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="results" role="list">
+            @if (found.Movies.Count + found.WantedMovies.Count > 0)
+            {
+                <div class="rgroup">Movies</div>
+                @foreach (var film in found.Movies)
+                {
+                    <a class="result" role="listitem" href="movies/@film.Id" @key="film.Id">
+                        <Poster Title="@film.Title" ImageUrl="film.CoverUrl" />
+                        <div><div class="rt">@film.Title</div><div class="rs">@Sub(film.Year, film.Directors)</div></div>
+                        <div class="verdict own">Owned
+                            <div class="fmts">
+                                @foreach (var format in film.Formats)
+                                {
+                                    <FormatBadge Format="format" Short />
+                                }
+                            </div>
+                        </div>
+                    </a>
+                }
+                @foreach (var wish in found.WantedMovies)
+                {
+                    <a class="result" role="listitem" href="wishlist/movies/@wish.Id" @key="wish.Id">
+                        <Poster Title="@wish.Title" ImageUrl="wish.CoverUrl" />
+                        <div><div class="rt">@wish.Title</div><div class="rs">@Sub(wish.Year, wish.Directors)</div></div>
+                        <div class="verdict wish">On wishlist
+                            <div class="fmts"><FormatBadge Format="wish.Format" Short Wanted /></div>
+                        </div>
+                    </a>
+                }
+            }
+
+            @if (found.Runs.Count + found.Collected.Count + found.WantedComics.Count > 0)
+            {
+                <div class="rgroup">Comics</div>
+                @foreach (var run in found.Runs)
+                {
+                    @* Opens the issues owned that match, which is where a single issue is answered for. *@
+                    <a class="result" role="listitem" href="@($"comics?q={Uri.EscapeDataString(found.Query)}&shelf={nameof(ComicShelfKind.Issues)}")" @key="run.Title">
+                        <Poster Title="@run.Name" ImageUrl="FirstCover(run)" />
+                        <div><div class="rt">@run.Title</div><div class="rs">@(run.Publisher ?? "Series")</div></div>
+                        <div class="verdict own">@(run.KnownCount is { } known ? $"{Number(run.OwnedCount)} of {Number(known)}" : Issues(run.OwnedCount))</div>
+                    </a>
+                }
+                @foreach (var book in found.Collected)
+                {
+                    <a class="result" role="listitem" href="comics/@book.Id" @key="book.Id">
+                        <Poster Title="@book.DisplayName" ImageUrl="book.CoverUrl" />
+                        <div><div class="rt">@book.DisplayName</div><div class="rs">@(book.Publisher ?? ComicText.Name(book.Format))</div></div>
+                        <div class="verdict own">Owned</div>
+                    </a>
+                }
+                @foreach (var wish in found.WantedComics)
+                {
+                    <a class="result" role="listitem" href="wishlist/comics/@wish.Id" @key="wish.Id">
+                        <Poster Title="@wish.DisplayName" ImageUrl="wish.CoverUrl" />
+                        <div><div class="rt">@wish.DisplayName</div><div class="rs">@(wish.Publisher ?? ComicText.Name(wish.Format))</div></div>
+                        <div class="verdict wish">On wishlist</div>
+                    </a>
+                }
+            }
+        </div>
+    }
+}
+
+@code {
+    private Found? _found;
+    private CancellationTokenSource? _loading;
+
+    /// <summary>What was typed.</summary>
+    [Parameter, EditorRequired] public string Query { get; set; } = "";
+
+    /// <summary>The add screen to open with the text when nothing matches: <c>movies/new</c> or <c>comics/new</c>.</summary>
+    [Parameter, EditorRequired] public string LookUpHref { get; set; } = "";
+
+    protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private void OnCollectionChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private async Task LoadAsync()
+    {
+        // Typing fires a load per keystroke; only the newest one may update the page.
+        _loading?.Cancel();
+        _loading?.Dispose();
+        _loading = new CancellationTokenSource();
+        var token = _loading.Token;
+        var query = Query.Trim();
+        try
+        {
+            var movies = await Api.ListMoviesAsync(new() { Search = query, Sort = MovieSortOrder.Title }, token);
+            var runs = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Series }, token);
+            var collected = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Collected }, token);
+            var wishlist = await Api.ListWishlistAsync(query, token);
+            if (!token.IsCancellationRequested)
+            {
+                _found = new(query, movies.Movies, wishlist.Movies, runs.Runs, collected.Comics, wishlist.Comics);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer search took over.
+        }
+    }
+
+    private static string Sub(int? year, IReadOnlyList<string> directors) =>
+        string.Join(" · ", new[] { year?.ToString(CultureInfo.InvariantCulture), directors.Count > 0 ? string.Join(" & ", directors) : null }.Where(part => part is not null));
+
+    private static Uri? FirstCover(SeriesRunDto run) => run.Entries.SelectMany(e => e.Copies).Select(c => c.CoverUrl).FirstOrDefault(cover => cover is not null);
+
+    private static string Number(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
+
+    private static string Issues(int count) => count == 1 ? "1 issue" : $"{Number(count)} issues";
+
+    public void Dispose()
+    {
+        Api.Changed -= OnCollectionChanged;
+        _loading?.Cancel();
+        _loading?.Dispose();
+    }
+
+    private sealed record Found(
+        string Query,
+        IReadOnlyList<MovieSummaryDto> Movies,
+        IReadOnlyList<WishlistMovieDto> WantedMovies,
+        IReadOnlyList<SeriesRunDto> Runs,
+        IReadOnlyList<ComicSummaryDto> Collected,
+        IReadOnlyList<WishlistComicDto> WantedComics)
+    {
+        public bool IsEmpty => Movies.Count + WantedMovies.Count + Runs.Count + Collected.Count + WantedComics.Count == 0;
+    }
+}

@@ -1,0 +1,72 @@
+@implements IDisposable
+@using MMDb.Contracts.Phone
+@inject IServiceProvider Services
+@inject TimeProvider Clock
+
+@* Phone only, under a screen's title, as mocked: how fresh the phone's copy is while the PC is out of reach, and
+   what is waiting to be sent. Nothing at home with nothing to say. *@
+@if (_sync is not null && _link is not null)
+{
+    var status = _sync.Status;
+    @if (status.TurnedDown.Count > 0)
+    {
+        <div class="away turned-down" role="alert">
+            <span class="od"></span>
+            <span><b>@Count(status.TurnedDown.Count) couldn't be sent:</b> @string.Join("; ", status.TurnedDown)</span>
+            <button type="button" class="link-btn" @onclick="() => _sync.DismissAsync()">OK</button>
+        </div>
+    }
+
+    @if (status.State == PhoneSyncState.WrongVersion)
+    {
+        <div class="away" role="status">
+            <span class="od"></span>
+            <span>Shelf on this phone and on @(_link.PcName ?? "your PC") are different versions. Update both to sync.</span>
+        </div>
+    }
+    else if (_link.State == PcLinkState.Unreachable && status.SyncedAt is { } at)
+    {
+        <div class="away" role="status">
+            <span class="od"></span>
+            @if (status.Waiting > 0)
+            {
+                <span>Away from your PC · <b>@Count(status.Waiting)</b> to send</span>
+            }
+            else
+            {
+                <span>Away from your PC · collection as of @When(at)</span>
+            }
+        </div>
+    }
+}
+
+@code {
+    private IPhoneSync? _sync;
+    private IPcLink? _link;
+
+    protected override void OnInitialized()
+    {
+        _sync = Services.GetService<IPhoneSync>();
+        _link = Services.GetService<IPcLink>();
+        if (_sync is not null && _link is not null)
+        {
+            _sync.Changed += OnChanged;
+            _link.Changed += OnChanged;
+        }
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private static string Count(int changes) => CopyAge.Changes(changes);
+
+    private string When(DateTimeOffset at) => CopyAge.When(at, Clock);
+
+    public void Dispose()
+    {
+        if (_sync is not null && _link is not null)
+        {
+            _sync.Changed -= OnChanged;
+            _link.Changed -= OnChanged;
+        }
+    }
+}

@@ -11,6 +11,7 @@
 {
     @* As mocked for the phone: title, "Do I own…?" search, format chips, covers. Adding is done by scanning. *@
     <div class="appbar"><h1 class="ttl">Movies</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
+    <MMDb.UI.Phone.AwayLine />
     <div class="topbar">
         <SearchBox Value="@Q" ValueChanged="Search" Placeholder="Do I own…?" />
     </div>
@@ -24,6 +25,12 @@ else
     </div>
 }
 
+@if (Device.IsPhone && !string.IsNullOrWhiteSpace(Q))
+{
+    <MMDb.UI.Phone.OwnSearch Query="@Q" LookUpHref="movies/new" />
+}
+else
+{
 <div class="content">
     @if (!Device.IsPhone)
     {
@@ -137,6 +144,7 @@ else
         }
     }
 </div>
+}
 
 @code {
     private MovieListResponse? _list;

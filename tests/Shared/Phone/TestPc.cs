@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using MMDb.Contracts;
 using MMDb.Infrastructure;
+using MMDb.Infrastructure.Metadata;
 using MMDb.Server;
 using MMDb.Server.Phone;
 
@@ -47,6 +48,13 @@ internal sealed class TestPc : IAsyncDisposable
     public IPhoneApi Phone => _services.GetRequiredService<IPhoneApi>();
 
     public PhoneServer Server => _services.GetRequiredService<PhoneServer>();
+
+    /// <summary>Gives the PC keys for the online databases, as its user secrets would.</summary>
+    public void HasKeys(string? tmdb, string? metron)
+    {
+        _services.GetRequiredService<TmdbSettings>().ApiKey = tmdb;
+        _services.GetRequiredService<MetronSettings>().Token = metron;
+    }
 
     /// <summary>The code the PC's Settings screen shows right now.</summary>
     public string PairingCode => Phone.PairingCode().Code;

@@ -1,6 +1,7 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using MMDb.Contracts.Movies;
+using MMDb.Contracts;
 using MMDb.Contracts.Phone;
 using MMDb.Testing;
 using MMDb.UI.Layout;
@@ -38,9 +39,10 @@ public sealed class PhoneLayoutTests : PhoneTestContext
             ("comics", "Comics", false),
             ("scan", "", false),
             ("wishlist", "Wishlist", false),
+            ("stats", "Stats", false),
         ]);
         app.Find(".bnav a.scan").GetAttribute("aria-label").ShouldBe("Scan");
-        Link.Checks.ShouldBe(1);
+        Sync.Syncs.ShouldBe(1, "opening the app brings the copy up to date");
     }
 
     [Fact]
@@ -99,9 +101,98 @@ public sealed class PhoneLayoutTests : PhoneTestContext
     }
 
     [Fact]
-    public async Task When_the_pc_is_off_the_phone_says_so_and_carries_on_once_it_is_back()
+    public async Task Away_from_the_pc_the_phone_shows_its_copy_and_says_how_fresh_it_is()
     {
         await SeedAsync(Heat);
+        Clock.SetUtcNow(FakePhoneSync.Now);
+        Link.PcUp = false;
+
+        var app = RenderApp<MovieLibrary>();
+
+        app.WaitForElement(".card").QuerySelector(".t")!.TextContent.ShouldBe("Heat");
+        Text(app.WaitForElement(".away")).ShouldBe("Away from your PC · collection as of today 8:12 AM");
+        app.FindAll(".bnav").ShouldHaveSingleItem();
+        app.FindAll(".phone-notice").ShouldBeEmpty();
+
+        Link.PcUp = true;
+        await app.InvokeAsync(() => Sync.SyncAsync(Ct));
+
+        app.WaitForAssertion(() => app.FindAll(".away").ShouldBeEmpty());
+    }
+
+    [Theory]
+    [InlineData(1, "today 8:12 AM")]
+    [InlineData(20, "yesterday 1:12 PM")]
+    [InlineData(24 * 9, "1 Oct")]
+    [InlineData(24 * 300, "14 Dec 2025")]
+    public void An_older_copy_is_dated(int hoursAgo, string expected)
+    {
+        Clock.SetUtcNow(FakePhoneSync.Now);
+        Sync.Set(Sync.Status with { SyncedAt = FakePhoneSync.Now.AddHours(-hoursAgo) });
+        Link.PcUp = false;
+
+        var app = RenderApp<ComicLibrary>("comics");
+
+        Text(app.WaitForElement(".away")).ShouldBe($"Away from your PC · collection as of {expected}");
+    }
+
+    [Fact]
+    public void What_was_saved_away_from_home_is_counted_until_it_is_sent()
+    {
+        Link.PcUp = false;
+        Sync.Set(Sync.Status with { Waiting = 3 });
+
+        var app = RenderApp<WishlistPage>("wishlist");
+
+        Text(app.WaitForElement(".away")).ShouldBe("Away from your PC · 3 changes to send");
+        app.Find(".away b").TextContent.ShouldBe("3 changes");
+
+        Sync.Set(Sync.Status with { Waiting = 1 });
+
+        app.WaitForAssertion(() => Text(app.Find(".away")).ShouldBe("Away from your PC · 1 change to send"));
+    }
+
+    [Fact]
+    public void At_home_with_nothing_waiting_there_is_no_line()
+    {
+        Sync.Set(Sync.Status with { Waiting = 2 });
+
+        var app = RenderApp<MovieLibrary>();
+
+        app.WaitForElement(".appbar");
+        app.FindAll(".away").ShouldBeEmpty("at home what is waiting is already on its way");
+    }
+
+    [Fact]
+    public void What_the_pc_wouldnt_take_is_said_until_it_is_dismissed()
+    {
+        Sync.Set(Sync.Status with { TurnedDown = ["Dune (2021) on the wishlist", "Saga #9 on the wishlist"] });
+
+        var app = RenderApp<WishlistPage>("wishlist");
+
+        Text(app.WaitForElement(".away.turned-down")).ShouldBe("2 changes couldn't be sent: Dune (2021) on the wishlist; Saga #9 on the wishlist OK");
+
+        app.Find(".away.turned-down button").Click();
+
+        app.WaitForAssertion(() => app.FindAll(".away").ShouldBeEmpty());
+    }
+
+    [Fact]
+    public void A_phone_and_pc_on_different_versions_say_so_over_the_copy()
+    {
+        Sync.Outcome = PhoneSyncState.WrongVersion;
+
+        var app = RenderApp<MovieLibrary>();
+
+        app.WaitForAssertion(() => Text(app.Find(".away")).ShouldBe("Shelf on this phone and on DESK are different versions. Update both to sync."));
+        app.FindAll(".bnav").ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task A_phone_that_never_had_the_collection_needs_its_pc_once()
+    {
+        await SeedAsync(Heat);
+        Sync.Set(new(PhoneSyncState.Idle, SyncedAt: null, Waiting: 0, TurnedDown: []));
         Link.PcUp = false;
 
         var app = RenderApp<MovieLibrary>();
@@ -119,36 +210,89 @@ public sealed class PhoneLayoutTests : PhoneTestContext
     }
 
     [Fact]
-    public async Task Losing_the_pc_while_browsing_shows_the_same_screen_and_trying_again_reloads_the_page()
-    {
-        await SeedAsync(Heat);
-        var app = RenderApp<MovieLibrary>();
-        app.WaitForElement(".card");
-
-        Link.PcUp = false;
-        app.Find(".search input").Input("alien");
-
-        app.WaitForAssertion(() => app.Find(".phone-notice h1").TextContent.ShouldBe("Can't reach DESK"));
-
-        Link.PcUp = true;
-        app.Find(".phone-notice button.primary").Click();
-
-        app.WaitForElement(".appbar");
-        app.FindAll(".phone-notice").ShouldBeEmpty();
-    }
-
-    [Fact]
     public void Trying_again_while_the_pc_is_still_off_stays_put()
     {
+        Sync.Set(new(PhoneSyncState.Idle, SyncedAt: null, Waiting: 0, TurnedDown: []));
         Link.PcUp = false;
         var app = RenderApp<MovieLibrary>();
         app.WaitForElement(".phone-notice");
 
         app.Find(".phone-notice button.primary").Click();
 
-        app.WaitForAssertion(() => Link.Checks.ShouldBe(2));
+        app.WaitForAssertion(() => Sync.Syncs.ShouldBe(2));
         app.Find("h1").TextContent.ShouldBe("Can't reach DESK");
         app.Find(".phone-notice a.link-btn").GetAttribute("href").ShouldBe("phone");
+    }
+
+    [Fact]
+    public void While_the_collection_is_first_copied_the_phone_says_so()
+    {
+        Sync.Set(new(PhoneSyncState.Idle, SyncedAt: null, Waiting: 0, TurnedDown: []));
+        Sync.Hold = new();
+
+        var app = RenderApp<MovieLibrary>();
+
+        app.WaitForAssertion(() => app.Find(".phone-notice h1").TextContent.ShouldBe("Copying your collection"));
+        Text(app.Find(".phone-notice p")).ShouldStartWith("From DESK, so this phone has it wherever you are.");
+        app.FindAll(".bnav, .appbar").ShouldBeEmpty();
+
+        Sync.Hold.SetResult();
+
+        app.WaitForElement(".appbar");
+        app.FindAll(".phone-notice").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void A_phone_that_cant_copy_from_another_version_of_shelf_says_to_update()
+    {
+        Sync.Set(new(PhoneSyncState.Idle, SyncedAt: null, Waiting: 0, TurnedDown: []));
+        Sync.Outcome = PhoneSyncState.WrongVersion;
+
+        var app = RenderApp<MovieLibrary>();
+
+        app.WaitForAssertion(() => app.Find(".phone-notice h1").TextContent.ShouldBe("Update Shelf"));
+        Text(app.Find(".phone-notice p")).ShouldBe("Shelf on this phone and on DESK are different versions. Update both, then try again.");
+    }
+
+    [Fact]
+    public async Task Stats_is_the_fifth_tab_and_counts_the_phones_copy()
+    {
+        await SeedAsync(Heat);
+
+        var app = RenderApp<StatsPage>("stats");
+
+        app.WaitForElement(".tiles");
+        app.Find(".appbar .ttl").TextContent.ShouldBe("Stats");
+        app.FindAll(".bnav a.on").ShouldHaveSingleItem().TextContent.Trim().ShouldBe("Stats");
+        Text(app.Find(".tile")).ShouldStartWith("Films1");
+        app.FindAll(".topbar, .section-head").ShouldBeEmpty();
+        app.Markup.ShouldNotContain("on this PC");
+    }
+
+    [Fact]
+    public void This_phone_says_how_fresh_the_copy_is_and_syncs_when_asked()
+    {
+        Clock.SetUtcNow(FakePhoneSync.Now);
+        Link.PcUp = false;
+        Sync.Set(Sync.Status with { Waiting = 2 });
+        var app = RenderApp<PhoneLink>("phone");
+        app.WaitForElement("#copy-heading");
+
+        Text(app.Find("section[aria-labelledby='copy-heading'] .desc")).ShouldBe("As of today 8:12 AM · 2 changes to send");
+
+        Link.PcUp = true;
+        Sync.Hold = new();
+        var before = Sync.Syncs;
+        app.Find("section[aria-labelledby='copy-heading'] button").Click();
+
+        app.WaitForAssertion(() => Text(app.Find("section[aria-labelledby='copy-heading'] button")).ShouldBe("Syncing…"));
+        app.Find("section[aria-labelledby='copy-heading'] button").HasAttribute("disabled").ShouldBeTrue();
+
+        Sync.Hold.SetResult();
+
+        app.WaitForAssertion(() => Text(app.Find("section[aria-labelledby='copy-heading'] .desc")).ShouldBe("As of today 9:12 AM"));
+        Text(app.Find("section[aria-labelledby='copy-heading'] button")).ShouldBe("Sync now");
+        Sync.Syncs.ShouldBe(before + 1);
     }
 
     [Fact]
@@ -329,6 +473,48 @@ public sealed class PhoneBrowseTests : PhoneTestContext
         page.Find(".search input").Input("hea");
 
         RelativeLocation.ShouldBe("?q=hea");
+    }
+
+    [Fact]
+    public async Task A_film_added_on_the_phone_can_be_taken_back_until_it_is_sent()
+    {
+        var sent = await SeedAsync(Heat);
+        var unsent = await SeedAsync(Film("Alien", 1979, MovieFormatKind.Dvd));
+        Sync.Unsent(unsent.Id);
+
+        var theirs = Render<MovieDetail>(p => p.Add(x => x.Id, sent.Id));
+        theirs.WaitForElement(".actions");
+        theirs.FindAll(".actions button").ShouldBeEmpty("what the PC has is removed on the PC");
+
+        var mine = Render<MovieDetail>(p => p.Add(x => x.Id, unsent.Id));
+        Text(mine.WaitForElement(".actions button")).ShouldBe("Remove");
+        mine.Find(".actions button").Click();
+        Text(mine.Find(".confirm")).ShouldBe("Remove Alien? It hasn't been sent to your PC yet, so this takes it back.Cancel Remove");
+        mine.Find(".confirm button.danger").Click();
+
+        mine.WaitForAssertion(() => RelativeLocation.ShouldBe(""));
+        (await Api.GetMovieAsync(unsent.Id, Ct)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_comic_added_on_the_phone_can_be_taken_back_until_it_is_sent()
+    {
+        var sent = await SeedComicAsync(TestComics.Saga7);
+        var unsent = await SeedComicAsync(TestComics.Daredevil181);
+        Sync.Unsent(unsent.Id);
+
+        var theirs = Render<ComicDetail>(p => p.Add(x => x.Id, sent.Id));
+        theirs.WaitForElement(".detail, .cover, h1");
+        theirs.FindAll(".actions button").ShouldBeEmpty();
+
+        var mine = Render<ComicDetail>(p => p.Add(x => x.Id, unsent.Id));
+        Text(mine.WaitForElement(".actions button")).ShouldBe("Remove");
+        mine.Find(".actions button").Click();
+        mine.Find(".confirm").TextContent.ShouldContain("It hasn't been sent to your PC yet");
+        mine.Find(".confirm button.danger").Click();
+
+        mine.WaitForAssertion(() => RelativeLocation.ShouldBe("comics"));
+        (await Api.GetComicAsync(unsent.Id, Ct)).ShouldBeNull();
     }
 
     [Fact]

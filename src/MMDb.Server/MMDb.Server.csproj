@@ -8,6 +8,8 @@
     <!-- A library: the PC app hosts it in-process (see PhoneHost). -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="QRCoder" />
+    <!-- Smaller copies of the covers for phones. Here rather than in Infrastructure, which the phone app also uses. -->
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +25,7 @@
     <ProjectReference Include="..\MMDb.Application\MMDb.Application.csproj" />
     <ProjectReference Include="..\MMDb.Infrastructure\MMDb.Infrastructure.csproj" />
     <ProjectReference Include="..\MMDb.Contracts\MMDb.Contracts.csproj" />
+    <ProjectReference Include="..\MMDb.Local\MMDb.Local.csproj" />
   </ItemGroup>
 
 </Project>

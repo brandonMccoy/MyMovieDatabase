@@ -6,6 +6,7 @@ using MMDb.Contracts;
 using MMDb.Contracts.Comics;
 using MMDb.Contracts.Movies;
 using MMDb.Contracts.Wishlist;
+using MMDb.Local;
 using MMDb.Testing;
 
 namespace MMDb.Server.Tests;

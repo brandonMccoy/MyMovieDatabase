@@ -1,32 +1,39 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MMDb.Contracts;
-using MMDb.Contracts.Comics;
-using MMDb.Contracts.Movies;
 using MMDb.Contracts.Phone;
-using MMDb.Contracts.Scans;
-using MMDb.Contracts.Wishlist;
-using MMDb.Server;
 using MMDb.UI.Scanning;
 
 namespace MMDb.UI.Tests;
 
 /// <summary>
-/// The screens as the phone runs them: the collection is the PC's, reached through a link that can go down,
-/// and the camera is a fake that "reads" whatever a test hands it.
+/// The screens as the phone runs them: the collection is the phone's own copy, kept in step with a PC that can
+/// be out of reach, and the camera is a fake that "reads" whatever a test hands it.
 /// </summary>
 public abstract class PhoneTestContext : ShelfTestContext
 {
     protected PhoneTestContext()
     {
         Services.Replace(ServiceDescriptor.Singleton(ShelfDevice.Phone));
+        Sync = new(Link);
         Services.AddSingleton<IPcLink>(Link);
+        Services.AddSingleton<IPhoneSync>(Sync);
         Services.AddSingleton<IBarcodeScanner>(Scanner);
-        Services.Replace(ServiceDescriptor.Singleton<ICollectionApi>(
-            services => new LinkedApi(ActivatorUtilities.CreateInstance<InProcessCollectionApi>(services), Link)));
+    }
+
+    /// <summary>No signal: the phone's copy still answers, the online databases don't.</summary>
+    private protected bool Signal
+    {
+        set
+        {
+            Application.Metadata.MetadataProblem? problem = value ? null : Application.Metadata.MetadataProblem.Unavailable;
+            (Online.Tmdb.FailWith, Online.Barcodes.FailWith, Online.Metron.FailWith, Online.Books.FailWith) = (problem, problem, problem, problem);
+        }
     }
 
     protected FakePcLink Link { get; } = new();
+
+    protected FakePhoneSync Sync { get; }
 
     protected FakeScanner Scanner { get; } = new();
 
@@ -104,6 +111,60 @@ public sealed class FakePcLink : IPcLink
     }
 }
 
+/// <summary>
+/// The phone's copy as its screens are told of it: synced an hour ago by default. A sync reaches the PC if
+/// <see cref="FakePcLink.PcUp"/>, and then the copy is fresh.
+/// </summary>
+public sealed class FakePhoneSync(FakePcLink link) : IPhoneSync
+{
+    public static readonly DateTimeOffset Now = new(2026, 10, 10, 9, 12, 0, TimeSpan.Zero);
+
+    private readonly HashSet<Guid> _unsent = [];
+
+    public event Action? Changed;
+
+    public PhoneSyncStatus Status { get; private set; } = new(PhoneSyncState.Idle, Now.AddHours(-1), 0, []);
+
+    public int Syncs { get; private set; }
+
+    /// <summary>What a sync that reaches the PC ends in.</summary>
+    public PhoneSyncState Outcome { get; set; } = PhoneSyncState.Idle;
+
+    /// <summary>Set to have a sync take until the test lets it finish.</summary>
+    public TaskCompletionSource? Hold { get; set; }
+
+    public void Set(PhoneSyncStatus status)
+    {
+        Status = status;
+        Changed?.Invoke();
+    }
+
+    public void Unsent(Guid id) => _unsent.Add(id);
+
+    public async Task SyncAsync(CancellationToken cancellationToken = default)
+    {
+        Syncs++;
+        if (await link.CheckAsync(cancellationToken) == PcLinkState.Connected)
+        {
+            if (Hold is { } hold)
+            {
+                Set(Status with { State = PhoneSyncState.Syncing });
+                await hold.Task;
+            }
+
+            Set(Outcome == PhoneSyncState.Idle ? Status with { State = PhoneSyncState.Idle, SyncedAt = Now, Waiting = 0 } : Status with { State = Outcome });
+        }
+    }
+
+    public bool IsUnsent(Guid id) => _unsent.Contains(id);
+
+    public Task DismissAsync(CancellationToken cancellationToken = default)
+    {
+        Set(Status with { TurnedDown = [] });
+        return Task.CompletedTask;
+    }
+}
+
 /// <summary>The camera: a test calls <see cref="Read"/> with what it "sees".</summary>
 public sealed class FakeScanner : IBarcodeScanner
 {
@@ -138,73 +199,4 @@ public sealed class FakeScanner : IBarcodeScanner
     }
 
     public void Read(string code) => (_onCode ?? throw new InvalidOperationException("The scanner isn't running.")).Invoke(code);
-}
-
-/// <summary>The PC's collection as the phone reaches it: gone when the link is down.</summary>
-internal sealed class LinkedApi(ICollectionApi pc, FakePcLink link) : ICollectionApi
-{
-    public event Action? Changed
-    {
-        add => pc.Changed += value;
-        remove => pc.Changed -= value;
-    }
-
-    public Task<MovieListResponse> ListMoviesAsync(MovieListRequest request, CancellationToken cancellationToken = default) => Up().ListMoviesAsync(request, cancellationToken);
-
-    public Task<MovieDto?> GetMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetMovieAsync(id, cancellationToken);
-
-    public Task<SaveMovieResponse> AddMovieAsync(SaveMovieRequest request, CancellationToken cancellationToken = default) => Up().AddMovieAsync(request, cancellationToken);
-
-    public Task<SaveMovieResponse> UpdateMovieAsync(Guid id, int version, SaveMovieRequest request, CancellationToken cancellationToken = default) => Up().UpdateMovieAsync(id, version, request, cancellationToken);
-
-    public Task<bool> DeleteMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().DeleteMovieAsync(id, cancellationToken);
-
-    public Task<MovieLookupResponse> LookupMovieAsync(string query, CancellationToken cancellationToken = default) => Up().LookupMovieAsync(query, cancellationToken);
-
-    public Task<ComicListResponse> ListComicsAsync(ComicListRequest request, CancellationToken cancellationToken = default) => Up().ListComicsAsync(request, cancellationToken);
-
-    public Task<ComicDto?> GetComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetComicAsync(id, cancellationToken);
-
-    public Task<SaveComicResponse> AddComicAsync(SaveComicRequest request, CancellationToken cancellationToken = default) => Up().AddComicAsync(request, cancellationToken);
-
-    public Task<SaveComicResponse> UpdateComicAsync(Guid id, int version, SaveComicRequest request, CancellationToken cancellationToken = default) => Up().UpdateComicAsync(id, version, request, cancellationToken);
-
-    public Task<bool> DeleteComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().DeleteComicAsync(id, cancellationToken);
-
-    public Task<ComicLookupResponse> LookupComicAsync(string query, CancellationToken cancellationToken = default) => Up().LookupComicAsync(query, cancellationToken);
-
-    public Task<ScanResponse> LookupScanAsync(ScanRequest request, CancellationToken cancellationToken = default) => Up().LookupScanAsync(request, cancellationToken);
-
-    public Task<WishlistResponse> ListWishlistAsync(string? search = null, CancellationToken cancellationToken = default) => Up().ListWishlistAsync(search, cancellationToken);
-
-    public Task<WishlistMovieDto?> GetWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetWishlistMovieAsync(id, cancellationToken);
-
-    public Task<WishlistComicDto?> GetWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().GetWishlistComicAsync(id, cancellationToken);
-
-    public Task<WantMovieResponse> ChangeWishlistFormatAsync(Guid id, MovieFormatKind format, CancellationToken cancellationToken = default) => Up().ChangeWishlistFormatAsync(id, format, cancellationToken);
-
-    public Task<WantMovieResponse> WantMovieAsync(WantMovieRequest request, CancellationToken cancellationToken = default) => Up().WantMovieAsync(request, cancellationToken);
-
-    public Task<bool> RemoveWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().RemoveWishlistMovieAsync(id, cancellationToken);
-
-    public Task<MovieLookupResponse?> LookupWishlistMovieAsync(Guid id, CancellationToken cancellationToken = default) => Up().LookupWishlistMovieAsync(id, cancellationToken);
-
-    public Task<WantComicResponse> WantComicAsync(WantComicRequest request, CancellationToken cancellationToken = default) => Up().WantComicAsync(request, cancellationToken);
-
-    public Task<WantComicResponse> WantMissingIssuesAsync(WantMissingRequest request, CancellationToken cancellationToken = default) => Up().WantMissingIssuesAsync(request, cancellationToken);
-
-    public Task<bool> RemoveWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().RemoveWishlistComicAsync(id, cancellationToken);
-
-    public Task<ComicLookupResponse?> LookupWishlistComicAsync(Guid id, CancellationToken cancellationToken = default) => Up().LookupWishlistComicAsync(id, cancellationToken);
-
-    private ICollectionApi Up()
-    {
-        if (!link.PcUp)
-        {
-            link.Set(PcLinkState.Unreachable);
-            throw new PcUnavailableException("The PC didn't answer.");
-        }
-
-        return pc;
-    }
 }
