@@ -31,6 +31,9 @@ public interface IMovieRepository
     /// <summary>Read-only: every film as the Stats screen counts it.</summary>
     Task<IReadOnlyList<FilmTally>> ListTalliesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Read-only: the first <paramref name="top"/> names of every film's cast, without the rest of its credits.</summary>
+    Task<IReadOnlyList<BilledName>> ListTopBilledAsync(int top, CancellationToken cancellationToken = default);
+
     void Add(Movie movie);
 
     void Remove(Movie movie);
@@ -44,6 +47,9 @@ public interface IMovieRepository
 public sealed record FilmTally(int? Year, IReadOnlyList<string> Directors, DateTimeOffset CreatedAt, IReadOnlyList<FormatTally> Formats);
 
 public sealed record FormatTally(MediaFormat Format, DateTimeOffset AddedAt);
+
+/// <summary>Someone among the first names of a film's cast.</summary>
+public sealed record BilledName(Guid MovieId, string Name);
 
 /// <summary>A film's digital copy: what the folder import needs to know of it.</summary>
 /// <param name="FilePath">The video file on the PC, if one is linked.</param>

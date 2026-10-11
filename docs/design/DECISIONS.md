@@ -207,6 +207,15 @@ Settled while building it:
 - **Phone:** the cursor, and with it the keyboard, only when the box is empty. Arriving with something to search for ("Do I own…?" → Add) leaves the keyboard down so the matches show.
 - **How:** set from code when the box first appears. The `autofocus` attribute it replaces only works when a page is loaded, not when moving between screens, and the page heading took the focus afterwards. Android's web view brings the keyboard up by itself once the box has the cursor (checked on the S24, 2026-10-11), so there is no native keyboard code.
 
+## Stats: months apart, top actors (decided 2026-10-11)
+"Stats page updates (Top actors, separate movies and comics)".
+- **Two month charts:** "Items added per month" became "Movies added per month" and "Comics added per month", each with its own scale, so a month of comics no longer flattens the films. Chosen over one chart with two bars a month or stacked bars. Both still count copies: each format of a film, and every comic copy (issues, trades and hardcovers).
+- **Top actors:** a seventh chart, six names like "Top directors", counting films owned.
+- **Who counts as an actor:** the first 10 names of a film's cast. Every credit is kept, so counting whole casts would fill the list with bit-part and voice actors. Someone a film names twice counts once.
+- **An actor's bar opens Movies on that actor:** a "With <name>" chip that clears like "Directed by". It lists exactly the films the bar counted (the same first 10, the whole name, ignoring case and accents). Like the director filter it is only reached from Stats.
+- **Rows:** "Copies by format" across the top, then the two month charts, "Films by decade" with "Top directors", "Top actors" with "Comics by publisher".
+- **Cost:** the first names are picked out of each cast by SQLite, so the casts are still never loaded: 17 ms for the real collection of 1,204 films (3.2 MB of cast), once per Stats screen and once per list while an actor chip is on.
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

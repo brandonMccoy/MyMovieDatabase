@@ -37,6 +37,7 @@ internal static class MovieMapping
         Genre = string.IsNullOrWhiteSpace(request.Genre) ? null : request.Genre,
         Decade = request.Decade,
         Director = string.IsNullOrWhiteSpace(request.Director) ? null : request.Director.Trim(),
+        Actor = string.IsNullOrWhiteSpace(request.Actor) ? null : request.Actor.Trim(),
         Sort = request.Sort switch
         {
             MovieSortOrder.Title => MovieSort.Title,

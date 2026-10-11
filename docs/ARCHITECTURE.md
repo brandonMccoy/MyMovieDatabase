@@ -176,12 +176,12 @@ Movies use three ports: `IMovieMetadata` (TMDB: search by title + year, details 
 
 ## Stats
 
-- `StatsSource` (Application) counts the whole collection in one go: `IMovieRepository.ListTalliesAsync` (year, directors, when it was added, and each format with when it was added), `IComicRepository.ListTalliesAsync` (format, series, number, publisher, when it was added), the series Metron described and two counts of the wishlist. No credits, summaries or covers are read; the adding up is in memory.
-- Months are calendar months in the PC's time zone (`TimeProvider.LocalTimeZone`). "Items added per month" counts copies (a film's formats by `AddedAt`, comics by `CreatedAt`) for this month and the eleven before.
+- `StatsSource` (Application) counts the whole collection in one go: `IMovieRepository.ListTalliesAsync` (year, directors, when it was added, and each format with when it was added), `IComicRepository.ListTalliesAsync` (format, series, number, publisher, when it was added), the series Metron described and two counts of the wishlist. No summaries or covers are read, and of the credits only the first 10 names of each cast (`IMovieRepository.ListTopBilledAsync`: SQLite picks them out of the cast's JSON with one `json_extract`, so the long casts stay in the database); the adding up is in memory.
+- Months are calendar months in the PC's time zone (`TimeProvider.LocalTimeZone`). "Movies added per month" and "Comics added per month" count copies (a film's formats by `AddedAt`, comics by `CreatedAt`) for this month and the eleven before.
 - Runs and complete runs are told as the comics library tells them (`ComicFilter.RunKey`, `ComicFilter.SeriesOf`), so the tile agrees with "N of M" there.
 - `IStatsApi` / `InProcessStatsApi` hand the screen a `StatsDto`. The phone has them too, counting its own copy: Stats is the fifth tab of its bottom bar, the same screen in one column (no "on this PC" size, which needs `IDigitalApi`).
 - **Size on disk:** not part of the stats read. The movie-folder scan notes each video file's size as it lists the folder (`ImportStatus.LinkedBytes`: the files that are a film's digital copy), and the Digital tile shows `IDigitalApi.Folder.LinkedBytes`.
-- **Bars are links** into the libraries' own addresses: `movies?format=`, `movies?decade=`, `movies?director=` (`MovieQuery.Director`: the whole name, ignoring case and accents) and `comics?shelf=Issues&publisher=`.
+- **Bars are links** into the libraries' own addresses: `movies?format=`, `movies?decade=`, `movies?director=` (`MovieQuery.Director`: the whole name, ignoring case and accents), `movies?actor=` (`MovieQuery.Actor`: the same, among the first 10 of the cast, which is also what "Top actors" counts) and `comics?shelf=Issues&publisher=`.
 
 ## Barcode scanning
 

@@ -9,20 +9,22 @@ namespace MMDb.Application.Stats;
 
 /// <summary>
 /// Counts the collection for the Stats screen. It reads a tally of each film and comic (the few columns that
-/// are counted, never the credits or summaries) and adds them up in memory.
+/// are counted, never the summaries, and of the credits only each film's top-billed cast) and adds them up in memory.
 /// </summary>
 public sealed class StatsSource(IMovieRepository movies, IComicRepository comics, IWishlistRepository wishlist, TimeProvider time)
 {
     private const int MonthsShown = 12;
     private const int DirectorsShown = 6;
+    private const int ActorsShown = 6;
     private const int PublishersShown = 6;
 
-    // The library's director filter tells names apart the same way, so a bar and the list it opens agree.
+    // The library's director and actor filters tell names apart the same way, so a bar and the list it opens agree.
     private static readonly StringComparer Names = StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
 
     public async Task<CollectionStats> ReadAsync(CancellationToken cancellationToken = default)
     {
         var films = await movies.ListTalliesAsync(cancellationToken);
+        var billed = await movies.ListTopBilledAsync(MovieFilter.TopBilled, cancellationToken);
         var copies = await comics.ListTalliesAsync(cancellationToken);
         var series = await comics.ListSeriesAsync(cancellationToken);
         var (wantedMovies, wantedComics) = await wishlist.CountAsync(cancellationToken);
@@ -37,11 +39,12 @@ public sealed class StatsSource(IMovieRepository movies, IComicRepository comics
         var runs = issues.GroupBy(c => ComicFilter.RunKey(c.Series, c.SeriesYear)).ToList();
         var knownSeries = series.ToDictionary(s => s.MetronId);
 
-        var added = formats.Select(f => MonthIn(f.AddedAt)).Concat(copies.Select(c => MonthIn(c.CreatedAt))).CountBy(month => month).ToDictionary();
-        var months = Enumerable.Range(0, MonthsShown)
-            .Select(back => now.AddMonths(back - (MonthsShown - 1)))
-            .Select(MonthOf)
-            .Select(month => new MonthCount(month.Year, month.Month, added.GetValueOrDefault(month)));
+        var months = Enumerable.Range(0, MonthsShown).Select(back => MonthOf(now.AddMonths(back - (MonthsShown - 1)))).ToList();
+        IReadOnlyList<MonthCount> ByMonth(IEnumerable<DateTimeOffset> added)
+        {
+            var counts = added.Select(MonthIn).CountBy(month => month).ToDictionary();
+            return [.. months.Select(month => new MonthCount(month.Year, month.Month, counts.GetValueOrDefault(month)))];
+        }
 
         return new CollectionStats(
             FilmCount: films.Count,
@@ -57,10 +60,12 @@ public sealed class StatsSource(IMovieRepository movies, IComicRepository comics
             WishlistMovieCount: wantedMovies,
             WishlistComicCount: wantedComics,
             Formats: [.. Enum.GetValues<MediaFormat>().Select(format => new FormatCount(format, formats.Count(f => f.Format == format)))],
-            AddedByMonth: [.. months],
+            MoviesAddedByMonth: ByMonth(formats.Select(f => f.AddedAt)),
+            ComicsAddedByMonth: ByMonth(copies.Select(c => c.CreatedAt)),
             Decades: [.. Decades(films)],
             FilmsWithoutYear: films.Count(f => f.Year is null),
-            TopDirectors: [.. TopDirectors(films)],
+            TopDirectors: [.. Top(films.Select(f => f.Directors), DirectorsShown)],
+            TopActors: [.. Top(billed.GroupBy(b => b.MovieId, b => b.Name), ActorsShown)],
             Publishers: [.. Publishers(issues)]);
     }
 
@@ -92,13 +97,14 @@ public sealed class StatsSource(IMovieRepository movies, IComicRepository comics
             .Select(decade => new DecadeCount(decade, counts.GetValueOrDefault(decade)));
     }
 
-    private static IEnumerable<NameCount> TopDirectors(IReadOnlyList<FilmTally> films) =>
-        films.SelectMany(f => f.Directors.Distinct(Names))
+    // The people the most films name; someone a film names twice counts once for it.
+    private static IEnumerable<NameCount> Top(IEnumerable<IEnumerable<string>> namesPerFilm, int shown) =>
+        namesPerFilm.SelectMany(names => names.Distinct(Names))
             .GroupBy(name => name, Names)
             .Select(spellings => new NameCount(MostUsed(spellings), spellings.Count()))
-            .OrderByDescending(d => d.Count)
-            .ThenBy(d => d.Name, Names)
-            .Take(DirectorsShown);
+            .OrderByDescending(p => p.Count)
+            .ThenBy(p => p.Name, Names)
+            .Take(shown);
 
     private static IEnumerable<PublisherCount> Publishers(List<ComicTally> issues)
     {

@@ -154,6 +154,22 @@ public sealed class MovieListTests
     }
 
     [Fact]
+    public async Task Filtering_by_actor_takes_the_whole_name_of_someone_top_billed_ignoring_case_and_accents()
+    {
+        await using var shelf = await TestShelf.CreateAsync();
+        await shelf.AddAsync(Film("Volver", 2006, cast: ["Penélope Cruz", "Carmen Maura"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Vanilla Sky", 2001, cast: ["Tom Cruise", "PENELOPE CRUZ"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Heat", 1995, cast: ["Al Pacino"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Namesake", 2010, cast: ["Penélope Cruz Sánchez"]), MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Directed", 2020, directors: ["Penélope Cruz"]), MediaFormat.Dvd);
+
+        (await TitlesAsync(shelf, new() { Actor = "penelope cruz" })).ShouldBe(["Volver", "Vanilla Sky"], ignoreOrder: true);
+        (await TitlesAsync(shelf, new() { Actor = "Cruz" })).ShouldBeEmpty();
+        (await TitlesAsync(shelf, new() { Actor = "Penélope Cruz", Search = "sky" })).ShouldBe(["Vanilla Sky"]);
+        (await shelf.ListAsync(new() { Actor = "Al Pacino" })).Facets.MatchingCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Facets_count_the_whole_collection_and_options()
     {
         await using var shelf = await TestShelf.CreateAsync();

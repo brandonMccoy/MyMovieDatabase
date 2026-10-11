@@ -28,7 +28,12 @@ public sealed class MovieCatalog(
             crediting[term] = await movies.FindCreditingAsync(term, cancellationToken);
         }
 
-        return MovieFilter.Apply(await movies.ListAsync(cancellationToken), query, crediting);
+        // The same names "Top actors" counts, so a bar and the list it opens agree.
+        var starring = query.Actor is { } actor
+            ? (await movies.ListTopBilledAsync(MovieFilter.TopBilled, cancellationToken)).Where(b => MovieFilter.SameName(b.Name, actor)).Select(b => b.MovieId).ToHashSet()
+            : null;
+
+        return MovieFilter.Apply(await movies.ListAsync(cancellationToken), query, crediting, starring);
     }
 
     /// <summary>

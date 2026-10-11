@@ -36,7 +36,7 @@ public sealed class InProcessStatsApiTests : IAsyncLifetime
     [Fact]
     public async Task The_screen_is_handed_every_number_in_the_contracts_terms()
     {
-        await Api.AddMovieAsync(new() { Title = "Heat", Year = 1995, Directors = ["Michael Mann"], Formats = [new(MovieFormatKind.Uhd4K), new(MovieFormatKind.Digital)] }, Ct);
+        await Api.AddMovieAsync(new() { Title = "Heat", Year = 1995, Directors = ["Michael Mann"], Cast = [new("Al Pacino", "Vincent Hanna")], Formats = [new(MovieFormatKind.Uhd4K), new(MovieFormatKind.Digital)] }, Ct);
         await Api.AddComicAsync(new() { Series = "Daredevil", SeriesYear = 1964, Number = "181", Publisher = "Marvel" }, Ct);
         await Api.AddComicAsync(new() { Series = "Mystery", Number = "1" }, Ct);
         await Api.WantMovieAsync(new() { Title = "Dune", Year = 2021, Format = MovieFormatKind.Uhd4K }, Ct);
@@ -57,11 +57,14 @@ public sealed class InProcessStatsApiTests : IAsyncLifetime
         stats.WishlistComicCount.ShouldBe(0);
         stats.Formats.ShouldBe(
             [new(MovieFormatKind.Uhd4K, 1), new(MovieFormatKind.BluRay, 0), new(MovieFormatKind.Dvd, 0), new(MovieFormatKind.Digital, 1)]);
-        stats.AddedByMonth.Count.ShouldBe(12);
-        stats.AddedByMonth[^1].ShouldBe(new MonthCountDto(2026, 1, 4));
+        stats.MoviesAddedByMonth.Count.ShouldBe(12);
+        stats.MoviesAddedByMonth[^1].ShouldBe(new MonthCountDto(2026, 1, 2));
+        stats.ComicsAddedByMonth.Count.ShouldBe(12);
+        stats.ComicsAddedByMonth[^1].ShouldBe(new MonthCountDto(2026, 1, 2));
         stats.Decades.ShouldBe([new DecadeCountDto(1990, 1)]);
         stats.FilmsWithoutYear.ShouldBe(0);
         stats.TopDirectors.ShouldBe([new NameCountDto("Michael Mann", 1)]);
+        stats.TopActors.ShouldBe([new NameCountDto("Al Pacino", 1)]);
         stats.Publishers.ShouldBe([new PublisherCountDto("Marvel", 1), new PublisherCountDto(null, 1)]);
     }
 }

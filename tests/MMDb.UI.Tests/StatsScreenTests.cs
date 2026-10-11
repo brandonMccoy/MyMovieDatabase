@@ -8,7 +8,7 @@ using MMDb.UI.Stats;
 
 namespace MMDb.UI.Tests;
 
-/// <summary>The Stats screen on the PC: the tiles, the five charts, and where their bars lead. The clock starts on 15 January 2026.</summary>
+/// <summary>The Stats screen on the PC: the tiles, the seven charts, and where their bars lead. The clock starts on 15 January 2026.</summary>
 public sealed class StatsScreenTests : ShelfTestContext
 {
     private static SaveMovieRequest By(string director, string title, int year, params MovieFormatKind[] formats) =>
@@ -105,21 +105,34 @@ public sealed class StatsScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public async Task Items_added_per_month_covers_the_last_twelve_months_ending_with_this_one()
+    public async Task Movies_and_comics_added_per_month_each_cover_the_last_twelve_months_ending_with_this_one()
     {
         await SeedAsync(Heat); // two formats, in January
+        Clock.SetUtcNow(new DateTimeOffset(2026, 2, 9, 12, 0, 0, TimeSpan.Zero));
+        await SeedAsync(Film("Alien", 1979));
         Clock.SetUtcNow(new DateTimeOffset(2026, 3, 9, 12, 0, 0, TimeSpan.Zero));
         await SeedComicAsync(TestComics.Saga7);
 
-        var chart = Chart(await RenderStatsAsync(), "Items added per month");
+        var page = await RenderStatsAsync();
+        var movies = Chart(page, "Movies added per month");
+        var comics = Chart(page, "Comics added per month");
 
-        chart.QuerySelectorAll(".xlabels span").Select(s => s.TextContent)
-            .ShouldBe(["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]);
-        var bars = chart.QuerySelectorAll(".col i");
-        bars.Select(b => b.GetAttribute("data-tip")).TakeLast(3)
-            .ShouldBe(["Jan 2026 · 2 items added", "Feb 2026 · nothing added", "Mar 2026 · 1 item added"]);
-        bars.Select(b => b.GetAttribute("style")).TakeLast(3).ShouldBe(["height:100%", "height:0%", "height:50%"]);
-        chart.QuerySelectorAll("a").ShouldBeEmpty("a month has no list to open");
+        string[] lastTwelve = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+        movies.QuerySelector(".cap")!.TextContent.ShouldBe("Discs and digital copies, last 12 months");
+        movies.QuerySelectorAll(".xlabels span").Select(s => s.TextContent).ShouldBe(lastTwelve);
+        var movieBars = movies.QuerySelectorAll(".col i");
+        movieBars.Select(b => b.GetAttribute("data-tip")).TakeLast(3)
+            .ShouldBe(["Jan 2026 · 2 copies added", "Feb 2026 · 1 copy added", "Mar 2026 · nothing added"]);
+        movieBars.Select(b => b.GetAttribute("style")).TakeLast(3).ShouldBe(["height:100%", "height:50%", "height:0%"]);
+        movies.QuerySelectorAll("a").ShouldBeEmpty("a month has no list to open");
+
+        comics.QuerySelector(".cap")!.TextContent.ShouldBe("Issues, trades and hardcovers, last 12 months");
+        comics.QuerySelectorAll(".xlabels span").Select(s => s.TextContent).ShouldBe(lastTwelve);
+        var comicBars = comics.QuerySelectorAll(".col i");
+        comicBars.Select(b => b.GetAttribute("data-tip")).TakeLast(3)
+            .ShouldBe(["Jan 2026 · nothing added", "Feb 2026 · nothing added", "Mar 2026 · 1 comic added"]);
+        comics.QuerySelectorAll("a").ShouldBeEmpty("a month has no list to open");
+        page.FindAll(".chart h4").Select(h => h.TextContent).ShouldNotContain("Items added per month");
     }
 
     [Fact]
@@ -164,6 +177,29 @@ public sealed class StatsScreenTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task An_actor_bar_opens_exactly_the_films_it_counts()
+    {
+        string[] others = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+        await SeedAsync(Heat); // Al Pacino, Robert De Niro
+        await SeedAsync(Film("Scarface", 1983) with { Cast = [new("Al Pacino", "Tony Montana")] });
+        await SeedAsync(Film("Alien", 1979) with { Cast = [new("Sigourney Weaver", "Ripley")] });
+        await SeedAsync(Film("A bit part", 2000) with { Cast = [.. others.Select(name => new CastMemberDto(name)), new("Al Pacino", "Man at bar")] });
+
+        var chart = Chart(await RenderStatsAsync(), "Top actors");
+
+        chart.QuerySelector(".cap")!.TextContent.ShouldBe("Films owned, top-billed cast");
+        chart.QuerySelectorAll(".hbar").Select(b => (b.QuerySelector(".lbl")!.TextContent, b.QuerySelector(".num")!.TextContent)).Take(2)
+            .ShouldBe([("Al Pacino", "2"), ("A", "1")]);
+        var pacino = chart.QuerySelector("a.hbar")!;
+        pacino.GetAttribute("href").ShouldBe("movies?actor=Al%20Pacino");
+        pacino.GetAttribute("aria-label").ShouldBe("Al Pacino · 2 films");
+
+        Navigation.NavigateTo(pacino.GetAttribute("href")!);
+        var library = Render<MovieLibrary>();
+        library.WaitForAssertion(() => library.FindAll(".card .t").Select(t => t.TextContent).ShouldBe(["Heat", "Scarface"], ignoreOrder: true));
+    }
+
+    [Fact]
     public async Task A_publisher_bar_opens_that_publishers_issues()
     {
         await SeedComicAsync(TestComics.Saga7); // Image
@@ -191,6 +227,7 @@ public sealed class StatsScreenTests : ShelfTestContext
         Chart(page, "Copies by format").QuerySelector(".none")!.TextContent.ShouldBe("No films yet.");
         Chart(page, "Films by decade").QuerySelector(".none").ShouldNotBeNull();
         Chart(page, "Top directors").QuerySelector(".none").ShouldNotBeNull();
+        Chart(page, "Top actors").QuerySelector(".none")!.TextContent.ShouldBe("No films with a cast yet.");
         Chart(page, "Comics by publisher").QuerySelector(".none")!.TextContent.ShouldBe("No comic issues yet.");
     }
 

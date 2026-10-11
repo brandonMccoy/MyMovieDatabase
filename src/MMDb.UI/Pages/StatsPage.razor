@@ -110,10 +110,16 @@ else
                 }
             </section>
 
-            <section class="chart" aria-labelledby="chart-added">
-                <h4 id="chart-added">Items added per month</h4>
-                <div class="cap">Movies and comics, last 12 months</div>
-                <ColumnChart Bars="Months(_stats)" />
+            <section class="chart" aria-labelledby="chart-movies-added">
+                <h4 id="chart-movies-added">Movies added per month</h4>
+                <div class="cap">Discs and digital copies, last 12 months</div>
+                <ColumnChart Bars='Months(_stats.MoviesAddedByMonth, "copy", "copies")' />
+            </section>
+
+            <section class="chart" aria-labelledby="chart-comics-added">
+                <h4 id="chart-comics-added">Comics added per month</h4>
+                <div class="cap">Issues, trades and hardcovers, last 12 months</div>
+                <ColumnChart Bars='Months(_stats.ComicsAddedByMonth, "comic", "comics")' />
             </section>
 
             <section class="chart" aria-labelledby="chart-decades">
@@ -139,6 +145,19 @@ else
                 else
                 {
                     <BarList Bars="Directors(_stats)" />
+                }
+            </section>
+
+            <section class="chart" aria-labelledby="chart-actors">
+                <h4 id="chart-actors">Top actors</h4>
+                <div class="cap">Films owned, top-billed cast</div>
+                @if (_stats.TopActors.Count == 0)
+                {
+                    <div class="none">No films with a cast yet.</div>
+                }
+                else
+                {
+                    <BarList Bars="Actors(_stats)" />
                 }
             </section>
 
@@ -206,10 +225,10 @@ else
     private static bool IsEmpty(StatsDto stats) =>
         stats.FilmCount + stats.IssueCount + stats.CollectedCount + stats.WishlistMovieCount + stats.WishlistComicCount == 0;
 
-    private static IReadOnlyList<ChartBar> Months(StatsDto stats) => [.. stats.AddedByMonth.Select(m =>
+    private static IReadOnlyList<ChartBar> Months(IReadOnlyList<MonthCountDto> months, string one, string many) => [.. months.Select(m =>
     {
         var name = CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(m.Month);
-        var added = m.Count == 0 ? "nothing added" : Plural(m.Count, "item") + " added";
+        var added = m.Count == 0 ? "nothing added" : Plural(m.Count, one, many) + " added";
         return new ChartBar(name, m.Count, $"{name} {m.Year.ToString(CultureInfo.InvariantCulture)} · {added}");
     })];
 
@@ -221,6 +240,9 @@ else
 
     private static IReadOnlyList<ChartBar> Directors(StatsDto stats) => [.. stats.TopDirectors.Select(d =>
         new ChartBar(d.Name, d.Count, $"{d.Name} · {Plural(d.Count, "film")}", "movies?director=" + Uri.EscapeDataString(d.Name)))];
+
+    private static IReadOnlyList<ChartBar> Actors(StatsDto stats) => [.. stats.TopActors.Select(a =>
+        new ChartBar(a.Name, a.Count, $"{a.Name} · {Plural(a.Count, "film")}", "movies?actor=" + Uri.EscapeDataString(a.Name)))];
 
     private static IReadOnlyList<ChartBar> Publishers(StatsDto stats) => [.. stats.Publishers.Select(p => p.Name is { } name
         ? new ChartBar(name, p.Count, $"{name} · {Plural(p.Count, "issue")}", $"comics?shelf={ComicShelfKind.Issues}&publisher={Uri.EscapeDataString(name)}")

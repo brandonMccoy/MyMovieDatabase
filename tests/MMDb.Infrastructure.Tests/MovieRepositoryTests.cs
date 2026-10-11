@@ -279,6 +279,28 @@ public sealed class MovieRepositoryTests
         loaded.UpdatedAt.ShouldBe(heat.UpdatedAt);
     }
 
+    [Fact]
+    public async Task The_top_billed_are_the_first_names_of_each_films_cast_in_order()
+    {
+        using var database = await TestDatabase.MigratedAsync();
+        var heat = Movie.Create(
+            TestMovies.Heat with { Cast = [new("Al Pacino", "Vincent Hanna"), new("Robert De Niro", "Neil McCauley"), new("Val Kilmer")] }, TestMovies.On(MediaFormat.Dvd), Jan2019);
+        var volver = Movie.Create(TestMovies.Titled("Volver", 2006) with { Cast = [new("Penélope Cruz", "Raimunda")] }, TestMovies.On(MediaFormat.Dvd), Jan2019);
+        var silent = Movie.Create(TestMovies.Titled("No cast", 1920), TestMovies.On(MediaFormat.Dvd), Jan2019);
+        await SaveAsync(database, heat);
+        await SaveAsync(database, volver);
+        await SaveAsync(database, silent);
+
+        await using var db = database.NewContext();
+        var repository = new EfMovieRepository(db);
+
+        (await repository.ListTopBilledAsync(2, Ct)).ShouldBe(
+            [new(heat.Id, "Al Pacino"), new(heat.Id, "Robert De Niro"), new(volver.Id, "Penélope Cruz")],
+            ignoreOrder: true);
+        (await repository.ListTopBilledAsync(1, Ct)).ShouldBe([new(heat.Id, "Al Pacino"), new(volver.Id, "Penélope Cruz")], ignoreOrder: true);
+        (await repository.ListTopBilledAsync(10, Ct)).Count.ShouldBe(4);
+    }
+
     private static async Task SeedCreditsAsync(TestDatabase database)
     {
         await SaveAsync(database, Movie.Create(

@@ -672,8 +672,8 @@ a.hbar:hover .lbl { color: var(--text); }
 }
 .stack .seg.tip-start::after, .cols .col.tip-start i::after, .hbar::after { left: 0; transform: none; }
 .stack .seg.tip-end::after, .cols .col.tip-end i::after { left: auto; right: 0; transform: none; }
-.chip.director { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
-.chip.director svg { width: 11px; height: 11px; }
+.chip.director, .chip.actor { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.chip.director svg, .chip.actor svg { width: 11px; height: 11px; }
 @media (max-width: 900px) {
   .charts { grid-template-columns: minmax(0,1fr); }
 }

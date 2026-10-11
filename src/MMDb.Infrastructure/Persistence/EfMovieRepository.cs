@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using MMDb.Application.Movies;
 using MMDb.Domain;
@@ -106,6 +107,22 @@ internal sealed class EfMovieRepository(ShelfDbContext db) : IMovieRepository
             .ToListAsync(cancellationToken);
         return [.. rows.Select(m => new FilmTally(m.Year, m.Directors, m.CreatedAt, [.. m.Formats.Select(f => new FormatTally(f.Format, f.AddedAt))]))];
     }
+
+    // Picked out of the cast's JSON by SQLite, so the long casts never leave the database. One json_extract with
+    // a path per name answers with a JSON array of them, in half the time json_each takes to walk every cast.
+    public async Task<IReadOnlyList<BilledName>> ListTopBilledAsync(int top, CancellationToken cancellationToken = default)
+    {
+        // Two paths at least: asked for one, json_extract answers with the bare name instead of an array.
+        var paths = string.Join(", ", Enumerable.Range(0, Math.Max(top, 2)).Select(i => FormattableString.Invariant($"'$[{i}].name'")));
+        var sql = $"""SELECT "Id" AS "MovieId", json_extract("Cast", {paths}) AS "Names" FROM "Movies" """;
+        var rows = await db.Database.SqlQueryRaw<TopBilledRow>(sql).ToListAsync(cancellationToken);
+        return [.. rows.SelectMany(row => (JsonSerializer.Deserialize<string?[]>(row.Names) ?? [])
+            .Take(top)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => new BilledName(row.MovieId, name!)))];
+    }
+
+    private sealed record TopBilledRow(Guid MovieId, string Names);
 
     public void Add(Movie movie) => db.Movies.Add(movie);
 

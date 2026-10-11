@@ -121,6 +121,27 @@ public sealed class MovieLibraryTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task An_actor_in_the_address_lists_that_actors_films_until_the_chip_is_cleared()
+    {
+        await SeedAsync(Heat);
+        await SeedAsync(Film("Alien", 1979) with { Cast = [new("Sigourney Weaver", "Ripley")] });
+        Navigation.NavigateTo("movies?actor=Al%20Pacino");
+
+        var page = Render<MovieLibrary>();
+
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Heat"]));
+        var chip = page.Find(".chip.actor");
+        chip.TextContent.ShouldBe("With Al Pacino");
+        chip.GetAttribute("aria-label").ShouldBe("With Al Pacino: clear");
+        page.Find(".chip").TextContent.ShouldBe("All1");
+
+        Navigation.NavigateTo(chip.GetAttribute("href")!);
+
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Alien", "Heat"], ignoreOrder: true));
+        page.FindAll(".chip.actor").ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Format_chips_show_counts_and_filter()
     {
         await SeedAsync(Heat);

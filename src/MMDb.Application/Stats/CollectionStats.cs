@@ -9,9 +9,11 @@ namespace MMDb.Application.Stats;
 /// <param name="CollectedCount">Trades, hardcovers and omnibuses.</param>
 /// <param name="CompleteSeriesCount">Runs with every issue Metron lists for the series.</param>
 /// <param name="Formats">Copies per format, all four in display order.</param>
-/// <param name="AddedByMonth">Copies added in each of the last twelve months, oldest first: a film's formats and comic copies.</param>
+/// <param name="MoviesAddedByMonth">Film copies (each format of a film) added in each of the last twelve months, oldest first.</param>
+/// <param name="ComicsAddedByMonth">Comic copies (issues, trades and hardcovers) added in each of the last twelve months, oldest first.</param>
 /// <param name="Decades">Films per decade of release, oldest first, with the empty decades in between.</param>
 /// <param name="TopDirectors">The directors with the most films, most first.</param>
+/// <param name="TopActors">The actors in the most films, most first, counting only each film's top-billed cast.</param>
 /// <param name="Publishers">Single issues per publisher, most first; at most six rows, the last of which may be the rest.</param>
 public sealed record CollectionStats(
     int FilmCount,
@@ -27,10 +29,12 @@ public sealed record CollectionStats(
     int WishlistMovieCount,
     int WishlistComicCount,
     IReadOnlyList<FormatCount> Formats,
-    IReadOnlyList<MonthCount> AddedByMonth,
+    IReadOnlyList<MonthCount> MoviesAddedByMonth,
+    IReadOnlyList<MonthCount> ComicsAddedByMonth,
     IReadOnlyList<DecadeCount> Decades,
     int FilmsWithoutYear,
     IReadOnlyList<NameCount> TopDirectors,
+    IReadOnlyList<NameCount> TopActors,
     IReadOnlyList<PublisherCount> Publishers);
 
 public sealed record FormatCount(MediaFormat Format, int Count);

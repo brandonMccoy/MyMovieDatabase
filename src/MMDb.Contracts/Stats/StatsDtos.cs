@@ -37,8 +37,11 @@ public sealed record StatsDto
     /// <summary>Copies per format, all four in display order.</summary>
     public IReadOnlyList<FormatCountDto> Formats { get; init; } = [];
 
-    /// <summary>Copies added in each of the last twelve months, oldest first: a film's formats and comic copies.</summary>
-    public IReadOnlyList<MonthCountDto> AddedByMonth { get; init; } = [];
+    /// <summary>Film copies (each format of a film) added in each of the last twelve months, oldest first.</summary>
+    public IReadOnlyList<MonthCountDto> MoviesAddedByMonth { get; init; } = [];
+
+    /// <summary>Comic copies (issues, trades and hardcovers) added in each of the last twelve months, oldest first.</summary>
+    public IReadOnlyList<MonthCountDto> ComicsAddedByMonth { get; init; } = [];
 
     /// <summary>Films per decade of release, oldest first, with the empty decades in between.</summary>
     public IReadOnlyList<DecadeCountDto> Decades { get; init; } = [];
@@ -47,6 +50,9 @@ public sealed record StatsDto
 
     /// <summary>The directors with the most films, most first.</summary>
     public IReadOnlyList<NameCountDto> TopDirectors { get; init; } = [];
+
+    /// <summary>The actors in the most films, most first, counting only each film's top-billed cast.</summary>
+    public IReadOnlyList<NameCountDto> TopActors { get; init; } = [];
 
     /// <summary>Single issues per publisher, most first; at most six rows.</summary>
     public IReadOnlyList<PublisherCountDto> Publishers { get; init; } = [];

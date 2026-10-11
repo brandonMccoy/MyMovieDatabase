@@ -21,6 +21,8 @@ public sealed class StatsTests : IAsyncLifetime
 
     private static MovieDetails Film(string title, int? year = null, params string[] directors) => new() { Title = title, Year = year, Directors = directors };
 
+    private static MovieDetails Starring(string title, params string[] cast) => new() { Title = title, Cast = [.. cast.Select(name => new CastMember(name))] };
+
     private static ComicDetails Issue(string series, string number, string? publisher) => TestComics.Issue(series, number) with { Publisher = publisher };
 
     private void GoTo(int year, int month, int day) => _shelf.Clock.SetUtcNow(new DateTimeOffset(year, month, day, 12, 0, 0, TimeSpan.Zero));
@@ -36,10 +38,13 @@ public sealed class StatsTests : IAsyncLifetime
         stats.IssueCount.ShouldBe(0);
         stats.SeriesCount.ShouldBe(0);
         stats.Formats.ShouldBe([new(MediaFormat.Uhd4K, 0), new(MediaFormat.BluRay, 0), new(MediaFormat.Dvd, 0), new(MediaFormat.Digital, 0)]);
-        stats.AddedByMonth.Count.ShouldBe(12);
-        stats.AddedByMonth.ShouldAllBe(m => m.Count == 0);
+        stats.MoviesAddedByMonth.Count.ShouldBe(12);
+        stats.MoviesAddedByMonth.ShouldAllBe(m => m.Count == 0);
+        stats.ComicsAddedByMonth.Count.ShouldBe(12);
+        stats.ComicsAddedByMonth.ShouldAllBe(m => m.Count == 0);
         stats.Decades.ShouldBeEmpty();
         stats.TopDirectors.ShouldBeEmpty();
+        stats.TopActors.ShouldBeEmpty();
         stats.Publishers.ShouldBeEmpty();
     }
 
@@ -78,7 +83,7 @@ public sealed class StatsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Each_copy_counts_in_the_month_it_was_added_for_the_last_twelve()
+    public async Task Each_copy_counts_in_the_month_it_was_added_for_the_last_twelve_movies_apart_from_comics()
     {
         GoTo(2026, 1, 31);
         await _shelf.AddAsync(Film("Too long ago"), MediaFormat.Dvd);
@@ -91,11 +96,13 @@ public sealed class StatsTests : IAsyncLifetime
         GoTo(2027, 1, 15);
         await _shelf.AddAsync(Film("Alien"), MediaFormat.BluRay);
 
-        var months = (await _shelf.StatsAsync()).AddedByMonth;
+        var stats = await _shelf.StatsAsync();
 
-        months.Select(m => (m.Year, m.Month)).ShouldBe(
-            [(2026, 2), (2026, 3), (2026, 4), (2026, 5), (2026, 6), (2026, 7), (2026, 8), (2026, 9), (2026, 10), (2026, 11), (2026, 12), (2027, 1)]);
-        months.Select(m => m.Count).ShouldBe([2, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1]);
+        (int, int)[] lastTwelve = [(2026, 2), (2026, 3), (2026, 4), (2026, 5), (2026, 6), (2026, 7), (2026, 8), (2026, 9), (2026, 10), (2026, 11), (2026, 12), (2027, 1)];
+        stats.MoviesAddedByMonth.Select(m => (m.Year, m.Month)).ShouldBe(lastTwelve);
+        stats.MoviesAddedByMonth.Select(m => m.Count).ShouldBe([2, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1]);
+        stats.ComicsAddedByMonth.Select(m => (m.Year, m.Month)).ShouldBe(lastTwelve);
+        stats.ComicsAddedByMonth.Select(m => m.Count).ShouldBe([0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0]);
     }
 
     [Fact]
@@ -108,7 +115,7 @@ public sealed class StatsTests : IAsyncLifetime
         var stats = await _shelf.StatsAsync();
 
         stats.FilmsAddedThisMonth.ShouldBe(1);
-        stats.AddedByMonth[^1].ShouldBe(new MonthCount(2026, 1, 1));
+        stats.MoviesAddedByMonth[^1].ShouldBe(new MonthCount(2026, 1, 1));
     }
 
     [Fact]
@@ -166,6 +173,66 @@ public sealed class StatsTests : IAsyncLifetime
 
         mann.Count.ShouldBe(2);
         listed.Movies.Select(m => m.Title).ShouldBe(["Collateral", "Heat"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task The_six_actors_in_the_most_films_lead_and_ties_go_by_name()
+    {
+        string[] oneEach = ["Sigourney Weaver", "Kurt Russell", "Sandrine Bonnaire", "Song Kang-ho", "Adèle Haenel"];
+        foreach (var actor in oneEach)
+        {
+            await _shelf.AddAsync(Starring("With " + actor, actor), MediaFormat.Dvd);
+        }
+
+        await _shelf.AddAsync(Starring("Heat", "Al Pacino", "Robert De Niro", "Val Kilmer"), MediaFormat.Dvd);
+        await _shelf.AddAsync(Starring("The Godfather Part II", "Al Pacino", "robert de niro"), MediaFormat.Dvd);
+        await _shelf.AddAsync(Starring("Scarface", "Al Pacino"), MediaFormat.Dvd);
+        await _shelf.AddAsync(Starring("Tombstone", "Kurt Russell", "Val Kilmer"), MediaFormat.Dvd);
+
+        var actors = (await _shelf.StatsAsync()).TopActors;
+
+        actors.ShouldBe(
+        [
+            new("Al Pacino", 3),
+            new("Kurt Russell", 2),
+            new("Robert De Niro", 2),
+            new("Val Kilmer", 2),
+            new("Adèle Haenel", 1),
+            new("Sandrine Bonnaire", 1),
+        ]);
+    }
+
+    [Fact]
+    public async Task Only_the_first_ten_of_a_films_cast_count_as_its_actors()
+    {
+        string[] billed = ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven"];
+        await _shelf.AddAsync(Starring("Ensemble", billed), MediaFormat.Dvd);
+
+        var actors = (await _shelf.StatsAsync()).TopActors.Select(a => a.Name).ToList();
+        var withTen = await _shelf.ListAsync(new() { Actor = "Ten" });
+        var withEleven = await _shelf.ListAsync(new() { Actor = "Eleven" });
+
+        actors.ShouldBe(["Eight", "Five", "Four", "Nine", "One", "Seven"]); // six of the ten, by name
+        withTen.Movies.ShouldHaveSingleItem().Title.ShouldBe("Ensemble");
+        withEleven.Movies.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_actors_count_is_what_the_library_lists_for_that_actor()
+    {
+        string[] others = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+        await _shelf.AddAsync(Starring("Amélie", "Audrey Tautou", "Mathieu Kassovitz"), MediaFormat.Dvd);
+        await _shelf.AddAsync(Starring("A Very Long Engagement", "AUDREY TAUTOU"), MediaFormat.Dvd);
+        await _shelf.AddAsync(Starring("Twins", "Audrey Tautou", "Audrey Tautou"), MediaFormat.Dvd); // both parts: one film
+        await _shelf.AddAsync(Starring("A bit part", [.. others, "Audrey Tautou"]), MediaFormat.Dvd);
+        await _shelf.AddAsync(TestMovies.Titled("Behind the camera", 2010) with { Crew = [new("Audrey Tautou", "Producer", "Production")] }, MediaFormat.Dvd);
+
+        var tautou = (await _shelf.StatsAsync()).TopActors[0];
+        var listed = await _shelf.ListAsync(new() { Actor = tautou.Name });
+
+        tautou.ShouldBe(new NameCount("Audrey Tautou", 3));
+        listed.Movies.Select(m => m.Title).ShouldBe(["Amélie", "A Very Long Engagement", "Twins"], ignoreOrder: true);
+        listed.Facets.MatchingCount.ShouldBe(3);
     }
 
     [Fact]

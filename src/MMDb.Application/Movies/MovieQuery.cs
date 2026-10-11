@@ -18,6 +18,9 @@ public sealed record MovieQuery
     /// <summary>Only films this person directed: the whole name, ignoring case and accents.</summary>
     public string? Director { get; init; }
 
+    /// <summary>Only films with this person among the top-billed cast: the whole name, ignoring case and accents.</summary>
+    public string? Actor { get; init; }
+
     public MovieSort Sort { get; init; } = MovieSort.RecentlyAdded;
 }
 

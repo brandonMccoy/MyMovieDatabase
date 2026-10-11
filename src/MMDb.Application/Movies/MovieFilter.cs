@@ -11,6 +11,12 @@ namespace MMDb.Application.Movies;
 /// </summary>
 internal static class MovieFilter
 {
+    /// <summary>
+    /// How many of a film's cast, from the top of the bill, count as its actors: for "Top actors" on the Stats
+    /// screen and the list an actor's bar opens. Further down are the bit parts.
+    /// </summary>
+    public const int TopBilled = 10;
+
     private const CompareOptions Loose = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
     private static readonly CompareInfo Compare = CultureInfo.InvariantCulture.CompareInfo;
     private static readonly string[] LeadingArticles = ["The ", "A ", "An "];
@@ -19,8 +25,13 @@ internal static class MovieFilter
     public static string[] Terms(MovieQuery query) =>
         (query.Search ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    /// <summary>Whether two names are one person's: the whole name, ignoring case and accents.</summary>
+    public static bool SameName(string a, string b) => Compare.Compare(a, b, Loose) == 0;
+
     /// <param name="crediting">For each of the <see cref="Terms"/>, the films with a cast or crew member matching it.</param>
-    public static MovieList Apply(IReadOnlyList<MovieListing> all, MovieQuery query, IReadOnlyDictionary<string, IReadOnlySet<Guid>> crediting)
+    /// <param name="starring">The films with <see cref="MovieQuery.Actor"/> among the top-billed cast; not needed without one.</param>
+    public static MovieList Apply(
+        IReadOnlyList<MovieListing> all, MovieQuery query, IReadOnlyDictionary<string, IReadOnlySet<Guid>> crediting, IReadOnlySet<Guid>? starring = null)
     {
         var terms = Terms(query);
 
@@ -28,7 +39,8 @@ internal static class MovieFilter
             .Where(m => terms.All(term => Matches(m, term) || crediting[term].Contains(m.Id)))
             .Where(m => query.Genre is null || m.Genres.Contains(query.Genre, StringComparer.OrdinalIgnoreCase))
             .Where(m => query.Decade is null || DecadeOf(m) == query.Decade)
-            .Where(m => query.Director is null || m.Directors.Any(d => Compare.Compare(d, query.Director, Loose) == 0))
+            .Where(m => query.Director is null || m.Directors.Any(d => SameName(d, query.Director)))
+            .Where(m => query.Actor is null || starring?.Contains(m.Id) == true)
             .ToList();
 
         var facets = new MovieFacets(

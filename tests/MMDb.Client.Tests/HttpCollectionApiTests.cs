@@ -99,6 +99,8 @@ public sealed class HttpCollectionApiTests : IAsyncLifetime
         new MovieListRequest { Genre = "Crime" },
         new MovieListRequest { Decade = 1970, Sort = MovieSortOrder.Title },
         new MovieListRequest { Director = "Michael Mann" },
+        new MovieListRequest { Actor = "Al Pacino" },
+        new MovieListRequest { Actor = "Nobody" },
         new MovieListRequest { Sort = MovieSortOrder.Year },
         new MovieListRequest { Search = "nothing like this" },
     ];

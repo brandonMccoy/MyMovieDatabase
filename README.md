@@ -12,7 +12,7 @@ A collection tracker for **movies and comic books**: the discs and comics on you
 - **Wishlist.** Scanning something you want tells you so on the spot. Each item has trailer and Amazon search buttons, and **Got it** moves it into the collection.
 - **Missing issues.** Each comic series shows what you own out of the whole run, with the gaps as tiles you can send to the wishlist.
 - **Digital movies.** Not everything is on a disc: point Shelf at a folder of video files; it matches them to films by name and plays them from the film's page.
-- **Stats.** Counts by format, decade, director and publisher; every bar opens the matching list.
+- **Stats.** Counts by format, decade, director, actor and publisher, and what you added each month; a bar opens the matching list.
 - **Works away from home.** The phone keeps its own copy of the collection, looks things up itself, and sends what it saved when the PC is next in reach.
 - **Obsidian vault.** Shelf can mirror the collection into a vault as one Markdown note per film and comic, so you (or an AI assistant) can read and query it.
 
