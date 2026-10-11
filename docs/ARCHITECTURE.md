@@ -4,7 +4,7 @@ Status: **draft v1** (2026-10-08). Look & feel and the detailed feature list are
 
 ## Goals
 
-- Track a personal collection of **physical movies** and **comic books**, kept as separate collections.
+- Track a personal collection of **movies** (on disc and as digital files) and **comic books**, kept as separate collections.
 - Add items by **barcode scan** (phone camera) or **manual entry**; both paths can pull metadata from online databases, and every new item can be edited before it's accepted.
 - **Wishlist** for both product types.
 - **PC app** (Windows) and **phone app** (Android) that talk over the home Wi-Fi.

@@ -1,7 +1,7 @@
 <!-- managed_by: mmdb · Shelf rewrites this file. Delete this line to keep your own version. -->
 # Shelf collection vault
 
-This vault mirrors a physical collection of movies and comics kept in the Shelf app. Shelf writes these files and never reads them back, so changing them here doesn't change the collection.
+This vault mirrors a collection of movies (on disc and as digital files) and comics kept in the Shelf app. Shelf writes these files and never reads them back, so changing them here doesn't change the collection.
 
 ## Answering questions
 - Start with `_Index.md`: the totals, then one line per film (note · directors · formats owned), one line per comic series (publisher · issues owned · missing · key issues) and one per trade or hardcover. "Do I own…", "how many 4K discs", "which Daredevil issues am I missing" or "which Carpenter films" can be answered from it alone.

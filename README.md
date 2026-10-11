@@ -1,6 +1,6 @@
 # Shelf
 
-A collection tracker for **physical movies and comic books**. A Windows app holds the collection; an Android app scans barcodes in the shop or at the shelf and syncs over your home Wi-Fi. Everything stays on your own devices: no account, no cloud.
+A collection tracker for **movies and comic books**: the discs and comics on your shelf, and the digital movies on your drive. A Windows app holds the collection; an Android app scans barcodes in the shop or at the shelf and syncs over your home Wi-Fi. Everything stays on your own devices: no account, no cloud.
 
 ![The movie library on the PC](docs/screenshots/pc-movies.jpg)
 
@@ -11,7 +11,7 @@ A collection tracker for **physical movies and comic books**. A Windows app hold
 - **Scan with your phone.** Scan several barcodes in a row and review them one by one. Comic barcodes are read with their add-on digits, so the right issue is found.
 - **Wishlist.** Scanning something you want tells you so on the spot. Each item has trailer and Amazon search buttons, and **Got it** moves it into the collection.
 - **Missing issues.** Each comic series shows what you own out of the whole run, with the gaps as tiles you can send to the wishlist.
-- **Digital movies.** Point Shelf at a folder of video files; it matches them to films by name and plays them from the film's page.
+- **Digital movies.** Not everything is on a disc: point Shelf at a folder of video files; it matches them to films by name and plays them from the film's page.
 - **Stats.** Counts by format, decade, director and publisher; every bar opens the matching list.
 - **Works away from home.** The phone keeps its own copy of the collection, looks things up itself, and sends what it saved when the PC is next in reach.
 - **Obsidian vault.** Shelf can mirror the collection into a vault as one Markdown note per film and comic, so you (or an AI assistant) can read and query it.
@@ -129,6 +129,12 @@ The mirror is one-way: Shelf never reads the notes back, except that anything yo
 ### Away from home
 
 The phone works from its own copy, so you can check what you own, look things up and add items anywhere. What it saved is sent to the PC the next time both are on the same network, or when you choose **Sync now**. Editing and deleting items the PC already has is done on the PC.
+
+## What's planned
+
+### Digital comics
+
+Not built yet, and it may change. The idea is the comic counterpart of digital movies: point Shelf at a drive of comic files, and read them in a comic reader built into Shelf.
 
 ## For developers
 
