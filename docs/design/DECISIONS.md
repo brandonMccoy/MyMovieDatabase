@@ -200,6 +200,13 @@ Settled while building it:
 - **User secrets** still work for a developer until a key is saved in Settings.
 - **Not built:** removing a key doesn't ask first (pasting it back undoes it); no key for UPCitemdb's paid tier; changing keys from the phone.
 
+## Search box focus (decided 2026-10-11)
+"Add item search input focus": the add screens open ready to type.
+- **Where:** the search box of Add movie, Add comic and both Add to wishlist screens (they share the box), each time the search step opens, coming back from the review screen included.
+- **PC:** the cursor is always put in the box, over a search already made too.
+- **Phone:** the cursor, and with it the keyboard, only when the box is empty. Arriving with something to search for ("Do I own…?" → Add) leaves the keyboard down so the matches show.
+- **How:** set from code when the box first appears. The `autofocus` attribute it replaces only works when a page is loaded, not when moving between screens, and the page heading took the focus afterwards. Android's web view brings the keyboard up by itself once the box has the cursor (checked on the S24, 2026-10-11), so there is no native keyboard code.
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

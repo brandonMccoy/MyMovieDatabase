@@ -1,11 +1,12 @@
 @* Looking a comic up on Metron (issues) or Open Library (an ISBN); picking a match hands it to the page. *@
 @inject ICollectionApi Api
+@inject ShelfDevice Device
 
 <div class="lookup">
     <form class="lookup-bar" @onsubmit="SearchAsync">
         <div class="search">
             <Icon Name="search" />
-            <input type="search" data-search aria-label="Series and issue, barcode or ISBN" placeholder="Series and issue, barcode or ISBN…" autocomplete="off" autofocus
+            <input @ref="_box" type="search" data-search aria-label="Series and issue, barcode or ISBN" placeholder="Series and issue, barcode or ISBN…" autocomplete="off"
                    @bind="State.Query" @bind:event="oninput" />
         </div>
         <button type="submit" class="btn primary" disabled="@(_searching || string.IsNullOrWhiteSpace(State.Query))">Search</button>
@@ -102,6 +103,7 @@
 
 @code {
     private bool _searching;
+    private ElementReference _box;
 
     /// <summary>Kept by the page, so the matches are still there when coming back from the editor.</summary>
     [Parameter, EditorRequired] public ComicSearchState State { get; set; } = null!;
@@ -119,6 +121,14 @@
         if (SearchOnOpen && State.Response is null && !string.IsNullOrWhiteSpace(State.Query))
         {
             await SearchAsync();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _box.FocusOnOpenAsync(State.Query, Device);
         }
     }
 
