@@ -32,6 +32,11 @@ public sealed record WishlistMovieDto
     /// <summary>The trailer on YouTube, or a YouTube search for it.</summary>
     public required Uri TrailerUrl { get; init; }
 
+    /// <summary>
+    /// A search of Amazon for the film on the disc wanted; <see langword="null"/> for a film wanted on Digital.
+    /// </summary>
+    public Uri? AmazonUrl { get; init; }
+
     public required DateTimeOffset AddedAt { get; init; }
 }
 
@@ -91,6 +96,9 @@ public sealed record WishlistComicDto
 
     /// <summary>The cover kept on the PC, or <see langword="null"/> for a placeholder.</summary>
     public Uri? CoverUrl { get; init; }
+
+    /// <summary>A search of Amazon for the issue or book.</summary>
+    public Uri? AmazonUrl { get; init; }
 
     public required DateTimeOffset AddedAt { get; init; }
 }

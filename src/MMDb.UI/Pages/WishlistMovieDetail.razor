@@ -64,8 +64,23 @@ else if (_item is not null)
             <div class="actions">
                 <a class="btn primary got-it" href="movies/new?wish=@_item.Id">Got it</a>
                 <a class="btn" href="@_item.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="play" />Watch trailer</a>
-                <button type="button" class="btn ghost remove" @onclick="RemoveAsync">Remove from wishlist</button>
+                @if (_item.AmazonUrl is { } amazon)
+                {
+                    <a class="btn" href="@amazon.AbsoluteUri" target="_blank" rel="noopener"><Icon Name="amazon" Class="amazon" />Find on Amazon</a>
+                }
+                <button type="button" class="btn ghost remove" @onclick="() => _confirmingRemove = true">Remove from wishlist</button>
             </div>
+
+            @if (_confirmingRemove)
+            {
+                <div class="confirm" role="alertdialog" aria-label="Remove from the wishlist">
+                    <div><b>Remove @_item.Title from your wishlist?</b></div>
+                    <div class="confirm-actions">
+                        <button type="button" class="btn" @onclick="() => _confirmingRemove = false">Cancel</button>
+                        <button type="button" class="btn danger" @onclick="RemoveAsync">Remove</button>
+                    </div>
+                </div>
+            }
 
             @if (_film is not null)
             {
@@ -205,6 +220,8 @@ else if (_item is not null)
             _saving = false;
         }
     }
+
+    private bool _confirmingRemove;
 
     private async Task RemoveAsync()
     {

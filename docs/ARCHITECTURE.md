@@ -129,6 +129,7 @@ Movies and comics are **separate tables and separate screens**; they share only 
 - Movies match by `TmdbId`; a wish entered without one matches by title and year (`WishlistMovie.IsFor`). Saving a film on the wanted format removes the wish, in the same database write as the film (`MovieCatalog`). Saved on another format, the wish stays unless the review screen's "Keep it on the wishlist" is switched off.
 - Comics match by Metron series (else series name and starting year) and issue number, a book by ISBN (else title); any cover or printing counts (`WishlistComic.IsFor`). Saving a copy takes the issue or book off the wishlist (`ComicCatalog`).
 - **Got it:** `LookupWishlistMovieAsync` / `LookupWishlistComicAsync` return the wish's TMDB or Metron entry as an ordinary lookup, so the review screen opens on it. A wishlist item's own page uses the same lookup for what the wishlist doesn't keep (overview, credits, summary); the lookup cache makes reopening it free.
+- **Amazon:** each item carries `AmazonUrl`, a search link made by `AmazonSearch` (Domain) beside the trailer link: title, year and wanted disc for a film (none for Digital), the display name for a comic. The row and the item's page show it as a button; nothing is fetched from Amazon.
 - **Missing issues:** the library's missing tiles ("#159–167") have "+ Wishlist"; `WantMissingIssuesAsync` takes the numbers from the series' issue list and adds each issue as an item of its own (they have no Metron entry or cover until bought). Tiles say "On wishlist" where they are (`RunEntry.Wanted`); wanted and unwanted issues never share a tile.
 - **Away from home:** nothing special. The phone runs the same lookup against its own copy with its own access to the online databases, so the match is the real one (the "likely" match once planned, by product name alone, was never built).
 
@@ -275,6 +276,7 @@ The phone has its own SQLite database (`shelf.db` in the app's files, never back
 6b. Digital folder import + watch folder, Play file. (Done 2026-10-10.)
 7. The phone's own copy: it knows the collection and wishlist without the PC, looks things up and saves by itself, sends what it saved when the PC is next in reach, and has its Stats tab. Built last, after 8. (Built 2026-10-10; not yet run on a phone, see TESTING.md, *Phone hardware*.)
 8. Stats screen. (Done 2026-10-10, on the PC.)
+9. Amazon button on wishlist items: a search for the title, and the wanted format for a film. (Done 2026-10-11.)
 
 Each milestone ships with its tests (see [TESTING.md](TESTING.md)).
 

@@ -91,9 +91,23 @@ else
                         </div>
                         <div class="wl-sub wl-added">@Added(comic.AddedAt)</div>
                         <div class="wl-actions">
+                            @if (comic.AmazonUrl is { } amazon)
+                            {
+                                <a class="btn sm icon" href="@amazon.AbsoluteUri" target="_blank" rel="noopener" aria-label="Find @comic.DisplayName on Amazon"><Icon Name="amazon" Class="amazon" /></a>
+                            }
                             <a class="btn sm got-it" href="comics/new?wish=@comic.Id">Got it</a>
-                            <button type="button" class="btn sm ghost icon" aria-label="Remove @comic.DisplayName from the wishlist" @onclick="() => Api.RemoveWishlistComicAsync(comic.Id)"><Icon Name="x" /></button>
+                            <button type="button" class="btn sm ghost icon" aria-label="Remove @comic.DisplayName from the wishlist" @onclick="() => _removing = comic.Id"><Icon Name="x" /></button>
                         </div>
+                        @if (_removing == comic.Id)
+                        {
+                            <div class="confirm" role="alertdialog" aria-label="Remove from the wishlist">
+                                <div><b>Remove @comic.DisplayName from your wishlist?</b></div>
+                                <div class="confirm-actions">
+                                    <button type="button" class="btn" @onclick="() => _removing = null">Cancel</button>
+                                    <button type="button" class="btn danger" @onclick="() => RemoveAsync(() => Api.RemoveWishlistComicAsync(comic.Id))">Remove</button>
+                                </div>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -119,9 +133,23 @@ else
                         <div class="wl-sub wl-added">@Added(movie.AddedAt)</div>
                         <div class="wl-actions">
                             <a class="btn sm icon" href="@movie.TrailerUrl.AbsoluteUri" target="_blank" rel="noopener" aria-label="Trailer for @movie.Title"><Icon Name="yt" Class="yt" /></a>
+                            @if (movie.AmazonUrl is { } amazon)
+                            {
+                                <a class="btn sm icon" href="@amazon.AbsoluteUri" target="_blank" rel="noopener" aria-label="Find @movie.Title on Amazon"><Icon Name="amazon" Class="amazon" /></a>
+                            }
                             <a class="btn sm got-it" href="movies/new?wish=@movie.Id">Got it</a>
-                            <button type="button" class="btn sm ghost icon" aria-label="Remove @movie.Title from the wishlist" @onclick="() => Api.RemoveWishlistMovieAsync(movie.Id)"><Icon Name="x" /></button>
+                            <button type="button" class="btn sm ghost icon" aria-label="Remove @movie.Title from the wishlist" @onclick="() => _removing = movie.Id"><Icon Name="x" /></button>
                         </div>
+                        @if (_removing == movie.Id)
+                        {
+                            <div class="confirm" role="alertdialog" aria-label="Remove from the wishlist">
+                                <div><b>Remove @movie.Title from your wishlist?</b></div>
+                                <div class="confirm-actions">
+                                    <button type="button" class="btn" @onclick="() => _removing = null">Cancel</button>
+                                    <button type="button" class="btn danger" @onclick="() => RemoveAsync(() => Api.RemoveWishlistMovieAsync(movie.Id))">Remove</button>
+                                </div>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -133,9 +161,18 @@ else
     private const string ComicsTab = "comics";
 
     private WishlistResponse? _list;
+
+    /// <summary>The item whose removal is being asked about.</summary>
+    private Guid? _removing;
     private CancellationTokenSource? _loading;
 
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
+
+    private async Task RemoveAsync(Func<Task<bool>> remove)
+    {
+        _removing = null;
+        await remove();
+    }
 
     /// <summary><c>comics</c> for the Comics tab; anything else is Movies.</summary>
     [SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }

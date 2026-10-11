@@ -25,6 +25,7 @@ internal static class WishlistMapping
         Publisher = comic.Publisher,
         FromMissing = comic.FromMissing,
         CoverUrl = covers.For(comic.CoverImage),
+        AmazonUrl = AmazonSearch.ForComic(comic.DisplayName, comic.Format == Domain.Comics.ComicFormat.SingleIssue),
         AddedAt = comic.CreatedAt,
     };
 
@@ -64,6 +65,7 @@ internal static class WishlistMapping
         OwnedFormats = [.. film.Owned.Select(f => f.ToContract())],
         CoverUrl = covers.For(film.Item.CoverImage),
         TrailerUrl = Trailer.UrlFor(film.Item.Title, film.Item.Year, film.Item.TrailerYouTubeKey),
+        AmazonUrl = AmazonSearch.ForMovie(film.Item.Title, film.Item.Year, film.Item.Format),
         AddedAt = film.Item.CreatedAt,
     };
 

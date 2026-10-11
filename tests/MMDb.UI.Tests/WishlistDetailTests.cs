@@ -150,6 +150,44 @@ public sealed class WishlistDetailTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task A_wanted_films_page_has_find_on_amazon_for_the_disc_wanted()
+    {
+        var heat = await WantHeatAsync();
+
+        var page = RenderFilm(heat.Id);
+
+        var amazon = page.WaitForElement(".actions a[href*='amazon']");
+        Text(amazon).ShouldBe("Find on Amazon");
+        amazon.GetAttribute("href").ShouldBe((await Api.GetWishlistMovieAsync(heat.Id, Ct)).ShouldNotBeNull().AmazonUrl.ShouldNotBeNull().AbsoluteUri);
+        amazon.GetAttribute("href")!.ShouldStartWith("https://www.amazon.com/s?k=Heat%201995%20");
+        amazon.GetAttribute("target").ShouldBe("_blank");
+    }
+
+    [Fact]
+    public async Task A_film_wanted_on_digital_has_no_find_on_amazon()
+    {
+        var heat = await WantHeatAsync();
+        await Api.ChangeWishlistFormatAsync(heat.Id, MovieFormatKind.Digital, Ct);
+
+        var page = RenderFilm(heat.Id);
+
+        page.WaitForElement(".actions a.got-it");
+        page.FindAll("a[href*='amazon']").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_wanted_comics_page_has_find_on_amazon()
+    {
+        var saga = await WantAsync(TestComics.Saga7);
+
+        var page = RenderComic(saga.Id);
+
+        var amazon = page.WaitForElement(".actions a[href*='amazon']");
+        Text(amazon).ShouldBe("Find on Amazon");
+        amazon.GetAttribute("href").ShouldBe("https://www.amazon.com/s?k=Saga%20%237%20comic");
+    }
+
+    [Fact]
     public async Task While_tmdb_is_down_a_films_page_shows_what_the_wishlist_keeps()
     {
         var heat = await WantHeatAsync();
@@ -171,6 +209,14 @@ public sealed class WishlistDetailTests : ShelfTestContext
         var page = RenderFilm(heat.Id);
 
         page.Find(".actions button.remove").Click();
+
+        Text(page.Find(".confirm")).ShouldBe("Remove Heat from your wishlist? Cancel Remove");
+        page.Find(".confirm-actions button:not(.danger)").Click();
+        page.FindAll(".confirm").ShouldBeEmpty();
+        (await Api.ListWishlistAsync(cancellationToken: Ct)).MovieCount.ShouldBe(1, "cancelled");
+
+        page.Find(".actions button.remove").Click();
+        page.Find(".confirm button.danger").Click();
 
         page.WaitForAssertion(() => RelativeLocation.ShouldBe("wishlist"));
         (await Api.ListWishlistAsync(cancellationToken: Ct)).MovieCount.ShouldBe(0);
@@ -241,6 +287,10 @@ public sealed class WishlistDetailTests : ShelfTestContext
         var page = RenderComic(saga.Id);
 
         page.Find(".actions button.remove").Click();
+
+        Text(page.Find(".confirm")).ShouldBe("Remove Saga #7 from your wishlist? Cancel Remove");
+        (await Api.ListWishlistAsync(cancellationToken: Ct)).ComicCount.ShouldBe(1, "not until it is confirmed");
+        page.Find(".confirm button.danger").Click();
 
         page.WaitForAssertion(() => RelativeLocation.ShouldBe("wishlist?tab=comics"));
         (await Api.ListWishlistAsync(cancellationToken: Ct)).ComicCount.ShouldBe(0);

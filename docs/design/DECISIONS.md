@@ -94,7 +94,7 @@ Decided with the user. Reference mockup: [mockup-v1.html](mockup-v1.html).
 - **Later:** the "likely" match away from home comes with the offline copy (milestone 7).
 
 Settled while building it (2026-10-10):
-- **Wishlist screen:** rows as mocked, plus an × to remove an item at once (no confirmation: wanting it again takes seconds). The count reads "N items". "Add to wishlist" adds a film on the Movies tab and a comic on the Comics tab.
+- **Wishlist screen:** rows as mocked, plus an × to remove an item at once (no confirmation: wanting it again takes seconds; changed 2026-10-11, see milestone 9: it asks first). The count reads "N items". "Add to wishlist" adds a film on the Movies tab and a comic on the Comics tab.
 - **Comics need no format step:** a comic picked from the search goes straight on the wishlist.
 - **The heart:** on the phone it sits left of the save button, as mocked; on the PC it is "To wishlist" in the top bar. For a film it asks for the format (the scanned disc's format is suggested).
 - **Another format than wanted:** the banner on the review screen has "Keep it on the wishlist for 4K UHD", switched on; switching it off removes the wish when saving.
@@ -171,6 +171,19 @@ Settled while building it (2026-10-10):
 - **Forgetting the PC** keeps the copy and what is waiting, so pairing again (the way to follow a PC that got a new address) sends it; pairing with another PC replaces the copy with that PC's at the first sync.
 - **Different versions:** if Shelf on the phone and on the PC keep the collection differently (one was updated without the other), they don't sync and the phone says to update both.
 - **Not built:** progress for the covers; telling apart "no signal" from "the PC is off" in the grey line (it speaks of the PC only).
+
+## Milestone 9 (decided 2026-10-11)
+- **Amazon button:** every wishlist item links to a search of amazon.com for it, opened in the browser (or the Amazon app on the phone), like the trailer. Shelf asks Amazon nothing itself: no prices, no availability.
+- **Where:** a small Amazon icon button on each wishlist row, after the trailer and before Got it, and **Find on Amazon** on the item's own page. PC and phone.
+- **Films:** title, year and the wanted format, "Heat 1995 4K UHD", in Movies & TV. The year keeps films of the same name apart.
+- **Digital:** a film wanted on Digital has no button (there is no disc to look for).
+
+- **Removing asks first** (asked for 2026-10-11, with this milestone): the × on a wishlist row and "Remove from wishlist" on an item's page show "Remove Heat from your wishlist?" with Cancel and Remove, in place, like deleting a film. One question at a time: asking about another row moves it.
+
+Settled while building it:
+- **Comics:** an issue is searched for as "Saga #7 comic" across all of Amazon (the word keeps other things named like the series out); a trade or hardcover by its name alone, "Saga Vol. 1". No format in a comic's search.
+- **The icon** is Amazon's own mark (the "a" with the smile), taken from Bootstrap Icons (MIT licence): the letter in the text colour, the smile in Amazon's orange. A first version drawn for Shelf was replaced the same day.
+- **Not built:** other shops; the link in the vault's wishlist notes; choosing another Amazon site than amazon.com.
 
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.

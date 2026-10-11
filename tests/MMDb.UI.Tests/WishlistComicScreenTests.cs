@@ -100,6 +100,22 @@ public sealed class WishlistComicScreenTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task A_comics_row_links_to_an_amazon_search_for_it()
+    {
+        await WantAsync(TestComics.Saga7);
+        Clock.Advance(TimeSpan.FromDays(1));
+        await WantAsync(TestComics.SagaVolume1);
+
+        var page = RenderWishlist();
+
+        page.FindAll(".wl-row").Select(r => r.QuerySelector(".wl-actions a.icon")!).Select(a => (a.GetAttribute("aria-label"), a.GetAttribute("href"), a.GetAttribute("target"))).ShouldBe(
+        [
+            ("Find Saga, Volume One on Amazon", "https://www.amazon.com/s?k=Saga%2C%20Volume%20One", "_blank"),
+            ("Find Saga #7 on Amazon", "https://www.amazon.com/s?k=Saga%20%237%20comic", "_blank"),
+        ]);
+    }
+
+    [Fact]
     public async Task Wanted_comics_are_listed_newest_first_with_what_they_are()
     {
         var saga7 = await WantAsync(TestComics.Saga7);
@@ -115,7 +131,7 @@ public sealed class WishlistComicScreenTests : ShelfTestContext
         page.FindAll(".wl-tag").ShouldBeEmpty();
         rows[1].QuerySelector("img")!.GetAttribute("src")!.ShouldStartWith(CoverBase.ToString());
         rows[1].QuerySelector("a.got-it")!.GetAttribute("href").ShouldBe($"comics/new?wish={saga7.Id}");
-        page.FindAll(".wl-actions a.icon").ShouldBeEmpty("comics have no trailer");
+        page.FindAll(".wl-actions a.icon[href*='youtube']").ShouldBeEmpty("comics have no trailer");
     }
 
     [Fact]
@@ -165,13 +181,18 @@ public sealed class WishlistComicScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public async Task Removing_a_comic_takes_it_off_the_wishlist_at_once()
+    public async Task Removing_a_comic_asks_first_and_then_takes_it_off_the_wishlist()
     {
         await WantAsync(TestComics.Saga7);
         await WantAsync(TestComics.SagaVolume1);
         var page = RenderWishlist();
 
         page.Find("button[aria-label='Remove Saga #7 from the wishlist']").Click();
+
+        Text(page.FindAll(".wl-row .confirm").ShouldHaveSingleItem()).ShouldBe("Remove Saga #7 from your wishlist? Cancel Remove");
+        (await WantedNamesAsync()).Count.ShouldBe(2);
+
+        page.Find(".wl-row .confirm button.danger").Click();
 
         page.WaitForAssertion(() => page.FindAll(".wl-title").Select(Text).ShouldBe(["Saga, Volume One"]));
         (await WantedNamesAsync()).ShouldBe(["Saga, Volume One"]);

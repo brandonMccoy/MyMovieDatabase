@@ -164,6 +164,7 @@ public sealed class PhoneWishlistTests : PhoneTestContext
         page.Find(".wl-actions a.got-it").GetAttribute("href").ShouldBe($"movies/new?wish={heat.Id}");
 
         page.Find("button[aria-label='Remove Heat from the wishlist']").Click();
+        page.Find(".wl-row .confirm button.danger").Click();
 
         page.WaitForAssertion(() => page.Find(".empty h2").TextContent.ShouldBe("No films on your wishlist"));
         (await WishlistAsync()).ShouldBeEmpty();

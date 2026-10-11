@@ -77,6 +77,7 @@ public sealed class WishlistApiTests : IAsyncLifetime
             i => i.OwnedFormats.ShouldBe([MovieFormatKind.Dvd]),
             i => i.CoverUrl.ShouldNotBeNull().ToString().ShouldStartWith(TestPc.CoverBase.ToString()),
             i => i.TrailerUrl.ToString().ShouldBe("https://www.youtube.com/watch?v=0xbBLJ1WGwQ"),
+            i => i.AmazonUrl.ShouldNotBeNull().AbsoluteUri.ShouldBe("https://www.amazon.com/s?k=Heat%201995%204K%20UHD&i=movies-tv"),
             i => i.AddedAt.ShouldBe(TestPc.Start));
     }
 

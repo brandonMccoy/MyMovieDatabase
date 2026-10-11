@@ -110,6 +110,25 @@ public sealed class WishlistScreenTests : ShelfTestContext
     }
 
     [Fact]
+    public async Task A_row_links_to_an_amazon_search_for_the_disc_wanted_and_not_for_a_digital_copy()
+    {
+        await WantAsync(TestMovies.HeatOnTmdb, MovieFormatKind.Uhd4K);
+        Clock.Advance(TimeSpan.FromDays(1));
+        await WantAsync(Dune, MovieFormatKind.Digital);
+
+        var page = RenderWishlist();
+
+        var rows = page.FindAll(".wl-row");
+        rows.Select(r => Text(r.QuerySelector(".wl-title a")!)).ShouldBe(["Dune", "Heat"]);
+        var amazon = rows[1].QuerySelector(".wl-actions a[aria-label='Find Heat on Amazon']").ShouldNotBeNull();
+        amazon.GetAttribute("href").ShouldBe("https://www.amazon.com/s?k=Heat%201995%204K%20UHD&i=movies-tv");
+        amazon.GetAttribute("target").ShouldBe("_blank");
+        amazon.GetAttribute("rel").ShouldBe("noopener");
+        rows[0].QuerySelectorAll(".wl-actions a[href*='amazon']").ShouldBeEmpty();
+        rows[0].QuerySelectorAll(".wl-actions a.icon").ShouldHaveSingleItem().GetAttribute("aria-label").ShouldBe("Trailer for Dune");
+    }
+
+    [Fact]
     public async Task A_row_links_to_the_trailer_and_to_buying_it()
     {
         var heat = await WantAsync(TestMovies.HeatOnTmdb, MovieFormatKind.Uhd4K);
@@ -154,7 +173,7 @@ public sealed class WishlistScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public async Task Removing_a_film_takes_it_off_the_wishlist_at_once()
+    public async Task Removing_a_film_asks_first_and_then_takes_it_off_the_wishlist()
     {
         await WantAsync(TestMovies.HeatOnTmdb, MovieFormatKind.Uhd4K);
         await WantAsync(Dune, MovieFormatKind.Uhd4K);
@@ -162,8 +181,34 @@ public sealed class WishlistScreenTests : ShelfTestContext
 
         page.Find("button[aria-label='Remove Heat from the wishlist']").Click();
 
+        var confirm = page.FindAll(".wl-row .confirm").ShouldHaveSingleItem();
+        confirm.GetAttribute("role").ShouldBe("alertdialog");
+        Text(confirm).ShouldBe("Remove Heat from your wishlist? Cancel Remove");
+        (await WishlistAsync()).Count.ShouldBe(2, "nothing goes until it is confirmed");
+
+        page.Find(".wl-row .confirm button.danger").Click();
+
         page.WaitForAssertion(() => page.FindAll(".wl-title").Select(Text).ShouldBe(["Dune2021"]));
+        page.FindAll(".confirm").ShouldBeEmpty();
         (await WishlistAsync()).ShouldHaveSingleItem().Title.ShouldBe("Dune");
+    }
+
+    [Fact]
+    public async Task Cancelling_keeps_the_film_and_asking_about_another_moves_the_question()
+    {
+        await WantAsync(TestMovies.HeatOnTmdb, MovieFormatKind.Uhd4K);
+        await WantAsync(Dune, MovieFormatKind.Uhd4K);
+        var page = RenderWishlist();
+
+        page.Find("button[aria-label='Remove Heat from the wishlist']").Click();
+        page.Find("button[aria-label='Remove Dune from the wishlist']").Click();
+
+        Text(page.FindAll(".confirm").ShouldHaveSingleItem()).ShouldStartWith("Remove Dune from your wishlist?");
+
+        page.Find(".confirm-actions button:not(.danger)").Click();
+
+        page.FindAll(".confirm").ShouldBeEmpty();
+        (await WishlistAsync()).Count.ShouldBe(2);
     }
 
     [Fact]
