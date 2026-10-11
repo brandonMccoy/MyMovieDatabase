@@ -20,9 +20,71 @@ public sealed class VaultScreenTests : ShelfTestContext
         (await VaultApi.SetFolderAsync(VaultFolder, Ct)).ShouldBeTrue();
     }
 
+    private static bool IsOn(IRenderedComponent<Settings> page) => page.Find(".use-vault").GetAttribute("aria-checked") == "true";
+
     [Fact]
-    public void Before_a_folder_is_chosen_settings_offers_to_choose_one()
+    public void Until_it_is_turned_on_the_vault_section_has_only_its_switch()
     {
+        var page = Render<Settings>();
+
+        IsOn(page).ShouldBeFalse();
+        page.Find(".use-vault").GetAttribute("aria-label").ShouldBe("Use an Obsidian vault");
+        page.FindAll("#vault-heading ~ .setrow .lbl").Select(l => l.TextContent).ShouldBe(["Use a vault"]);
+        page.FindAll("button.choose").ShouldBeEmpty();
+        page.FindAll("button.rebuild").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Turning_the_switch_on_asks_for_a_folder()
+    {
+        var page = Render<Settings>();
+
+        page.Find(".use-vault").Click();
+
+        page.WaitForAssertion(() => IsOn(page).ShouldBeTrue());
+        page.Find(".setrow .folder").TextContent.ShouldBe("Not set");
+        page.Find("button.choose").TextContent.Trim().ShouldBe("Choose folder");
+        page.FindAll("button.rebuild").ShouldBeEmpty();
+        Vault.Calls.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Turning_the_switch_off_hides_the_folder_and_the_last_sync_and_writes_nothing()
+    {
+        await SeedAsync(Heat);
+        await UseVaultAsync();
+        var page = Render<Settings>();
+
+        page.Find(".use-vault").Click();
+
+        page.WaitForAssertion(() => IsOn(page).ShouldBeFalse());
+        page.FindAll("#vault-heading ~ .setrow .lbl").Select(l => l.TextContent).ShouldBe(["Use a vault"]);
+        page.FindAll("#vault-heading ~ .setrow .folder").ShouldBeEmpty();
+        page.FindAll(".sync-state").ShouldBeEmpty();
+        page.FindAll("button.rebuild").ShouldBeEmpty();
+        Vault.Calls.ShouldBe([$"sync {VaultFolder} (1 films)"]);
+    }
+
+    [Fact]
+    public async Task Turning_the_switch_back_on_picks_up_the_folder_chosen_before()
+    {
+        await UseVaultAsync();
+        await VaultApi.SetUseAsync(false, Ct);
+        await SeedAsync(Heat);
+        var page = Render<Settings>();
+
+        page.Find(".use-vault").Click();
+
+        page.WaitForAssertion(() => Text(page.Find(".sync-state")).ShouldBe("Just now · 1 note"));
+        IsOn(page).ShouldBeTrue();
+        page.Find(".setrow .folder").TextContent.ShouldBe(VaultFolder);
+        page.Find("button.choose").TextContent.Trim().ShouldBe("Change");
+    }
+
+    [Fact]
+    public async Task Before_a_folder_is_chosen_settings_offers_to_choose_one()
+    {
+        await VaultApi.SetUseAsync(true, Ct);
         var page = Render<Settings>();
 
         page.Find(".setrow .folder").TextContent.ShouldBe("Not set");
@@ -35,6 +97,7 @@ public sealed class VaultScreenTests : ShelfTestContext
     {
         await SeedAsync(Heat);
         await SeedAsync(Film("Alien", 1979));
+        await VaultApi.SetUseAsync(true, Ct);
         FolderPicker.Answer = VaultFolder;
         var page = Render<Settings>();
 
@@ -47,8 +110,9 @@ public sealed class VaultScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public void Cancelling_the_folder_dialog_changes_nothing()
+    public async Task Cancelling_the_folder_dialog_changes_nothing()
     {
+        await VaultApi.SetUseAsync(true, Ct);
         var page = Render<Settings>();
 
         page.Find("button.choose").Click();
@@ -59,8 +123,9 @@ public sealed class VaultScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public void A_chosen_folder_that_has_gone_is_turned_down()
+    public async Task A_chosen_folder_that_has_gone_is_turned_down()
     {
+        await VaultApi.SetUseAsync(true, Ct);
         var gone = Path.Combine(VaultFolder, "gone");
         FolderPicker.Answer = gone;
         var page = Render<Settings>();
@@ -108,9 +173,29 @@ public sealed class VaultScreenTests : ShelfTestContext
     }
 
     [Fact]
-    public void The_sidebar_says_when_there_is_no_vault()
+    public void With_the_vault_off_the_sidebar_has_no_vault_line()
     {
+        RenderLayout().FindAll(".vault-line").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_sidebar_says_when_the_vault_has_no_folder_yet()
+    {
+        await VaultApi.SetUseAsync(true, Ct);
+
         Text(RenderLayout().Find(".vault-line")).ShouldBe("Vault not set up");
+    }
+
+    [Fact]
+    public async Task The_sidebar_drops_its_vault_line_when_the_vault_is_turned_off()
+    {
+        await UseVaultAsync();
+        var layout = RenderLayout();
+        layout.WaitForAssertion(() => Text(layout.Find(".vault-line")).ShouldBe("Vault synced · just now"));
+
+        await VaultApi.SetUseAsync(false, Ct);
+
+        layout.WaitForAssertion(() => layout.FindAll(".vault-line").ShouldBeEmpty());
     }
 
     [Fact]
@@ -160,6 +245,19 @@ public sealed class VaultScreenTests : ShelfTestContext
         link.TextContent.Trim().ShouldBe("Movies/Heat (1995).md");
         var expected = Path.GetFullPath(Path.Combine(VaultFolder, "Movies/Heat (1995).md"));
         link.GetAttribute("href").ShouldBe("obsidian://open?path=" + Uri.EscapeDataString(expected));
+    }
+
+    [Fact]
+    public async Task With_the_vault_turned_off_a_films_page_has_no_note_link()
+    {
+        await UseVaultAsync();
+        var heat = await SeedAsync(Heat);
+        await VaultApi.SetUseAsync(false, Ct);
+
+        var page = Render<MovieDetail>(p => p.Add(x => x.Id, heat.Id));
+
+        page.WaitForElement("h1");
+        page.FindAll("a.vault").ShouldBeEmpty();
     }
 
     [Fact]

@@ -26,9 +26,8 @@
             </nav>
         </div>
         <div class="side-foot">
-            @if (_vault is not null)
+            @if (_vault?.Status is { State: not VaultSyncState.Off } status)
             {
-                var status = _vault.Status;
                 <div class="vault-line @(status.State == VaultSyncState.Failed ? "warn" : null)">
                     <Icon Name="obsidian" Class="i12 obsidian" />
                     @switch (status.State)

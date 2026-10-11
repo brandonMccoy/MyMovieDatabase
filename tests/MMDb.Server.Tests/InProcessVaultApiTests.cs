@@ -76,6 +76,44 @@ public sealed class InProcessVaultApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Turning_the_vault_off_leaves_what_is_in_it_and_stays_off_after_a_restart()
+    {
+        await Vault.SetFolderAsync(_vault.Path, Ct);
+        var heat = (await Api.AddMovieAsync(Heat, Ct)).Movie!;
+        var before = Directory.GetFiles(_vault.Path, "*", SearchOption.AllDirectories).ToDictionary(f => f, File.ReadAllText);
+
+        await Vault.SetUseAsync(false, Ct);
+        await Api.AddMovieAsync(new() { Title = "Alien", Year = 1979, Formats = [new(MovieFormatKind.BluRay)] }, Ct);
+        await Api.DeleteMovieAsync(heat.Id, Ct);
+
+        await using var restarted = new ServiceCollection()
+            .AddShelf(FakeOnline.Settings(_sqlite), new Uri("https://covers.test/"))
+            .AddSingleton<TimeProvider>(_clock)
+            .BuildServiceProvider();
+        var vault = restarted.GetRequiredService<IVaultApi>();
+        await vault.StartAsync(Ct);
+
+        Vault.Status.ShouldBe(new VaultStatusDto(VaultSyncState.Off));
+        vault.Status.ShouldBe(new VaultStatusDto(VaultSyncState.Off));
+        Vault.NoteFor(heat.Id).ShouldBeNull();
+        File.Exists(_vault["Movies/Heat (1995).md"]).ShouldBeTrue();
+        Directory.GetFiles(_vault.Path, "*", SearchOption.AllDirectories).ToDictionary(f => f, File.ReadAllText).ShouldBe(before);
+    }
+
+    [Fact]
+    public async Task Turned_back_on_the_vault_catches_up_with_what_changed_meanwhile()
+    {
+        await Vault.SetFolderAsync(_vault.Path, Ct);
+        await Vault.SetUseAsync(false, Ct);
+        await Api.AddMovieAsync(Heat, Ct);
+
+        await Vault.SetUseAsync(true, Ct);
+
+        Vault.Status.ShouldBe(new VaultStatusDto(VaultSyncState.Synced, _vault.Path, _clock.GetUtcNow(), 1));
+        File.Exists(_vault["Movies/Heat (1995).md"]).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Status_changes_are_announced()
     {
         var states = new List<VaultSyncState>();

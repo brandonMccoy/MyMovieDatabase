@@ -2,6 +2,10 @@ namespace MMDb.Contracts.Vault;
 
 public enum VaultSyncState
 {
+    /// <summary>The vault isn't in use: nothing is written.</summary>
+    Off,
+
+    /// <summary>On, but no folder has been chosen yet.</summary>
     NotSetUp,
     Syncing,
     Synced,

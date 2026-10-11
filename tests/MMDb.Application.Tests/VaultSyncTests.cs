@@ -5,7 +5,7 @@ using MMDb.Testing;
 
 namespace MMDb.Application.Tests;
 
-/// <summary>Choosing the vault folder, and every change to the collection reaching the vault.</summary>
+/// <summary>Turning the vault on and off, choosing its folder, and every change to the collection reaching the vault.</summary>
 public sealed class VaultSyncTests : IAsyncLifetime
 {
     private readonly TempFolder _vaultFolder = new();
@@ -23,13 +23,17 @@ public sealed class VaultSyncTests : IAsyncLifetime
 
     private Task<bool> SetFolderAsync(string folder) => _shelf.VaultAsync((sync, ct) => sync.SetFolderAsync(folder, ct));
 
+    private Task SetUseAsync(bool use) => _shelf.VaultAsync((sync, ct) => sync.SetUseAsync(use, ct));
+
+    private Task<string?> SettingAsync(string key) => _shelf.Settings.GetAsync(key, TestContext.Current.CancellationToken);
+
     [Fact]
-    public async Task Without_a_vault_folder_saving_writes_nothing()
+    public async Task Until_it_is_turned_on_the_vault_is_off_and_saving_writes_nothing()
     {
         await _shelf.AddAsync(TestMovies.Heat, MediaFormat.Dvd);
 
         _shelf.Vault.Calls.ShouldBeEmpty();
-        _shelf.VaultStatus.State.ShouldBe(VaultState.NotSetUp);
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Off);
     }
 
     [Fact]
@@ -49,7 +53,8 @@ public sealed class VaultSyncTests : IAsyncLifetime
             LastSyncAt = _shelf.Clock.GetUtcNow(),
             NoteCount = 2,
         });
-        (await _shelf.Settings.GetAsync("vault.folder", TestContext.Current.CancellationToken)).ShouldBe(Folder);
+        (await SettingAsync("vault.folder")).ShouldBe(Folder);
+        (await SettingAsync("vault.use")).ShouldBe("on");
     }
 
     [Fact]
@@ -69,11 +74,68 @@ public sealed class VaultSyncTests : IAsyncLifetime
 
         (await SetFolderAsync(folder)).ShouldBeFalse();
 
-        _shelf.VaultStatus.State.ShouldBe(VaultState.NotSetUp);
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Off);
         _shelf.Vault.Calls.ShouldBeEmpty();
-        (await _shelf.Settings.GetAsync("vault.folder", TestContext.Current.CancellationToken)).ShouldBeNull();
+        (await SettingAsync("vault.folder")).ShouldBeNull();
+        (await SettingAsync("vault.use")).ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Turned_on_before_a_folder_is_chosen_it_waits_for_one()
+    {
+        await _shelf.AddAsync(TestMovies.Heat, MediaFormat.Dvd);
+
+        await SetUseAsync(true);
+
+        _shelf.Vault.Calls.ShouldBeEmpty();
+        _shelf.VaultStatus.ShouldBe(new VaultStatus { State = VaultState.NotSetUp });
+        (await SettingAsync("vault.use")).ShouldBe("on");
+    }
+
+    [Fact]
+    public async Task Turning_it_off_writes_nothing_more_and_keeps_the_folder()
+    {
+        await SetFolderAsync(Folder);
+        var heat = await _shelf.AddAsync(TestMovies.Heat, MediaFormat.Dvd);
+        var written = _shelf.Vault.Calls;
+
+        await SetUseAsync(false);
+        await _shelf.AddAsync(TestMovies.Titled("Alien", 1979), MediaFormat.BluRay);
+        await _shelf.Movies((catalog, ct) => catalog.DeleteAsync(heat.Id, ct));
+        await _shelf.VaultAsync((sync, ct) => sync.RebuildAsync(ct));
+
+        _shelf.Vault.Calls.ShouldBe(written);
+        _shelf.VaultStatus.ShouldBe(new VaultStatus { State = VaultState.Off });
+        (await SettingAsync("vault.folder")).ShouldBe(Folder);
+        (await SettingAsync("vault.use")).ShouldBe("off");
+    }
+
+    [Fact]
+    public async Task Turning_it_back_on_catches_up_in_the_folder_chosen_before()
+    {
+        await SetFolderAsync(Folder);
+        await SetUseAsync(false);
+        await _shelf.AddAsync(TestMovies.Heat, MediaFormat.Dvd);
+
+        await SetUseAsync(true);
+
+        _shelf.Vault.Calls.ShouldBe([$"sync {Folder} (0 films)", $"sync {Folder} (1 films)"]);
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Synced);
+        _shelf.VaultStatus.Folder.ShouldBe(Folder);
+    }
+
+    [Fact]
+    public async Task Choosing_a_folder_turns_the_vault_on()
+    {
+        await SetUseAsync(false);
+
+        (await SetFolderAsync(Folder)).ShouldBeTrue();
+
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Synced);
+        (await SettingAsync("vault.use")).ShouldBe("on");
+    }
+
+    // A vault set up before there was a switch has only its folder saved: it stays in use.
     [Fact]
     public async Task At_startup_the_folder_chosen_last_time_is_synced()
     {
@@ -87,12 +149,36 @@ public sealed class VaultSyncTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task At_startup_a_vault_turned_off_stays_off()
+    {
+        await _shelf.AddAsync(TestMovies.Heat, MediaFormat.Dvd);
+        await _shelf.Settings.SetAsync("vault.folder", Folder, TestContext.Current.CancellationToken);
+        await _shelf.Settings.SetAsync("vault.use", "off", TestContext.Current.CancellationToken);
+
+        await _shelf.VaultAsync((sync, ct) => sync.StartAsync(ct));
+
+        _shelf.Vault.Calls.ShouldBeEmpty();
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Off);
+    }
+
+    [Fact]
+    public async Task At_startup_a_vault_turned_on_without_a_folder_still_waits_for_one()
+    {
+        await _shelf.Settings.SetAsync("vault.use", "on", TestContext.Current.CancellationToken);
+
+        await _shelf.VaultAsync((sync, ct) => sync.StartAsync(ct));
+
+        _shelf.Vault.Calls.ShouldBeEmpty();
+        _shelf.VaultStatus.State.ShouldBe(VaultState.NotSetUp);
+    }
+
+    [Fact]
     public async Task At_startup_with_no_folder_chosen_nothing_is_written()
     {
         await _shelf.VaultAsync((sync, ct) => sync.StartAsync(ct));
 
         _shelf.Vault.Calls.ShouldBeEmpty();
-        _shelf.VaultStatus.State.ShouldBe(VaultState.NotSetUp);
+        _shelf.VaultStatus.State.ShouldBe(VaultState.Off);
     }
 
     [Fact]

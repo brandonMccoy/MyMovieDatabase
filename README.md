@@ -106,7 +106,7 @@ In **Settings → Digital movies**, choose the folder that holds your video file
 
 ### Obsidian vault
 
-In **Settings → Obsidian vault**, choose a folder. Shelf writes one note per film, comic and wishlist item, an index, and ready-made Bases views, and keeps them up to date as you make changes. Each note carries its details as properties:
+In **Settings → Obsidian vault**, turn on **Use a vault** and choose a folder. Shelf writes one note per film, comic and wishlist item, an index, and ready-made Bases views, and keeps them up to date as you make changes. Each note carries its details as properties:
 
 ```yaml
 title: Blade Runner

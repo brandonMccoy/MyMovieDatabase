@@ -5,6 +5,10 @@ namespace MMDb.Application.Vault;
 
 public enum VaultState
 {
+    /// <summary>The user doesn't keep a vault (or has turned it off): nothing is written.</summary>
+    Off,
+
+    /// <summary>The vault is on, but no folder has been chosen for it yet.</summary>
     NotSetUp,
     Syncing,
     Synced,
@@ -40,7 +44,7 @@ public sealed record VaultStatus
 public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisposable
 {
     private readonly SemaphoreSlim _turn = new(1, 1);
-    private volatile VaultStatus _status = new() { State = VaultState.NotSetUp };
+    private volatile VaultStatus _status = new() { State = VaultState.Off };
     private int _held;
     private bool _missed;
 
@@ -51,7 +55,21 @@ public sealed class VaultMirror(IVaultWriter writer, TimeProvider clock) : IDisp
     /// <returns>The film's or comic's note relative to the vault, if there is a vault and the note has been written.</returns>
     public string? NoteOf(Guid id) => Status.Folder is { } folder ? writer.NoteOf(folder, id) : null;
 
-    /// <summary>Switches to <paramref name="folder"/> (<see langword="null"/>: no vault) and writes it all.</summary>
+    /// <summary>Stops writing, once a write under way has finished. The folder and what is in it are left as they are.</summary>
+    internal async Task TurnOffAsync(CancellationToken cancellationToken)
+    {
+        await _turn.WaitAsync(cancellationToken);
+        try
+        {
+            Publish(new() { State = VaultState.Off });
+        }
+        finally
+        {
+            _turn.Release();
+        }
+    }
+
+    /// <summary>Turns the vault on at <paramref name="folder"/> (<see langword="null"/>: none chosen yet) and writes it all.</summary>
     internal async Task SyncAsync(string? folder, VaultContentSource source, CancellationToken cancellationToken)
     {
         await _turn.WaitAsync(cancellationToken);

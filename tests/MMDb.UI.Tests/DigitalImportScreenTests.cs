@@ -143,14 +143,14 @@ public sealed class DigitalImportScreenTests : ShelfTestContext
         var page = Render<Settings>();
         Online.Watcher.Watched.ShouldBe([Folder]);
 
-        await Click(page, () => page.Find(".switch-ui"));
+        await Click(page, () => page.Find(".switch-ui[aria-label='Watch for new files']"));
 
-        page.WaitForAssertion(() => page.Find(".switch-ui").GetAttribute("aria-checked").ShouldBe("false"), Patience);
+        page.WaitForAssertion(() => page.Find(".switch-ui[aria-label='Watch for new files']").GetAttribute("aria-checked").ShouldBe("false"), Patience);
         page.WaitForAssertion(() => Online.Watcher.Watched.ShouldBeEmpty(), Patience);
 
-        await Click(page, () => page.Find(".switch-ui"));
+        await Click(page, () => page.Find(".switch-ui[aria-label='Watch for new files']"));
 
-        page.WaitForAssertion(() => page.Find(".switch-ui").GetAttribute("aria-checked").ShouldBe("true"), Patience);
+        page.WaitForAssertion(() => page.Find(".switch-ui[aria-label='Watch for new files']").GetAttribute("aria-checked").ShouldBe("true"), Patience);
         page.WaitForAssertion(() => Online.Watcher.Watched.ShouldBe([Folder]), Patience);
     }
 

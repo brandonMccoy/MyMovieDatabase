@@ -18,6 +18,9 @@ public sealed class InProcessVaultApi(IServiceScopeFactory scopes, VaultMirror m
     public Task StartAsync(CancellationToken cancellationToken = default) =>
         With(sync => sync.StartAsync(cancellationToken));
 
+    public Task SetUseAsync(bool use, CancellationToken cancellationToken = default) =>
+        With(sync => sync.SetUseAsync(use, cancellationToken));
+
     public Task<bool> SetFolderAsync(string folder, CancellationToken cancellationToken = default) =>
         Task.Run(
             async () =>
@@ -45,6 +48,7 @@ public sealed class InProcessVaultApi(IServiceScopeFactory scopes, VaultMirror m
     private static VaultStatusDto ToDto(VaultStatus status) => new(
         status.State switch
         {
+            VaultState.Off => VaultSyncState.Off,
             VaultState.NotSetUp => VaultSyncState.NotSetUp,
             VaultState.Syncing => VaultSyncState.Syncing,
             VaultState.Synced => VaultSyncState.Synced,

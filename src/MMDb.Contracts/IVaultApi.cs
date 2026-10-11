@@ -9,10 +9,16 @@ public interface IVaultApi
 
     VaultStatusDto Status { get; }
 
-    /// <summary>Picks up the folder chosen last time and catches the vault up. Called once at startup.</summary>
+    /// <summary>If the vault is on, picks up the folder chosen last time and catches the vault up. Called once at startup.</summary>
     Task StartAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Remembers the folder and writes the whole collection into it.</summary>
+    /// <summary>
+    /// Turns the vault on or off. On: writes the whole collection into the folder chosen before, if there is one.
+    /// Off: nothing more is written, and what is in the folder stays.
+    /// </summary>
+    Task SetUseAsync(bool use, CancellationToken cancellationToken = default);
+
+    /// <summary>Remembers the folder, turns the vault on and writes the whole collection into it.</summary>
     /// <returns><see langword="false"/> if there is no such folder.</returns>
     Task<bool> SetFolderAsync(string folder, CancellationToken cancellationToken = default);
 

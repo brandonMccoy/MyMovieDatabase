@@ -18,24 +18,34 @@
         @if (_vault is not null)
         {
             var status = _vault.Status;
+            var on = status.State != VaultSyncState.Off;
             <section class="set" aria-labelledby="vault-heading">
                 <h3 id="vault-heading">Obsidian vault</h3>
                 <div class="desc">Shelf writes one note per film here. It only edits notes it created.</div>
                 <div class="setrow">
-                    <span class="lbl">Vault folder</span>
-                    <div class="input folder @(status.Folder is null ? "unset" : null)">@(status.Folder ?? "Not set")</div>
-                    @if (_picker is not null)
-                    {
-                        <button type="button" class="btn sm choose" disabled="@_choosing" @onclick="ChooseAsync">
-                            @(status.Folder is null ? "Choose folder" : "Change")
-                        </button>
-                    }
+                    <span class="lbl">Use a vault</span>
+                    <span class="small">Turning it off leaves the notes already written where they are</span>
+                    <button type="button" role="switch" class="switch-ui use-vault @(on ? "on" : null)" aria-checked="@Aria.Bool(on)"
+                            aria-label="Use an Obsidian vault" disabled="@_switching" @onclick="() => UseAsync(!on)"><i></i></button>
                 </div>
-                @if (_missingChoice is not null)
+                @if (on)
+                {
+                    <div class="setrow">
+                        <span class="lbl">Vault folder</span>
+                        <div class="input folder @(status.Folder is null ? "unset" : null)">@(status.Folder ?? "Not set")</div>
+                        @if (_picker is not null)
+                        {
+                            <button type="button" class="btn sm choose" disabled="@_choosing" @onclick="ChooseAsync">
+                                @(status.Folder is null ? "Choose folder" : "Change")
+                            </button>
+                        }
+                    </div>
+                }
+                @if (on && _missingChoice is not null)
                 {
                     <div class="setrow"><span></span><span class="warn">@_missingChoice isn't there any more. Choose another folder.</span><span></span></div>
                 }
-                @if (status.State != VaultSyncState.NotSetUp)
+                @if (on && status.State != VaultSyncState.NotSetUp)
                 {
                     <div class="setrow">
                         <span class="lbl">Last sync</span>
@@ -85,6 +95,7 @@
     private IDigitalApi? _digital;
     private IFolderPicker? _picker;
     private bool _choosing;
+    private bool _switching;
     private string? _missingChoice;
 
     protected override void OnInitialized()
@@ -100,6 +111,20 @@
         if (_digital is not null)
         {
             _digital.Changed += OnChanged;
+        }
+    }
+
+    private async Task UseAsync(bool on)
+    {
+        _switching = true;
+        _missingChoice = null;
+        try
+        {
+            await _vault!.SetUseAsync(on);
+        }
+        finally
+        {
+            _switching = false;
         }
     }
 

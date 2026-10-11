@@ -216,6 +216,13 @@ Settled while building it:
 - **Rows:** "Copies by format" across the top, then the two month charts, "Films by decade" with "Top directors", "Top actors" with "Comics by publisher".
 - **Cost:** the first names are picked out of each cast by SQLite, so the casts are still never loaded: 17 ms for the real collection of 1,204 films (3.2 MB of cast), once per Stats screen and once per list while an actor chip is on.
 
+## Obsidian vault on or off (2026-10-11)
+"Obsidian vault use selection" (issue 5).
+- **A switch:** the Obsidian vault section of Settings starts with "Use a vault", a switch like "Watch for new files". Off by default; a vault already set up stays on.
+- **Off:** the "Vault folder" and "Last sync" rows are hidden, the sidebar has no vault line, and a film's or comic's page has no note link. Nothing more is written.
+- **Nothing is deleted:** turning it off leaves the folder and every note in it, and Shelf remembers the folder. Turning it back on brings the same folder up to date with what changed meanwhile.
+- **On without a folder:** the "Vault folder" row offers "Choose folder" and the sidebar says "Vault not set up", as before.
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.
