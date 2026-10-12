@@ -24,13 +24,15 @@ public sealed class HttpCollectionApi(PcLink pc) : ICollectionApi
         ArgumentNullException.ThrowIfNull(request);
         return GetAsync<MovieListResponse>(
             "movies" + Query(
+            [
                 ("search", request.Search),
-                ("format", request.Format?.ToString()),
-                ("genre", request.Genre),
-                ("decade", request.Decade?.ToString(CultureInfo.InvariantCulture)),
+                .. request.Formats.Select(f => ("format", (string?)f.ToString())),
+                .. request.Genres.Select(g => ("genre", (string?)g)),
+                .. request.Decades.Select(d => ("decade", (string?)d.ToString(CultureInfo.InvariantCulture))),
                 ("director", request.Director),
                 ("actor", request.Actor),
-                ("sort", request.Sort.ToString())),
+                ("sort", request.Sort.ToString()),
+            ]),
             cancellationToken);
     }
 

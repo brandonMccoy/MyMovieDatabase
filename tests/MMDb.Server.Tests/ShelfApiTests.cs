@@ -353,10 +353,16 @@ public sealed class ShelfApiTests : IAsyncLifetime
         using var all = await GetAsync("/api/v1/movies?sort=Title");
         using var dvds = await GetAsync("/api/v1/movies?format=Dvd");
         using var searched = await GetAsync("/api/v1/movies?search=hea");
+        using var eitherFormat = await GetAsync("/api/v1/movies?format=Dvd&format=Uhd4K&sort=Title");
+        using var eitherGenre = await GetAsync("/api/v1/movies?genre=Western&genre=Crime");
+        using var eitherDecade = await GetAsync("/api/v1/movies?decade=1970&decade=1980");
 
         (await ReadAsync<MovieListResponse>(all)).Movies.Select(m => m.Title).ShouldBe(["Alien", "Heat"]);
         (await ReadAsync<MovieListResponse>(dvds)).Movies.Select(m => m.Title).ShouldBe(["Alien"]);
         (await ReadAsync<MovieListResponse>(searched)).Movies.Select(m => m.Title).ShouldBe(["Heat"]);
+        (await ReadAsync<MovieListResponse>(eitherFormat)).Movies.Select(m => m.Title).ShouldBe(["Alien", "Heat"]);
+        (await ReadAsync<MovieListResponse>(eitherGenre)).Movies.Select(m => m.Title).ShouldBe(["Heat"]);
+        (await ReadAsync<MovieListResponse>(eitherDecade)).Movies.Select(m => m.Title).ShouldBe(["Alien"]);
     }
 
     [Fact]

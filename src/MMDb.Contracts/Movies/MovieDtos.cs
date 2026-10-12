@@ -84,12 +84,14 @@ public sealed record MovieListRequest
 {
     public string? Search { get; init; }
 
-    public MovieFormatKind? Format { get; init; }
+    /// <summary>Only films owned on one of these; none means any format.</summary>
+    public IReadOnlyList<MovieFormatKind> Formats { get; init; } = [];
 
-    public string? Genre { get; init; }
+    /// <summary>Only films in one of these genres; none means any genre.</summary>
+    public IReadOnlyList<string> Genres { get; init; } = [];
 
-    /// <summary>First year of the decade, e.g. 1990.</summary>
-    public int? Decade { get; init; }
+    /// <summary>Only films from one of these decades, each its first year, e.g. 1990; none means any decade.</summary>
+    public IReadOnlyList<int> Decades { get; init; } = [];
 
     /// <summary>Only films this person directed: the whole name, ignoring case and accents.</summary>
     public string? Director { get; init; }

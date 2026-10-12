@@ -1,0 +1,105 @@
+@* The panel the Movies screen's Filter button opens: a set of tick boxes per type of filter. Nothing is filtered
+   until "Apply Filter"; closing it leaves the screen as it was. On the phone it is a sheet over the covers, closed
+   by its X or a tap outside. On the PC it drops down from the button, closed by a click outside or Esc. *@
+@inject ShelfDevice Device
+
+<div class="@(Device.IsPhone ? "sheet-shade" : "pop-shade")" @onclick="OnClose"></div>
+<div class="@(Device.IsPhone ? "sheet" : "filter-pop")" role="dialog" aria-modal="true" aria-label="Filters" tabindex="-1" @ref="_panel" @onkeydown="OnKeyDown">
+    @if (Device.IsPhone)
+    {
+        <div class="sheet-head">
+            <h2>Filters</h2>
+            <button type="button" class="btn ghost icon" aria-label="Close" @onclick="OnClose"><Icon Name="x" /></button>
+        </div>
+    }
+    <div class="sheet-body">
+        <fieldset class="checks">
+            <legend>Format</legend>
+            @foreach (var format in Formats.All)
+            {
+                @* The count is of the films the screen has now, before its own format filter. *@
+                <label class="check" @key="format"><input type="checkbox" checked="@_formats.Contains(format)" @onchange="e => Tick(_formats, format, e)" />@Formats.Name(format)<span class="n">@Facets.FormatCounts.GetValueOrDefault(format).ToString("N0", CultureInfo.InvariantCulture)</span></label>
+            }
+        </fieldset>
+        @if (Facets.Genres.Count > 0)
+        {
+            <fieldset class="checks">
+                <legend>Genre</legend>
+                @foreach (var genre in Facets.Genres)
+                {
+                    <label class="check" @key="genre"><input type="checkbox" checked="@_genres.Contains(genre)" @onchange="e => Tick(_genres, genre, e)" />@genre</label>
+                }
+            </fieldset>
+        }
+        @if (Facets.Decades.Count > 0)
+        {
+            <fieldset class="checks">
+                <legend>Decade</legend>
+                @foreach (var decade in Facets.Decades)
+                {
+                    <label class="check" @key="decade"><input type="checkbox" checked="@_decades.Contains(decade)" @onchange="e => Tick(_decades, decade, e)" />@(decade)s</label>
+                }
+            </fieldset>
+        }
+    </div>
+    <div class="sheet-foot">
+        <button type="button" class="btn" @onclick="OnClear">Clear</button>
+        <button type="button" class="btn primary" @onclick="Apply">Apply Filter</button>
+    </div>
+</div>
+
+@code {
+    private readonly HashSet<MovieFormatKind> _formats = [];
+    private readonly HashSet<string> _genres = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<int> _decades = [];
+    private ElementReference _panel;
+
+    /// <summary>The genres and decades there are to tick, and the count beside each format.</summary>
+    [Parameter, EditorRequired] public MovieFacetsDto Facets { get; set; } = null!;
+
+    /// <summary>What the screen is filtered by as the panel opens: ticked to begin with.</summary>
+    [Parameter] public MovieFilterChoice Chosen { get; set; } = MovieFilterChoice.None;
+
+    [Parameter] public EventCallback<MovieFilterChoice> OnApply { get; set; }
+
+    /// <summary>Clear: every filter comes off, without "Apply Filter".</summary>
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _formats.UnionWith(Chosen.Formats);
+        _genres.UnionWith(Chosen.Genres);
+        _decades.UnionWith(Chosen.Decades);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // So that Esc reaches the panel before anything in it has been clicked.
+        if (firstRender && !Device.IsPhone)
+        {
+            await _panel.FocusAsync();
+        }
+    }
+
+    private Task OnKeyDown(KeyboardEventArgs e) => e.Key == "Escape" ? OnClose.InvokeAsync() : Task.CompletedTask;
+
+    private static void Tick<T>(HashSet<T> ticked, T value, ChangeEventArgs e)
+    {
+        if (e.Value is true)
+        {
+            ticked.Add(value);
+        }
+        else
+        {
+            ticked.Remove(value);
+        }
+    }
+
+    // In the order they are listed, whatever order they were ticked in.
+    private Task Apply() => OnApply.InvokeAsync(new(
+        [.. Formats.All.Where(_formats.Contains)],
+        [.. Facets.Genres.Where(_genres.Contains)],
+        [.. Facets.Decades.Where(_decades.Contains)]));
+}

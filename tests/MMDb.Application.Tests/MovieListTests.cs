@@ -111,8 +111,8 @@ public sealed class MovieListTests
         await shelf.AddAsync(Film("Heat"), MediaFormat.Uhd4K, MediaFormat.Dvd);
         await shelf.AddAsync(Film("Alien"), MediaFormat.BluRay);
 
-        (await TitlesAsync(shelf, new() { Format = MediaFormat.Dvd })).ShouldBe(["Heat"]);
-        (await TitlesAsync(shelf, new() { Format = MediaFormat.Digital })).ShouldBeEmpty();
+        (await TitlesAsync(shelf, new() { Formats = [MediaFormat.Dvd] })).ShouldBe(["Heat"]);
+        (await TitlesAsync(shelf, new() { Formats = [MediaFormat.Digital] })).ShouldBeEmpty();
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class MovieListTests
         await shelf.AddAsync(Film("Heat", genres: ["Crime", "Drama"]), MediaFormat.Dvd);
         await shelf.AddAsync(Film("Alien", genres: ["Horror"]), MediaFormat.Dvd);
 
-        (await TitlesAsync(shelf, new() { Genre = "crime" })).ShouldBe(["Heat"]);
+        (await TitlesAsync(shelf, new() { Genres = ["crime"] })).ShouldBe(["Heat"]);
     }
 
     [Fact]
@@ -135,7 +135,55 @@ public sealed class MovieListTests
         await shelf.AddAsync(Film("Heat", 1995), MediaFormat.Dvd);
         await shelf.AddAsync(Film("Untitled"), MediaFormat.Dvd);
 
-        (await TitlesAsync(shelf, new() { Decade = 1980 })).ShouldBe(["The Thing", "Die Hard"], ignoreOrder: true);
+        (await TitlesAsync(shelf, new() { Decades = [1980] })).ShouldBe(["The Thing", "Die Hard"], ignoreOrder: true);
+    }
+
+    private static async Task<TestShelf> ShelfOfFourAsync()
+    {
+        var shelf = await TestShelf.CreateAsync();
+        await shelf.AddAsync(Film("Heat", 1995, genres: ["Crime", "Drama"]), MediaFormat.Uhd4K, MediaFormat.Dvd);
+        await shelf.AddAsync(Film("Alien", 1979, genres: ["Horror"]), MediaFormat.BluRay);
+        await shelf.AddAsync(Film("Arrival", 2016, genres: ["Drama"]), MediaFormat.Digital);
+        await shelf.AddAsync(Film("Untitled"), MediaFormat.Dvd);
+        return shelf;
+    }
+
+    [Fact]
+    public async Task Several_values_of_one_filter_show_the_films_matching_any_of_them()
+    {
+        await using var shelf = await ShelfOfFourAsync();
+
+        (await TitlesAsync(shelf, new() { Formats = [MediaFormat.BluRay, MediaFormat.Digital], Sort = MovieSort.Title })).ShouldBe(["Alien", "Arrival"]);
+        (await TitlesAsync(shelf, new() { Genres = ["horror", "Crime"], Sort = MovieSort.Title })).ShouldBe(["Alien", "Heat"]);
+        (await TitlesAsync(shelf, new() { Decades = [1970, 2010], Sort = MovieSort.Title })).ShouldBe(["Alien", "Arrival"]);
+    }
+
+    [Fact]
+    public async Task Different_filters_narrow_each_other()
+    {
+        await using var shelf = await ShelfOfFourAsync();
+
+        (await TitlesAsync(shelf, new() { Formats = [MediaFormat.Dvd, MediaFormat.Digital], Genres = ["Drama"], Decades = [1990, 2010], Sort = MovieSort.Title }))
+            .ShouldBe(["Arrival", "Heat"]);
+        (await TitlesAsync(shelf, new() { Formats = [MediaFormat.Dvd], Genres = ["Drama", "Horror"], Decades = [2010, 1970] })).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Format_counts_follow_several_genres_and_decades_but_not_the_formats_chosen()
+    {
+        await using var shelf = await ShelfOfFourAsync();
+
+        var list = await shelf.ListAsync(new() { Formats = [MediaFormat.Digital], Genres = ["Drama", "Horror"], Decades = [1990, 2010] });
+
+        list.Movies.Select(m => m.Title).ShouldBe(["Arrival"]);
+        list.Facets.MatchingCount.ShouldBe(2);
+        list.Facets.FormatCounts.ShouldBe(new Dictionary<MediaFormat, int>
+        {
+            [MediaFormat.Uhd4K] = 1,
+            [MediaFormat.BluRay] = 0,
+            [MediaFormat.Dvd] = 1,
+            [MediaFormat.Digital] = 1,
+        });
     }
 
     [Fact]
@@ -193,7 +241,7 @@ public sealed class MovieListTests
         await shelf.AddAsync(Film("Collateral", directors: ["Michael Mann"]), MediaFormat.Dvd);
         await shelf.AddAsync(Film("Alien"), MediaFormat.Dvd, MediaFormat.BluRay);
 
-        var list = await shelf.ListAsync(new() { Search = "mann", Format = MediaFormat.Uhd4K });
+        var list = await shelf.ListAsync(new() { Search = "mann", Formats = [MediaFormat.Uhd4K] });
 
         list.Movies.Select(m => m.Title).ShouldBe(["Heat"]);
         list.Facets.MatchingCount.ShouldBe(2);

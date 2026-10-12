@@ -33,9 +33,9 @@ internal static class MovieMapping
     public static MovieQuery ToDomain(this MovieListRequest request) => new()
     {
         Search = request.Search,
-        Format = request.Format?.ToDomain(),
-        Genre = string.IsNullOrWhiteSpace(request.Genre) ? null : request.Genre,
-        Decade = request.Decade,
+        Formats = [.. request.Formats.Select(f => f.ToDomain())],
+        Genres = [.. request.Genres.Where(g => !string.IsNullOrWhiteSpace(g))],
+        Decades = request.Decades,
         Director = string.IsNullOrWhiteSpace(request.Director) ? null : request.Director.Trim(),
         Actor = string.IsNullOrWhiteSpace(request.Actor) ? null : request.Actor.Trim(),
         Sort = request.Sort switch

@@ -235,6 +235,18 @@ Settled while building it:
 - **The vault is left as it is:** it keeps mirroring everything in the database, whatever is in use. Chosen over freezing a type's notes or removing them (which would lose anything typed into them).
 - **Not built:** a phone with a choice of its own; hiding a type's notes from the vault; stopping the movie folder being watched while Movies is off (the files found meanwhile wait until it is back on).
 
+## Movie filters (2026-10-11)
+"Update filter functionality" (issue 3). Movies only; the comics library keeps its chips. The issue asked for a Format dropdown on the PC; once the phone's panel was built the PC was given the same thing instead.
+- **A Filter button** takes the place of the format chips, on the PC and the phone, and of the PC's Genre and Decade dropdowns. The PC keeps its Sort dropdown; the phone still has no sort.
+- **It opens a panel** with a set of tick boxes per type of filter: Format, Genre, Decade. Genre and Decade are new on the phone (milestone 5 had left them out). On the phone the panel is a sheet from the bottom, over the covers, the screen dimmed behind it; on the PC it drops down from the button, like the "More" menu.
+- **Each format's box has its count**, as the chips had: the films it would show under the search, genres and decades applied. Genres and decades have no counts.
+- **Nothing is filtered until "Apply Filter".** Closing the panel forgets the ticks (the phone: its X or a tap outside; the PC: a click outside or Esc); it opens again on what is applied.
+- **Several ticks:** within one type a film has to match any of them, and the types narrow each other (4K UHD or Blu-ray, and Action, and from the 1980s or 1990s).
+- **What is applied shows as chips** to the right of the Filter button, on the line the format chips had. On the phone they go onto a second line rather than off the side of the screen. A chip's × takes that one off.
+- **Clear** in the panel takes every chip off at once, a "Directed by" or "With" chip from Stats included, without "Apply Filter". The search and the sort stay.
+- **Addresses:** `format`, `genre` and `decade` can each be in the address more than once (`movies?format=Uhd4K&format=BluRay`), in the library and in the PC's API.
+- **Not built:** counts beside genres and decades; filters for comics.
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

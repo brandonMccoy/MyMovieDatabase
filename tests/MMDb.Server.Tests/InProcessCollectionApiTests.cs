@@ -184,7 +184,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
         await Api.AddMovieAsync(Heat, Ct);
         await Api.AddMovieAsync(Heat with { Title = "Alien", Year = 1979, Directors = ["Ridley Scott"], Genres = ["Horror"], Formats = [new(MovieFormatKind.BluRay)] }, Ct);
 
-        var list = await Api.ListMoviesAsync(new() { Format = MovieFormatKind.Uhd4K, Sort = MovieSortOrder.Title }, Ct);
+        var list = await Api.ListMoviesAsync(new() { Formats = [MovieFormatKind.Uhd4K], Sort = MovieSortOrder.Title }, Ct);
 
         var heat = list.Movies.ShouldHaveSingleItem();
         heat.Title.ShouldBe("Heat");
@@ -204,7 +204,7 @@ public sealed class InProcessCollectionApiTests : IAsyncLifetime
     {
         await Api.AddMovieAsync(Heat, Ct);
 
-        (await Api.ListMoviesAsync(new() { Genre = "" }, Ct)).Movies.Count.ShouldBe(1);
+        (await Api.ListMoviesAsync(new() { Genres = [""] }, Ct)).Movies.Count.ShouldBe(1);
     }
 
     [Fact]

@@ -8,12 +8,14 @@ public sealed record MovieQuery
     /// <summary>Words that must each appear in the title, a director, a cast member or the year.</summary>
     public string? Search { get; init; }
 
-    public MediaFormat? Format { get; init; }
+    /// <summary>Only films owned on one of these; none means any format.</summary>
+    public IReadOnlyList<MediaFormat> Formats { get; init; } = [];
 
-    public string? Genre { get; init; }
+    /// <summary>Only films in one of these genres, ignoring case; none means any genre.</summary>
+    public IReadOnlyList<string> Genres { get; init; } = [];
 
-    /// <summary>First year of the decade, e.g. 1990.</summary>
-    public int? Decade { get; init; }
+    /// <summary>Only films from one of these decades, each its first year, e.g. 1990; none means any decade.</summary>
+    public IReadOnlyList<int> Decades { get; init; } = [];
 
     /// <summary>Only films this person directed: the whole name, ignoring case and accents.</summary>
     public string? Director { get; init; }

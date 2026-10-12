@@ -38,8 +38,8 @@ public static class ShelfEndpoints
         // A paired phone looks things up itself, away from home too, so it gets what the PC uses for that.
         paired.MapGet("/keys", (TmdbSettings tmdb, MetronSettings metron) => new LookupKeysResponse(Blank(tmdb.ApiKey), Blank(metron.Token)));
 
-        paired.MapGet("/movies", (string? search, MovieFormatKind? format, string? genre, int? decade, string? director, string? actor, MovieSortOrder? sort, ICollectionApi api, CancellationToken ct) =>
-            api.ListMoviesAsync(new() { Search = search, Format = format, Genre = genre, Decade = decade, Director = director, Actor = actor, Sort = sort ?? MovieSortOrder.RecentlyAdded }, ct));
+        paired.MapGet("/movies", (string? search, MovieFormatKind[]? format, string[]? genre, int[]? decade, string? director, string? actor, MovieSortOrder? sort, ICollectionApi api, CancellationToken ct) =>
+            api.ListMoviesAsync(new() { Search = search, Formats = format ?? [], Genres = genre ?? [], Decades = decade ?? [], Director = director, Actor = actor, Sort = sort ?? MovieSortOrder.RecentlyAdded }, ct));
         paired.MapGet("/movies/lookup", (string q, ICollectionApi api, CancellationToken ct) => api.LookupMovieAsync(q, ct));
         paired.MapGet("/movies/{id:guid}", async Task<Results<Ok<MovieDto>, NotFound>> (Guid id, ICollectionApi api, CancellationToken ct) =>
             await api.GetMovieAsync(id, ct) is { } movie ? TypedResults.Ok(movie) : TypedResults.NotFound());

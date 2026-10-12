@@ -8,7 +8,7 @@ public sealed record MovieList(IReadOnlyList<MovieListing> Movies, MovieFacets F
 
 /// <param name="FilmCount">Films in the whole collection.</param>
 /// <param name="DiscCount">Physical copies (every format except Digital) in the whole collection.</param>
-/// <param name="MatchingCount">Films matching the search, genre and decade, before the format filter ("All").</param>
+/// <param name="MatchingCount">Films matching the search, genre and decade, before the format filter ("Any").</param>
 /// <param name="FormatCounts">Per format, films matching the search, genre and decade that are owned on it.</param>
 /// <param name="Genres">Every genre in the collection, A–Z.</param>
 /// <param name="Decades">Every decade in the collection, newest first.</param>

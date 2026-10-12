@@ -7,6 +7,7 @@ using MMDb.Testing;
 using MMDb.UI.Layout;
 using MMDb.UI.Pages;
 using MMDb.UI.Scanning;
+using static MMDb.UI.Tests.FilterPanel;
 
 namespace MMDb.UI.Tests;
 
@@ -444,7 +445,7 @@ public sealed class PhonePairingScreenTests : PhoneTestContext
 public sealed class PhoneBrowseTests : PhoneTestContext
 {
     [Fact]
-    public async Task The_movie_library_is_a_search_format_chips_and_covers()
+    public async Task The_movie_library_is_a_search_a_filter_button_and_covers()
     {
         await SeedAsync(Heat);
         await SeedAsync(Film("Alien", 1979));
@@ -456,9 +457,161 @@ public sealed class PhoneBrowseTests : PhoneTestContext
         page.Find(".appbar .ttl").TextContent.ShouldBe("Movies");
         page.Find(".appbar a.right").GetAttribute("href").ShouldBe("phone");
         page.Find(".search input").GetAttribute("placeholder").ShouldBe("Do I own…?");
-        page.FindAll(".filters .chip").Select(c => Text(c)).ShouldBe(["All2", "4K UHD1", "Blu-ray0", "DVD2", "Digital0"]);
-        page.FindAll(".filters select, .section-head, a[href='movies/new']").ShouldBeEmpty();
-        page.FindAll(".card .t").Select(t => t.TextContent).ShouldBe(["Alien", "Heat"]);
+        Chips(page).ShouldBe(["Filter"]);
+        page.FindAll(".filters select, .section-head, a[href='movies/new'], .sheet").ShouldBeEmpty();
+        Titles(page).ShouldBe(["Alien", "Heat"]);
+    }
+
+    private static string[] Titles(IRenderedComponent<MovieLibrary> page) => [.. page.FindAll(".card .t").Select(t => t.TextContent)];
+
+    /// <summary>Heat (1995, crime drama, 4K and DVD), Alien (1979, horror, Blu-ray) and Arrival (2016, drama, digital), with the library open.</summary>
+    private async Task<IRenderedComponent<MovieLibrary>> LibraryOfThreeAsync(string address = "")
+    {
+        await SeedAsync(Heat);
+        await SeedAsync(Film("Alien", 1979, MovieFormatKind.BluRay) with { Genres = ["Horror"] });
+        await SeedAsync(Film("Arrival", 2016, MovieFormatKind.Digital) with { Genres = ["Drama"] });
+        Navigation.NavigateTo(address);
+        var page = Render<MovieLibrary>();
+        page.WaitForElement(".filters");
+        return page;
+    }
+
+    [Fact]
+    public async Task The_filter_button_opens_a_panel_with_a_tick_box_for_each_value_of_each_filter()
+    {
+        var page = await LibraryOfThreeAsync();
+
+        page.Find(".open-filters").Click();
+
+        var sheet = page.Find(".sheet");
+        sheet.GetAttribute("role").ShouldBe("dialog");
+        sheet.GetAttribute("aria-label").ShouldBe("Filters");
+        Boxes(page).ShouldBe([("Format", "4K UHD 1, Blu-ray 1, DVD 1, Digital 1"), ("Genre", "Crime, Drama, Horror"), ("Decade", "2010s, 1990s, 1970s")]);
+        page.FindAll(".filter-pop, .pop-shade").ShouldBeEmpty("the dropdown panel is the PC's");
+        sheet.QuerySelectorAll("input[type=checkbox]").Length.ShouldBe(10);
+        Ticked(page).ShouldBeEmpty();
+        sheet.QuerySelectorAll(".sheet-foot button").Select(b => b.TextContent).ShouldBe(["Clear", "Apply Filter"]);
+    }
+
+    [Fact]
+    public async Task Ticks_filter_nothing_until_apply_filter()
+    {
+        var page = await LibraryOfThreeAsync();
+        page.Find(".open-filters").Click();
+
+        Tick(page, "Blu-ray");
+        Tick(page, "Digital");
+
+        RelativeLocation.ShouldBe("");
+        Titles(page).Length.ShouldBe(3);
+        Chips(page).ShouldBe(["Filter"]);
+
+        Apply(page);
+
+        RelativeLocation.ShouldBe("?format=BluRay&format=Digital");
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Alien", "Arrival"], ignoreOrder: true));
+        page.FindAll(".sheet").ShouldBeEmpty();
+        Chips(page).ShouldBe(["Filter", "Blu-ray", "Digital"]);
+    }
+
+    [Fact]
+    public async Task Ticks_in_one_filter_widen_it_and_the_other_filters_narrow_it()
+    {
+        var page = await LibraryOfThreeAsync();
+        page.Find(".open-filters").Click();
+
+        Tick(page, "2010s");
+        Tick(page, "Drama");
+        Tick(page, "Digital");
+        Tick(page, "DVD");
+        Apply(page);
+
+        RelativeLocation.ShouldBe("?format=Dvd&format=Digital&genre=Drama&decade=2010");
+        page.WaitForAssertion(() => Titles(page).ShouldBe(["Arrival"]));
+        Chips(page).ShouldBe(["Filter", "DVD", "Digital", "Drama", "2010s"]);
+    }
+
+    [Fact]
+    public async Task The_panel_opens_on_what_is_applied_and_closing_it_changes_nothing()
+    {
+        var page = await LibraryOfThreeAsync("?format=Dvd&decade=1990");
+        page.Find(".open-filters").Click();
+        Ticked(page).ShouldBe(["DVD", "1990s"]);
+
+        Tick(page, "Blu-ray");
+        Tick(page, "DVD", on: false);
+        page.Find(".sheet button[aria-label='Close']").Click();
+
+        page.FindAll(".sheet").ShouldBeEmpty();
+        RelativeLocation.ShouldBe("?format=Dvd&decade=1990");
+        Titles(page).ShouldBe(["Heat"]);
+
+        page.Find(".open-filters").Click();
+        Ticked(page).ShouldBe(["DVD", "1990s"], "the ticks that weren't applied are forgotten");
+
+        page.Find(".sheet-shade").Click();
+
+        page.FindAll(".sheet, .sheet-shade").ShouldBeEmpty("a tap outside the panel closes it too");
+        RelativeLocation.ShouldBe("?format=Dvd&decade=1990");
+    }
+
+    [Fact]
+    public async Task Unticking_everything_and_applying_takes_the_filters_off()
+    {
+        var page = await LibraryOfThreeAsync("?format=Dvd&genre=Crime");
+        page.Find(".open-filters").Click();
+
+        Tick(page, "DVD", on: false);
+        Tick(page, "Crime", on: false);
+        Apply(page);
+
+        RelativeLocation.ShouldBe("");
+        page.WaitForAssertion(() => Titles(page).Length.ShouldBe(3));
+        Chips(page).ShouldBe(["Filter"]);
+    }
+
+    [Fact]
+    public async Task A_chip_takes_its_own_filter_off()
+    {
+        var page = await LibraryOfThreeAsync("?format=BluRay&format=Dvd&genre=Horror&decade=1970");
+        Chips(page).ShouldBe(["Filter", "Blu-ray", "DVD", "Horror", "1970s"]);
+        Titles(page).ShouldBe(["Alien"]);
+
+        var dvd = page.FindAll(".filters a.chip").Single(c => Text(c) == "DVD");
+        dvd.GetAttribute("aria-label").ShouldBe("DVD: clear");
+        Navigation.NavigateTo(dvd.GetAttribute("href")!);
+
+        RelativeLocation.ShouldBe("?format=BluRay&genre=Horror&decade=1970");
+        page.WaitForAssertion(() => Chips(page).ShouldBe(["Filter", "Blu-ray", "Horror", "1970s"]));
+
+        Navigation.NavigateTo(page.FindAll(".filters a.chip").Single(c => Text(c) == "1970s").GetAttribute("href")!);
+
+        RelativeLocation.ShouldBe("?format=BluRay&genre=Horror");
+        page.WaitForAssertion(() => Chips(page).ShouldBe(["Filter", "Blu-ray", "Horror"]));
+    }
+
+    [Fact]
+    public async Task Clear_in_the_panel_takes_every_filter_off_at_once()
+    {
+        var page = await LibraryOfThreeAsync("?format=Dvd&genre=Crime&decade=1990&director=Michael%20Mann");
+        Chips(page).ShouldBe(["Filter", "DVD", "Crime", "1990s", "Directed by Michael Mann"]);
+        page.Find(".open-filters").Click();
+
+        Clear(page);
+
+        RelativeLocation.ShouldBe("");
+        page.FindAll(".sheet").ShouldBeEmpty();
+        page.WaitForAssertion(() => Titles(page).Length.ShouldBe(3));
+        Chips(page).ShouldBe(["Filter"]);
+    }
+
+    [Fact]
+    public async Task Filters_that_match_nothing_keep_the_filter_row_to_change_them()
+    {
+        var page = await LibraryOfThreeAsync("?format=Digital&genre=Horror");
+
+        page.WaitForAssertion(() => page.Find(".empty h2").TextContent.ShouldBe("No films match"));
+        Chips(page).ShouldBe(["Filter", "Digital", "Horror"]);
     }
 
     [Fact]

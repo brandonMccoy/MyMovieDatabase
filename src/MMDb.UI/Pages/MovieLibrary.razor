@@ -1,6 +1,7 @@
 @page "/"
 @page "/movies"
 @implements IDisposable
+@using MMDb.UI.Movies
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
 @inject ShelfDevice Device
@@ -9,7 +10,7 @@
 
 @if (Device.IsPhone)
 {
-    @* As mocked for the phone: title, "Do I own…?" search, format chips, covers. Adding is done by scanning. *@
+    @* As mocked for the phone: title, "Do I own…?" search, filters, covers. Adding is done by scanning. *@
     <div class="appbar"><h1 class="ttl">Movies</h1><a class="right" href="phone" aria-label="This phone"><Icon Name="dots" /></a></div>
     <MMDb.UI.Phone.AwayLine />
     <div class="topbar">
@@ -65,54 +66,39 @@ else
     }
     else
     {
-        <div class="filters">
-            <button type="button" class="chip @On(SelectedFormat is null)" aria-pressed="@Aria.Bool(SelectedFormat is null)"
-                    @onclick='() => SetQuery("format", null)'>All<span class="n">@Count(_list.Facets.MatchingCount)</span></button>
-            @foreach (var format in Formats.All)
+        @* The button opens the panel; what it applied shows beside it, a chip each. On the phone they go onto a
+           second line rather than off the screen. *@
+        <div class="filters @(Device.IsPhone ? "wrap" : null)">
+            <div class="menu-wrap">
+                <button type="button" class="chip open-filters" aria-haspopup="dialog" aria-expanded="@Aria.Bool(_filtering)" @onclick="() => _filtering = true"><Icon Name="filter" />Filter</button>
+                @if (_filtering)
+                {
+                    <MovieFilterPanel Facets="_list.Facets" Chosen="_chosen" OnApply="Apply" OnClear="Clear" OnClose="() => _filtering = false" />
+                }
+            </div>
+            @foreach (var format in _chosen.Formats)
             {
-                <button type="button" class="chip @On(SelectedFormat == format)" aria-pressed="@Aria.Bool(SelectedFormat == format)"
-                        @onclick='() => SetQuery("format", format.ToString())'>@Formats.Name(format)<span class="n">@Count(_list.Facets.FormatCounts.GetValueOrDefault(format))</span></button>
+                <a class="chip on picked" @key="format" href="@Without("format", _chosen.Formats, format)" aria-label="@Formats.Name(format): clear">@Formats.Name(format)<Icon Name="x" /></a>
             }
-
-            @if (!string.IsNullOrWhiteSpace(Director))
+            @foreach (var genre in _chosen.Genres)
             {
-                @* Set by a bar on the Stats screen; the chip takes it off again. *@
-                <a class="chip on director" href="@Navigation.GetUriWithQueryParameter("director", (string?)null)" aria-label="Directed by @Director: clear">Directed by @Director<Icon Name="x" /></a>
+                <a class="chip on picked" @key="genre" href="@Without("genre", _chosen.Genres, genre)" aria-label="@genre: clear">@genre<Icon Name="x" /></a>
             }
-
-            @if (!string.IsNullOrWhiteSpace(Actor))
+            @foreach (var decade in _chosen.Decades)
             {
-                <a class="chip on actor" href="@Navigation.GetUriWithQueryParameter("actor", (string?)null)" aria-label="With @Actor: clear">With @Actor<Icon Name="x" /></a>
+                <a class="chip on picked" @key="decade" href="@Without("decade", _chosen.Decades, decade)" aria-label="@(decade)s: clear">@(decade)s<Icon Name="x" /></a>
             }
-
+            @PersonChips
             @if (!Device.IsPhone)
             {
-            <label class="select">Genre
-                <select value="@(Genre ?? "")" @onchange='e => SetQuery("genre", e.Value as string)'>
-                    <option value="">Any</option>
-                    @foreach (var genre in _list.Facets.Genres)
-                    {
-                        <option value="@genre">@genre</option>
-                    }
-                </select>
-            </label>
-            <label class="select">Decade
-                <select value="@(Decade?.ToString(CultureInfo.InvariantCulture) ?? "")" @onchange='e => SetQuery("decade", e.Value as string)'>
-                    <option value="">Any</option>
-                    @foreach (var decade in _list.Facets.Decades)
-                    {
-                        <option value="@decade">@(decade)s</option>
-                    }
-                </select>
-            </label>
-            <div class="spacer"></div>
-            <label class="select">Sort
-                <select value="@SelectedSort" @onchange='e => SetQuery("sort", e.Value as string == nameof(MovieSortOrder.RecentlyAdded) ? null : e.Value as string)'>
-                    <option value="@MovieSortOrder.RecentlyAdded">Recently added</option>
-                    <option value="@MovieSortOrder.Title">Title</option>
-                    <option value="@MovieSortOrder.Year">Year</option>
-                </select>
-            </label>
+                <div class="spacer"></div>
+                <label class="select">Sort
+                    <select value="@SelectedSort" @onchange='e => SetQuery("sort", e.Value as string == nameof(MovieSortOrder.RecentlyAdded) ? null : e.Value as string)'>
+                        <option value="@MovieSortOrder.RecentlyAdded">Recently added</option>
+                        <option value="@MovieSortOrder.Title">Title</option>
+                        <option value="@MovieSortOrder.Year">Year</option>
+                    </select>
+                </label>
             }
         </div>
 
@@ -154,14 +140,17 @@ else
 @code {
     private MovieListResponse? _list;
     private CancellationTokenSource? _loading;
+    private MovieFilterChoice _chosen = MovieFilterChoice.None;
+    private bool _filtering;
 
     [SupplyParameterFromQuery(Name = "q")] public string? Q { get; set; }
 
-    [SupplyParameterFromQuery(Name = "format")] public string? Format { get; set; }
+    // Each of these can be in the address more than once: the panel ticks several.
+    [SupplyParameterFromQuery(Name = "format")] public string[]? Format { get; set; }
 
-    [SupplyParameterFromQuery(Name = "genre")] public string? Genre { get; set; }
+    [SupplyParameterFromQuery(Name = "genre")] public string[]? Genre { get; set; }
 
-    [SupplyParameterFromQuery(Name = "decade")] public int? Decade { get; set; }
+    [SupplyParameterFromQuery(Name = "decade")] public int[]? Decade { get; set; }
 
     [SupplyParameterFromQuery(Name = "director")] public string? Director { get; set; }
 
@@ -169,7 +158,17 @@ else
 
     [SupplyParameterFromQuery(Name = "sort")] public string? Sort { get; set; }
 
-    private MovieFormatKind? SelectedFormat => Enum.TryParse<MovieFormatKind>(Format, ignoreCase: true, out var f) && Enum.IsDefined(f) ? f : null;
+    // Set by a bar on the Stats screen; the chip takes it off again.
+    private RenderFragment PersonChips => @<text>
+        @if (!string.IsNullOrWhiteSpace(Director))
+        {
+            <a class="chip on picked director" href="@Navigation.GetUriWithQueryParameter("director", (string?)null)" aria-label="Directed by @Director: clear">Directed by @Director<Icon Name="x" /></a>
+        }
+        @if (!string.IsNullOrWhiteSpace(Actor))
+        {
+            <a class="chip on picked actor" href="@Navigation.GetUriWithQueryParameter("actor", (string?)null)" aria-label="With @Actor: clear">With @Actor<Icon Name="x" /></a>
+        }
+    </text>;
 
     private MovieSortOrder SelectedSort => Enum.TryParse<MovieSortOrder>(Sort, ignoreCase: true, out var s) && Enum.IsDefined(s) ? s : MovieSortOrder.RecentlyAdded;
 
@@ -182,7 +181,17 @@ else
         StateHasChanged();
     });
 
-    protected override Task OnParametersSetAsync() => LoadAsync();
+    protected override Task OnParametersSetAsync()
+    {
+        _chosen = new(
+            [.. (Format ?? []).Select(FormatOf).OfType<MovieFormatKind>().Distinct()],
+            [.. (Genre ?? []).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase)],
+            [.. (Decade ?? []).Distinct()]);
+        return LoadAsync();
+    }
+
+    private static MovieFormatKind? FormatOf(string text) =>
+        Enum.TryParse<MovieFormatKind>(text, ignoreCase: true, out var format) && Enum.IsDefined(format) ? format : null;
 
     private async Task LoadAsync()
     {
@@ -192,7 +201,7 @@ else
         _loading = new CancellationTokenSource();
         var token = _loading.Token;
 
-        var request = new MovieListRequest { Search = Q, Format = SelectedFormat, Genre = Genre, Decade = Decade, Director = Director, Actor = Actor, Sort = SelectedSort };
+        var request = new MovieListRequest { Search = Q, Formats = _chosen.Formats, Genres = _chosen.Genres, Decades = _chosen.Decades, Director = Director, Actor = Actor, Sort = SelectedSort };
         try
         {
             var list = await Api.ListMoviesAsync(request, token);
@@ -211,7 +220,36 @@ else
     private void SetQuery(string name, string? value, bool replace = false) =>
         Navigation.NavigateTo(Navigation.GetUriWithQueryParameter(name, string.IsNullOrWhiteSpace(value) ? null : value), replace: replace);
 
-    private static string On(bool on) => on ? "on" : "";
+    private void Apply(MovieFilterChoice choice)
+    {
+        _filtering = false;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["format"] = Values(choice.Formats),
+            ["genre"] = Values(choice.Genres),
+            ["decade"] = Values(choice.Decades),
+        }));
+    }
+
+    // Everything in the filter row comes off, the director or actor a Stats bar set as well.
+    private void Clear()
+    {
+        _filtering = false;
+        Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["format"] = null, ["genre"] = null, ["decade"] = null, ["director"] = null, ["actor"] = null,
+        }));
+    }
+
+    /// <summary>This address with one value of a filter taken off.</summary>
+    private string Without<T>(string name, IReadOnlyList<T> chosen, T value) =>
+        Navigation.GetUriWithQueryParameters(new Dictionary<string, object?> { [name] = Values(chosen.Where(v => !Equals(v, value))) });
+
+    private static string[]? Values<T>(IEnumerable<T> values)
+    {
+        string[] texts = [.. values.Select(v => Convert.ToString(v, CultureInfo.InvariantCulture)!)];
+        return texts.Length == 0 ? null : texts;
+    }
 
     private static string Count(int n) => n.ToString("N0", CultureInfo.InvariantCulture);
 

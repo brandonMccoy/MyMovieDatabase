@@ -37,8 +37,8 @@ internal static class MovieFilter
 
         var matching = all
             .Where(m => terms.All(term => Matches(m, term) || crediting[term].Contains(m.Id)))
-            .Where(m => query.Genre is null || m.Genres.Contains(query.Genre, StringComparer.OrdinalIgnoreCase))
-            .Where(m => query.Decade is null || DecadeOf(m) == query.Decade)
+            .Where(m => query.Genres.Count == 0 || m.Genres.Any(g => query.Genres.Contains(g, StringComparer.OrdinalIgnoreCase)))
+            .Where(m => query.Decades.Count == 0 || (DecadeOf(m) is { } decade && query.Decades.Contains(decade)))
             .Where(m => query.Director is null || m.Directors.Any(d => SameName(d, query.Director)))
             .Where(m => query.Actor is null || starring?.Contains(m.Id) == true)
             .ToList();
@@ -51,7 +51,7 @@ internal static class MovieFilter
             Genres: [.. GenreOptions(all)],
             Decades: [.. all.Select(DecadeOf).OfType<int>().Distinct().OrderDescending()]);
 
-        var shown = matching.Where(m => query.Format is not { } format || m.Owns(format));
+        var shown = matching.Where(m => query.Formats.Count == 0 || query.Formats.Any(m.Owns));
         return new MovieList([.. Sort(shown, query.Sort)], facets);
     }
 
