@@ -223,6 +223,18 @@ Settled while building it:
 - **Nothing is deleted:** turning it off leaves the folder and every note in it, and Shelf remembers the folder. Turning it back on brings the same folder up to date with what changed meanwhile.
 - **On without a folder:** the "Vault folder" row offers "Choose folder" and the sidebar says "Vault not set up", as before.
 
+## Types in use (2026-10-11)
+"Type in use selection" (issue 6): Shelf can be told which types of collection it tracks.
+- **Where:** Settings starts with a **Collections** section, one switch per type (Movies, Comics; more types later get a row each). Switches rather than the checkboxes the issue named, to match "Use a vault" and "Watch for new files". All on by default.
+- **Off means no trace:** no sidebar link or count, no tab on the phone, its wishlist items, Stats tiles and charts, its "Digital movies" and Online databases rows in Settings, and no link over to it from the other type's Add screen. Its addresses open the first type in use; with Movies off Shelf opens on Comics.
+- **Nothing is deleted:** the films, comics and wishlist items of a type that is off stay in the database and come back, unchanged, when it is turned on again.
+- **At least one:** the last type in use can't be turned off. Its switch is greyed with "Shelf shows at least one type" beside it.
+- **With one type in use:** the wishlist has no Movies/Comics tabs, Stats' Wishlist tile has no "N movie · N comic" line, the scan screen has no Movie/Comic/Auto switch (every barcode is that type's), and the search box of Stats and Settings searches that type.
+- **The phone follows the PC:** it has no switches of its own; it learns the choice with each sync and keeps it for when the PC is away. Its bottom bar has four places then: the type, Scan, Wishlist, Stats.
+- **"Do I own…?" answers for the page it is typed on:** on Movies it lists films owned and wanted, on Comics comics owned and wanted. This replaces "One search" (milestone 7), which listed both together; the "Movies" and "Comics" headings over the groups went with it, the page already saying which it is.
+- **The vault is left as it is:** it keeps mirroring everything in the database, whatever is in use. Chosen over freezing a type's notes or removing them (which would lose anything typed into them).
+- **Not built:** a phone with a choice of its own; hiding a type's notes from the vault; stopping the movie folder being watched while Movies is off (the files found meanwhile wait until it is back on).
+
 ## Open
 - ~~Add-on scan spike~~: done on the phone, 2026-10-10 (see ARCHITECTURE.md, *Barcode scanning*). In Auto and Comic mode a barcode without an add-on is reported 0.6 s later, in case a later frame shows one.
 - mDNS discovery: still to do, now that there is a real phone.

@@ -1,11 +1,13 @@
 @* Settings on the PC: the keys for the online databases. Each is checked with its service when Settings opens and when it is saved. *@
 @implements IDisposable
+@using MMDb.Contracts.Scans
 @inject IKeysApi Keys
+@inject ITypesApi Types
 
 <section class="set" aria-labelledby="online-heading">
     <h3 id="online-heading">Online databases</h3>
     <div class="desc">Used to fill in details when you scan or search. Keys are kept on this PC and on the phones you pair.</div>
-    @foreach (var key in Keys.Keys)
+    @foreach (var key in Keys.Keys.Where(key => Types.InUse.Uses(Abouts[key.Service].Kind)))
     {
         var about = Abouts[key.Service];
         var editing = _editing == key.Service;
@@ -71,9 +73,9 @@
 @code {
     private static readonly Dictionary<OnlineService, About> Abouts = new()
     {
-        [OnlineService.Tmdb] = new("TMDB", "movies, trailers", "key",
+        [OnlineService.Tmdb] = new(ProductKind.Movie, "TMDB", "movies, trailers", "key",
             "From themoviedb.org, under Settings → API. The API Read Access Token and the older API Key both work."),
-        [OnlineService.Metron] = new("Metron", "comics", "token", "Make an API token in your account on metron.cloud."),
+        [OnlineService.Metron] = new(ProductKind.Comic, "Metron", "comics", "token", "Make an API token in your account on metron.cloud."),
     };
 
     private OnlineService? _editing;
@@ -88,6 +90,7 @@
     protected override void OnInitialized()
     {
         Keys.Changed += OnChanged;
+        Types.Changed += OnChanged;
         _ = Keys.CheckAsync();
     }
 
@@ -173,10 +176,15 @@
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Keys.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Keys.Changed -= OnChanged;
+        Types.Changed -= OnChanged;
+    }
 
     /// <param name="For">What Shelf looks up there.</param>
     /// <param name="Word">What the service calls its key.</param>
     /// <param name="Hint">Where to get one.</param>
-    private sealed record About(string Name, string For, string Word, string Hint);
+    /// <param name="Kind">The type of collection it is used for: its row shows only while that type is in use.</param>
+    private sealed record About(ProductKind Kind, string Name, string For, string Word, string Hint);
 }

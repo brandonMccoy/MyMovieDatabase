@@ -6,7 +6,7 @@ A collection tracker for **movies and comic books**: the discs and comics on you
 
 ## What it does
 
-- **Movies and comics, kept apart.** Films on DVD, Blu-ray, 4K UHD and digital (one film, several formats); comics as single issues, trades, hardcovers and omnibuses.
+- **Movies and comics, kept apart.** Films on DVD, Blu-ray, 4K UHD and digital (one film, several formats); comics as single issues, trades, hardcovers and omnibuses. Only collect one of them? **Settings → Collections** turns the other off: it disappears from the PC and the phone, and nothing saved for it is deleted.
 - **Add by barcode or by name.** Details, cast, crew, covers and trailers come from online databases, and you can edit every field before anything is saved.
 - **Scan with your phone.** Scan several barcodes in a row and review them one by one. Comic barcodes are read with their add-on digits, so the right issue is found.
 - **Wishlist.** Scanning something you want tells you so on the spot. Each item has trailer and Amazon search buttons, and **Got it** moves it into the collection.
@@ -69,7 +69,7 @@ The first time it starts, Windows asks whether Shelf may accept connections; all
 
 ### 3. Add your keys
 
-Open **Settings → Online databases**, press **Add key** for TMDB (its API Read Access Token or the older API Key) and **Add token** for Metron, and paste each one in. Shelf checks a key with its service before keeping it, and again each time Settings opens. **Change** replaces or removes one, and a paired phone picks the change up the next time it syncs.
+Open **Settings → Online databases**, press **Add key** for TMDB (its API Read Access Token or the older API Key) and **Add token** for Metron, and paste each one in. Only the databases of the types you have turned on are listed. Shelf checks a key with its service before keeping it, and again each time Settings opens. **Change** replaces or removes one, and a paired phone picks the change up the next time it syncs.
 
 The keys are kept in `%LOCALAPPDATA%\Shelf\keys.dat`, encrypted by Windows for your account. They never go into the repository, the database or the phone app's package.
 

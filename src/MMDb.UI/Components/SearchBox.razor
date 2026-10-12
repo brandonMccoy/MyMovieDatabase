@@ -1,9 +1,12 @@
+@implements IDisposable
 @inject NavigationManager Navigation
+@inject ITypesApi Types
 
 @* The topbar search. On a library it filters live; elsewhere, Enter opens the library with the search. *@
 <label class="search">
     <Icon Name="search" />
-    <input type="search" data-search placeholder="@Placeholder" aria-label="@Label"
+    <input type="search" data-search placeholder="@(Placeholder ?? (OfComics ? "Search series, issues, creators…" : "Search titles, directors, cast…"))"
+           aria-label="@(Label ?? (OfComics ? "Search comics" : "Search movies"))"
            value="@Value" @oninput="OnInput" @onkeydown="OnKeyDown" />
     <kbd>Ctrl K</kbd>
 </label>
@@ -13,15 +16,27 @@
 
     [Parameter] public string? Value { get; set; }
 
-    [Parameter] public string Placeholder { get; set; } = "Search titles, directors, cast…";
+    /// <summary>Left out, it is the library's own.</summary>
+    [Parameter] public string? Placeholder { get; set; }
 
-    [Parameter] public string Label { get; set; } = "Search movies";
+    /// <summary>Left out, it is the library's own.</summary>
+    [Parameter] public string? Label { get; set; }
 
-    /// <summary>The library Enter opens: <c>""</c> for movies, <c>"comics"</c>.</summary>
-    [Parameter] public string Library { get; set; } = "";
+    /// <summary>The library Enter opens: <c>""</c> for movies, <c>"comics"</c>. Left out, it is the first type in use.</summary>
+    [Parameter] public string? Library { get; set; }
+
+    private string Opens => Library ?? TypeRoutes.Home(Types.InUse);
+
+    private bool OfComics => Opens.Length > 0;
 
     /// <summary>Called as the user types. Without it, Enter navigates to the library.</summary>
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    protected override void OnInitialized() => Types.Changed += OnTypesChanged;
+
+    private void OnTypesChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Types.Changed -= OnTypesChanged;
 
     private async Task OnInput(ChangeEventArgs e)
     {
@@ -36,7 +51,7 @@
     {
         if (e.Key == "Enter" && !ValueChanged.HasDelegate && !string.IsNullOrWhiteSpace(_typed))
         {
-            Navigation.NavigateTo(Library + "?q=" + Uri.EscapeDataString(_typed.Trim()));
+            Navigation.NavigateTo(Opens + "?q=" + Uri.EscapeDataString(_typed.Trim()));
         }
     }
 }

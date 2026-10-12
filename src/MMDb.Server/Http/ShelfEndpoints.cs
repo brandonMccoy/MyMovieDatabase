@@ -85,8 +85,9 @@ public static class ShelfEndpoints
             await api.LookupWishlistComicAsync(id, ct) is { } found ? TypedResults.Ok(found) : TypedResults.NotFound());
 
         // A phone keeps its own copy of the collection: it compares keys and stamps, then asks for the rows it lacks.
-        paired.MapGet("/sync", async (CollectionCopy copy, CancellationToken ct) =>
-            new SyncManifest(await copy.SchemaAsync(ct), [.. (await copy.ListAsync(ct)).Select(t => new SyncTable(t.Name, t.Stamps))]));
+        // It shows the types this PC's Settings have in use.
+        paired.MapGet("/sync", async (CollectionCopy copy, ITypesApi types, CancellationToken ct) =>
+            new SyncManifest(await copy.SchemaAsync(ct), [.. (await copy.ListAsync(ct)).Select(t => new SyncTable(t.Name, t.Stamps))], types.InUse));
         paired.MapPost("/sync/rows", async Task<Results<Ok<SyncRowsResponse>, BadRequest>> (SyncRowsRequest request, CollectionCopy copy, CancellationToken ct) =>
             CollectionCopy.Tables.Contains(request.Table)
                 ? TypedResults.Ok(new SyncRowsResponse([.. (await copy.ReadAsync(request.Table, request.Keys, ct)).Select(r => new SyncRow(r.Key, r.Values, r.Parts))]))

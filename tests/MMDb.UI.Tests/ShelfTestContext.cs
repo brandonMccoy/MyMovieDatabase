@@ -63,6 +63,11 @@ public abstract class ShelfTestContext : BunitContext, IAsyncLifetime
 
     protected ICollectionApi Api => Services.GetRequiredService<ICollectionApi>();
 
+    protected ITypesApi Types => Services.GetRequiredService<ITypesApi>();
+
+    /// <summary>Settings → Collections as left earlier: only these types are in use.</summary>
+    protected Task UseAsync(bool movies = false, bool comics = false) => Types.SetAsync(new(movies, comics), Ct);
+
     protected NavigationManager Navigation => Services.GetRequiredService<NavigationManager>();
 
     protected static CancellationToken Ct => Xunit.TestContext.Current.CancellationToken;

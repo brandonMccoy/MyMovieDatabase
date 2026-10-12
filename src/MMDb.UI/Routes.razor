@@ -1,8 +1,35 @@
+@implements IDisposable
 @inject ShelfDevice Device
+@inject ITypesApi Types
+@inject NavigationManager Navigation
 
-<Router AppAssembly="typeof(Routes).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+<Router AppAssembly="typeof(Routes).Assembly" NotFoundPage="typeof(Pages.NotFound)" OnNavigateAsync="Guard">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="@(Device.IsPhone ? typeof(PhoneLayout) : typeof(MainLayout))" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>
+
+@code {
+    protected override void OnInitialized() => Types.Changed += OnTypesChanged;
+
+    // A type that isn't in use has no screens: its addresses (the first screen, "/", is Movies) open the first type in use.
+    private void Guard(NavigationContext context) => Leave(context.Path);
+
+    // A type was turned off (on the phone: its PC said so) while one of its screens was open.
+    private void OnTypesChanged() => InvokeAsync(() =>
+    {
+        Leave(Navigation.ToBaseRelativePath(Navigation.Uri));
+        StateHasChanged();
+    });
+
+    private void Leave(string address)
+    {
+        if (TypeRoutes.Instead(address, Types.InUse) is { } instead)
+        {
+            Navigation.NavigateTo(instead, replace: true);
+        }
+    }
+
+    public void Dispose() => Types.Changed -= OnTypesChanged;
+}

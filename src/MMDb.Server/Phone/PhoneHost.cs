@@ -52,6 +52,7 @@ public sealed class PhoneHost(IServiceProvider shelf) : IAsyncDisposable
         builder.Logging.ClearProviders();
         builder.Services
             .AddSingleton(shelf.GetRequiredService<ICollectionApi>())
+            .AddSingleton(shelf.GetRequiredService<ITypesApi>())
             .AddSingleton(shelf.GetRequiredService<DeviceGate>())
             .AddSingleton(shelf.GetRequiredService<PhoneServer>())
             .AddSingleton(shelf.GetRequiredService<ICoverStore>())

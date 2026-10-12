@@ -85,6 +85,19 @@ public sealed class ShelfApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_manifest_tells_a_phone_which_types_the_pc_has_in_use()
+    {
+        await PairAsync();
+        using var everything = await GetAsync("/api/v1/sync");
+        (await JsonAsync(everything)).GetProperty("types").GetRawText().ShouldBe("""{"movies":true,"comics":true}""");
+
+        await _pc.Types.SetAsync(new(Movies: true, Comics: false), Ct);
+
+        using var response = await GetAsync("/api/v1/sync");
+        (await JsonAsync(response)).GetProperty("types").GetRawText().ShouldBe("""{"movies":true,"comics":false}""");
+    }
+
+    [Fact]
     public async Task A_key_the_pc_doesnt_have_is_left_out()
     {
         _pc.HasKeys(tmdb: "tmdb-key", metron: " ");

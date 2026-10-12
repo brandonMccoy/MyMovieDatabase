@@ -4,12 +4,13 @@
 @using MMDb.UI.Phone
 @inject IServiceProvider Services
 @inject TimeProvider Clock
+@inject ITypesApi Types
 
 <PageTitle>This phone · Shelf</PageTitle>
 
 @* Phone only: which PC this phone is paired with, how fresh its copy of the collection is, and forgetting the PC. *@
 <div class="topbar">
-    <a class="btn ghost back" href=""><Icon Name="back" />Movies</a>
+    <a class="btn ghost back" href="@TypeRoutes.Home(Types.InUse)"><Icon Name="back" />@TypeRoutes.HomeName(Types.InUse)</a>
 </div>
 <div class="content">
     <div class="section-head"><h1>This phone</h1></div>

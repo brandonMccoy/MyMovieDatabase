@@ -92,6 +92,9 @@ public static class MauiProgram
         // Before anything is looked up.
         app.Services.GetRequiredService<IKeysApi>().Load();
 
+        // Before the first screen, so a type that isn't in use never shows.
+        Task.Run(() => app.Services.GetRequiredService<ITypesApi>().LoadAsync()).GetAwaiter().GetResult();
+
         // Catch the vault up in the background; how it went shows in the sidebar.
         _ = Task.Run(() => app.Services.GetRequiredService<IVaultApi>().StartAsync());
 

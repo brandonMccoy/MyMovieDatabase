@@ -9,7 +9,7 @@ public static class LocalServices
 {
     /// <summary>
     /// A collection kept on this device: use cases, the SQLite database, covers, the online databases, and
-    /// in-process <see cref="ICollectionApi"/> and <see cref="IStatsApi"/> for the UI. The PC's is the one true
+    /// in-process <see cref="ICollectionApi"/>, <see cref="IStatsApi"/> and <see cref="ITypesApi"/> for the UI. The PC's is the one true
     /// copy; a phone's is its own copy of it.
     /// </summary>
     /// <param name="coverBaseUri">Where the UI loads stored covers from; see <see cref="CoverLinks"/>.</param>
@@ -19,5 +19,6 @@ public static class LocalServices
             .AddShelfInfrastructure(settings)
             .AddSingleton(new CoverLinks(coverBaseUri))
             .AddSingleton<InProcessCollectionApi>()
-            .AddSingleton<IStatsApi, InProcessStatsApi>();
+            .AddSingleton<IStatsApi, InProcessStatsApi>()
+            .AddSingleton<ITypesApi, InProcessTypesApi>();
 }

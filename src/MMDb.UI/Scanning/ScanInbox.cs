@@ -79,7 +79,7 @@ public sealed class ScanItem
 /// The phone's scan queue: every barcode scanned is looked up in the background and waits here to be reviewed.
 /// With a <see cref="IScanQueueStore"/> (the phone has one) it is still there after the app was closed.
 /// </summary>
-public sealed class ScanInbox(ICollectionApi api, IScanQueueStore? store = null)
+public sealed class ScanInbox(ICollectionApi api, ITypesApi types, IScanQueueStore? store = null)
 {
     private readonly List<ScanItem> _items = [];
     private Task? _restoring;
@@ -87,6 +87,17 @@ public sealed class ScanInbox(ICollectionApi api, IScanQueueStore? store = null)
     public event Action? Changed;
 
     public ScanMode Mode { get; set; }
+
+    /// <summary>
+    /// What the next barcode is looked up as: the one type in use, else what <see cref="Mode"/> says.
+    /// <see langword="null"/> leaves it to the code.
+    /// </summary>
+    public ProductKind? AskedAs => types.InUse.Only ?? Mode switch
+    {
+        ScanMode.Movie => ProductKind.Movie,
+        ScanMode.Comic => ProductKind.Comic,
+        _ => null,
+    };
 
     /// <summary>Oldest scan first.</summary>
     public IReadOnlyList<ScanItem> Items => _items;
@@ -106,12 +117,7 @@ public sealed class ScanInbox(ICollectionApi api, IScanQueueStore? store = null)
             return (waiting, false);
         }
 
-        var item = new ScanItem(digits, Mode switch
-        {
-            ScanMode.Movie => ProductKind.Movie,
-            ScanMode.Comic => ProductKind.Comic,
-            _ => null,
-        });
+        var item = new ScanItem(digits, AskedAs);
         _items.Add(item);
         item.Lookup = LookUpAsync(item);
         Keep();

@@ -221,11 +221,21 @@ The phone has its own SQLite database (`shelf.db` in the app's files, never back
 - **Syncing** (`ShelfSync`, one at a time): when the app opens or comes back to the front, after every save, "Sync now", and when the phone's network changes (`Connectivity.ConnectivityChanged` → `NetworkChangedAsync`, which tries after 1, 5 and 15 seconds until the PC answers: Android reports Wi-Fi a little before the PC can be reached over it).
   1. `GET /keys`: finds out whether the PC is there before anything waits on it.
   2. **Push:** each change in the outbox is asked of the PC through `HttpCollectionApi`, in order. Saved, already owned, or (for a wish) not there any more all count as done; anything else is noted for the user ("1 change couldn't be sent: …") and dropped. A PC that stops answering leaves the rest in the outbox.
-  3. **Pull:** `GET /sync` lists every row's key and stamp (`Version` and cover name; for a comic series when it was fetched) for Movies, Comics, ComicSeries, WishlistMovies and WishlistComics. The phone removes the rows the PC no longer has and asks for the ones whose stamp differs (`POST /sync/rows`, 100 at a time), which arrive as SQLite holds them and are written over its own (`CollectionCopy`; a film's formats travel with it). Rows the phone made itself are replaced by the PC's this way.
+  3. **Pull:** `GET /sync` names the types the PC has in use (see *Types in use*) and lists every row's key and stamp (`Version` and cover name; for a comic series when it was fetched) for Movies, Comics, ComicSeries, WishlistMovies and WishlistComics. The phone removes the rows the PC no longer has and asks for the ones whose stamp differs (`POST /sync/rows`, 100 at a time), which arrive as SQLite holds them and are written over its own (`CollectionCopy`; a film's formats travel with it). Rows the phone made itself are replaced by the PC's this way.
   4. **Covers**, in the background: the phone fetches every cover the copy shows that it doesn't have (`covers/{name}?size=medium`, about 342 px wide, scaled by the PC with SkiaSharp in `CoverSizes`), and clears out files no row shows any more once they are an hour old.
 - **Nothing else writes while it matters:** saves and the writes of a pull take turns. After a push the copy is held until the pull is through; without one (the first, long pull) saves go on between requests, and a pull that finds something newly saved stops and starts over with a push.
 - **Same schema only:** rows travel as they are, so the manifest names the PC's newest migration; if the phone's differs nothing is written and the phone says to update both.
 - **What the PC doesn't get:** the phone's lookup cache and scan queue.
+
+## Types in use
+
+Movies and comics can each be turned off in Settings → Collections. A type that is off shows nowhere; its rows stay in the database, still travel to phones and still go to the vault, so turning it back on needs no catching up.
+
+- **Kept:** `types.movies` / `types.comics` in the `Settings` table, written only as `off` (no row means in use). `TypeChoice` (Application) reads and saves them and turns down a choice of no type at all; `ITypesApi` (`InProcessTypesApi` in `MMDb.Local`, so both devices have it) holds the choice in memory for the screens, read once at startup before the first screen.
+- **The phone follows its PC:** the choice comes in the manifest of every sync (`SyncManifest.Types`), is saved in the phone's own `Settings` table, and so still holds away from home. A PC that doesn't send it (an older Shelf) changes nothing.
+- **Hiding is the UI's job:** the screens ask `ITypesApi.InUse`. `TypeRoutes` knows which address belongs to which type; `Routes` sends an address of a type that is off (the first screen `/` is Movies) to the first type in use, also when the type goes off while its screen is open.
+- **Not read when off:** the sidebar counts and Stats (`StatsSource.ReadAsync(types)`) skip the queries of a type that is off.
+- **With one type in use** the scanner looks every barcode up as that type (`ScanInbox.AskedAs`), whatever the code looks like.
 
 ## Obsidian vault (one-way mirror)
 
@@ -259,7 +269,7 @@ The phone has its own SQLite database (`shelf.db` in the app's files, never back
 
 - **Time:** `TimeProvider` everywhere (testable).
 - **Logging:** `Microsoft.Extensions.Logging` + rolling file on the PC.
-- **Config:** API keys and the vault path are set in the app's Settings screen (keys in `keys.dat`, the path in the database); phones are served on port 5243.
+- **Config:** API keys, the vault path and the types in use are set in the app's Settings screen (keys in `keys.dat`, the rest in the database); phones are served on port 5243.
 - **Backups:** the database file is copied on startup, keeping the last N copies.
 - **Static analysis:** nullable enabled, analyzers on, `TreatWarningsAsErrors` in `Directory.Build.props`.
 

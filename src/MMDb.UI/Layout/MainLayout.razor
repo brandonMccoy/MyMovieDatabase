@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject ShelfCounts Counts
+@inject ITypesApi Types
 @inject IServiceProvider Services
 
 <IconSprite />
@@ -10,12 +11,18 @@
         <div>
             <div class="nav-label">Collection</div>
             <nav class="nav">
-                <MoviesNavLink href="" Match="NavLinkMatch.Prefix">
-                    <Icon Name="film" />Movies<span class="count">@Counts.Movies?.ToString("N0", CultureInfo.InvariantCulture)</span>
-                </MoviesNavLink>
-                <NavLink href="comics" Match="NavLinkMatch.Prefix">
-                    <Icon Name="book" />Comics<span class="count">@Counts.Comics?.ToString("N0", CultureInfo.InvariantCulture)</span>
-                </NavLink>
+                @if (Types.InUse.Movies)
+                {
+                    <MoviesNavLink href="" Match="NavLinkMatch.Prefix">
+                        <Icon Name="film" />Movies<span class="count">@Counts.Movies?.ToString("N0", CultureInfo.InvariantCulture)</span>
+                    </MoviesNavLink>
+                }
+                @if (Types.InUse.Comics)
+                {
+                    <NavLink href="comics" Match="NavLinkMatch.Prefix">
+                        <Icon Name="book" />Comics<span class="count">@Counts.Comics?.ToString("N0", CultureInfo.InvariantCulture)</span>
+                    </NavLink>
+                }
                 <NavLink href="wishlist" Match="NavLinkMatch.Prefix">
                     <Icon Name="heart" />Wishlist<span class="count">@Counts.Wishlist?.ToString("N0", CultureInfo.InvariantCulture)</span>
                 </NavLink>
@@ -47,7 +54,7 @@
                     }
                 </div>
             }
-            @if (_digital?.Folder.Files.Count is > 0 and var waiting)
+            @if (Types.InUse.Movies && _digital?.Folder.Files.Count is > 0 and var waiting)
             {
                 <a class="vault-line new-files" href="import">
                     <Icon Name="film" Class="i12" />
@@ -82,6 +89,7 @@
             _vault.StatusChanged += OnChanged;
         }
 
+        Types.Changed += OnChanged;
         Counts.Changed += OnChanged;
         await Counts.RefreshAsync();
     }
@@ -90,6 +98,7 @@
 
     public void Dispose()
     {
+        Types.Changed -= OnChanged;
         Counts.Changed -= OnChanged;
         if (_digital is not null)
         {

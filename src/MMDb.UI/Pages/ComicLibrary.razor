@@ -26,7 +26,7 @@ else
 @if (Device.IsPhone && !string.IsNullOrWhiteSpace(Q) && Shelf is null)
 {
     @* Picking a series there comes back here with a shelf chosen, which shows the issues themselves. *@
-    <MMDb.UI.Phone.OwnSearch Query="@Q" LookUpHref="comics/new" />
+    <MMDb.UI.Phone.OwnSearch Query="@Q" Kind="MMDb.Contracts.Scans.ProductKind.Comic" />
 }
 else
 {

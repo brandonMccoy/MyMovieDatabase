@@ -27,7 +27,7 @@ else
 
 @if (Device.IsPhone && !string.IsNullOrWhiteSpace(Q))
 {
-    <MMDb.UI.Phone.OwnSearch Query="@Q" LookUpHref="movies/new" />
+    <MMDb.UI.Phone.OwnSearch Query="@Q" Kind="MMDb.Contracts.Scans.ProductKind.Movie" />
 }
 else
 {

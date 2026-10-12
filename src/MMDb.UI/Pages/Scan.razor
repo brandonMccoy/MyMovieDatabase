@@ -6,17 +6,22 @@
 @inject NavigationManager Navigation
 @inject TimeProvider Clock
 @inject IServiceProvider Services
+@inject ITypesApi Types
 
 <PageTitle>Scan · Shelf</PageTitle>
 
 @* The camera shows behind this page. Every barcode read joins the queue and is looked up by the PC meanwhile. *@
 <div class="camera">
-    <div class="type-switch" role="group" aria-label="What you are scanning">
-        @foreach (var mode in new[] { ScanMode.Movie, ScanMode.Comic, ScanMode.Auto })
-        {
-            <button type="button" class="@(Queue.Mode == mode ? "on" : null)" aria-pressed="@Aria.Bool(Queue.Mode == mode)" @onclick="() => Use(mode)">@mode</button>
-        }
-    </div>
+    @* With one type in use every barcode is that type's: nothing to choose. *@
+    @if (Types.InUse.Only is null)
+    {
+        <div class="type-switch" role="group" aria-label="What you are scanning">
+            @foreach (var mode in new[] { ScanMode.Movie, ScanMode.Comic, ScanMode.Auto })
+            {
+                <button type="button" class="@(Queue.Mode == mode ? "on" : null)" aria-pressed="@Aria.Bool(Queue.Mode == mode)" @onclick="() => Use(mode)">@mode</button>
+            }
+        </div>
+    }
 
     @if (_last is not null)
     {
@@ -44,7 +49,7 @@
     }
 
     <div class="cam-bar">
-        <a class="round" href="" aria-label="Close"><Icon Name="x" /></a>
+        <a class="round" href="@TypeRoutes.Home(Types.InUse)" aria-label="Close"><Icon Name="x" /></a>
         @if (Queue.Items.Count > 0)
         {
             <a class="queue" href="scan/review"><b>@Queue.Items.Count</b> scanned · review</a>
@@ -64,7 +69,7 @@
     private string? _lastCode;
     private DateTimeOffset _lastCodeAt;
 
-    private string ManualHref => Queue.Mode == ScanMode.Comic ? "comics/new" : "movies/new";
+    private string ManualHref => Queue.AskedAs == ProductKind.Comic ? "comics/new" : "movies/new";
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,7 +86,7 @@
     private void Use(ScanMode mode)
     {
         Queue.Mode = mode;
-        _scanner?.ReadAddOns = mode != ScanMode.Movie;
+        _scanner?.ReadAddOns = Queue.AskedAs != ProductKind.Movie;
     }
 
     private void Scanned(string code)

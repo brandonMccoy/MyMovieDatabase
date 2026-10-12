@@ -5,35 +5,54 @@ using MMDb.UI.Pages;
 
 namespace MMDb.UI.Tests;
 
-/// <summary>"Do I own…?" on the phone: one list across films, comics and the wishlist.</summary>
+/// <summary>"Do I own…?" on the phone: one list of what is owned and what is wanted, for the type of the library it is typed on.</summary>
 public sealed class PhoneOwnSearchTests : PhoneTestContext
 {
     private static (string? Href, string Title, string Sub, string Verdict) Row(AngleSharp.Dom.IElement row) =>
         (row.GetAttribute("href"), row.QuerySelector(".rt")!.TextContent, row.QuerySelector(".rs")!.TextContent, Text(row.QuerySelector(".verdict")!));
 
     [Fact]
-    public async Task One_search_says_what_is_owned_and_what_is_wanted_across_films_and_comics()
+    public async Task On_movies_the_search_says_which_films_are_owned_and_which_are_wanted()
     {
         var heat = await SeedAsync(Heat);
         await SeedAsync(Film("Alien", 1979));
         var wanted = (await Api.WantMovieAsync(new() { Title = "Heat 2", Year = 2027, Directors = ["Michael Mann"], Format = MovieFormatKind.BluRay }, Ct)).Movie.ShouldNotBeNull();
         await SeedComicAsync(TestComics.Issue("Heatwave", "1", 2020));
-        await SeedComicAsync(TestComics.Issue("Heatwave", "2", 2020));
-        var wantedComic = (await Api.WantComicAsync(new() { Series = "Heatwave", SeriesYear = 2020, Number = "3" }, Ct)).Comic.ShouldNotBeNull();
+        await Api.WantComicAsync(new() { Series = "Heatwave", SeriesYear = 2020, Number = "3" }, Ct);
         Navigation.NavigateTo("?q=heat");
 
         var page = Render<MovieLibrary>();
 
         page.WaitForElement(".result");
-        page.FindAll(".rgroup").Select(g => g.TextContent).ShouldBe(["Movies", "Comics"]);
         page.FindAll(".result").Select(Row).ShouldBe(
         [
             ($"movies/{heat.Id}", "Heat", "1995 · Michael Mann", "Owned 4KDVD"),
             ($"wishlist/movies/{wanted.Id}", "Heat 2", "2027 · Michael Mann", "On wishlist Blu-ray"),
-            ("comics?q=heat&shelf=Issues", "Heatwave (2020)", "Series", "2 issues"),
-            ($"wishlist/comics/{wantedComic.Id}", "Heatwave #3", "Single issue", "On wishlist"),
         ]);
         page.Find(".verdict.wish .fmt").ClassList.ShouldContain("want-b");
+        page.FindAll(".card, .filters").ShouldBeEmpty("the answers take the place of the covers");
+    }
+
+    [Fact]
+    public async Task On_comics_the_search_says_which_comics_are_owned_and_which_are_wanted()
+    {
+        await SeedAsync(Heat);
+        await Api.WantMovieAsync(new() { Title = "Heat 2", Year = 2027, Format = MovieFormatKind.BluRay }, Ct);
+        await SeedComicAsync(TestComics.Issue("Heatwave", "1", 2020));
+        await SeedComicAsync(TestComics.Issue("Heatwave", "2", 2020));
+        var book = await SeedComicAsync(TestComics.SagaVolume1 with { Series = "Heat Death", Title = "Heat Death, Volume One" });
+        var wantedComic = (await Api.WantComicAsync(new() { Series = "Heatwave", SeriesYear = 2020, Number = "3" }, Ct)).Comic.ShouldNotBeNull();
+        Navigation.NavigateTo("comics?q=heat");
+
+        var page = Render<ComicLibrary>();
+
+        page.WaitForElement(".result");
+        page.FindAll(".result").Select(row => (row.GetAttribute("href"), Text(row.QuerySelector(".verdict")!))).ShouldBe(
+        [
+            ("comics?q=heat&shelf=Issues", "2 issues"),
+            ($"comics/{book.Id}", "Owned"),
+            ($"wishlist/comics/{wantedComic.Id}", "On wishlist"),
+        ]);
         page.FindAll(".card, .filters").ShouldBeEmpty("the answers take the place of the covers");
     }
 

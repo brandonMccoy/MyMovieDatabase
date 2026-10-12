@@ -1,6 +1,7 @@
 using System.Globalization;
 using MMDb.Application.Comics;
 using MMDb.Application.Movies;
+using MMDb.Application.Types;
 using MMDb.Application.Wishlist;
 using MMDb.Domain;
 using MMDb.Domain.Comics;
@@ -21,13 +22,18 @@ public sealed class StatsSource(IMovieRepository movies, IComicRepository comics
     // The library's director and actor filters tell names apart the same way, so a bar and the list it opens agree.
     private static readonly StringComparer Names = StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace);
 
-    public async Task<CollectionStats> ReadAsync(CancellationToken cancellationToken = default)
+    public Task<CollectionStats> ReadAsync(CancellationToken cancellationToken = default) => ReadAsync(TypesInUse.All, cancellationToken);
+
+    /// <param name="types">A type not in use isn't read at all: its numbers are zero and its lists empty.</param>
+    public async Task<CollectionStats> ReadAsync(TypesInUse types, CancellationToken cancellationToken = default)
     {
-        var films = await movies.ListTalliesAsync(cancellationToken);
-        var billed = await movies.ListTopBilledAsync(MovieFilter.TopBilled, cancellationToken);
-        var copies = await comics.ListTalliesAsync(cancellationToken);
-        var series = await comics.ListSeriesAsync(cancellationToken);
+        ArgumentNullException.ThrowIfNull(types);
+        var films = types.Movies ? await movies.ListTalliesAsync(cancellationToken) : [];
+        var billed = types.Movies ? await movies.ListTopBilledAsync(MovieFilter.TopBilled, cancellationToken) : [];
+        var copies = types.Comics ? await comics.ListTalliesAsync(cancellationToken) : [];
+        var series = types.Comics ? await comics.ListSeriesAsync(cancellationToken) : [];
         var (wantedMovies, wantedComics) = await wishlist.CountAsync(cancellationToken);
+        (wantedMovies, wantedComics) = (types.Movies ? wantedMovies : 0, types.Comics ? wantedComics : 0);
 
         var zone = time.LocalTimeZone;
         var now = TimeZoneInfo.ConvertTime(time.GetUtcNow(), zone);

@@ -1,8 +1,11 @@
+using MMDb.Contracts.Types;
+
 namespace MMDb.Contracts.Sync;
 
 /// <summary>Everything in the PC's collection and wishlist by key, for a phone to compare its copy with.</summary>
 /// <param name="Schema">Names the PC database's tables as they are now. Rows only travel between databases on the same schema.</param>
-public sealed record SyncManifest(string Schema, IReadOnlyList<SyncTable> Tables);
+/// <param name="Types">The types the PC's Settings have in use, for the phone to show the same. Rows of every type are listed all the same.</param>
+public sealed record SyncManifest(string Schema, IReadOnlyList<SyncTable> Tables, TypesInUseDto? Types = null);
 
 /// <param name="Rows">Each row's key with a stamp that changes whenever the row does.</param>
 public sealed record SyncTable(string Name, IReadOnlyDictionary<string, string> Rows);

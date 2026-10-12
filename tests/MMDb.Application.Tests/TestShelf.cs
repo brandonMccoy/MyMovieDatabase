@@ -7,6 +7,7 @@ using MMDb.Application.Digital;
 using MMDb.Application.Metadata;
 using MMDb.Application.Movies;
 using MMDb.Application.Stats;
+using MMDb.Application.Types;
 using MMDb.Application.Vault;
 using MMDb.Application.Wishlist;
 using MMDb.Domain;
@@ -136,6 +137,11 @@ internal sealed class TestShelf : IAsyncDisposable
     public Task<MovieList> ListAsync(MovieQuery? query = null) => Movies((catalog, ct) => catalog.ListAsync(query ?? new(), ct));
 
     public Task<CollectionStats> StatsAsync() => Use<StatsSource, CollectionStats>((stats, ct) => stats.ReadAsync(ct));
+
+    /// <summary>The numbers with only these types in use.</summary>
+    public Task<CollectionStats> StatsAsync(TypesInUse types) => Use<StatsSource, CollectionStats>((stats, ct) => stats.ReadAsync(types, ct));
+
+    public TypeChoice Types => _services.GetRequiredService<TypeChoice>();
 
     public async ValueTask DisposeAsync()
     {

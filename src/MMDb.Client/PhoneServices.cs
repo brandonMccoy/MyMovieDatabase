@@ -32,13 +32,14 @@ public static class PhoneServices
 
     /// <summary>
     /// Creates the phone's database or brings it up to the latest schema, reads what was waiting to be sent
-    /// when the app was last closed, and has the phone's own lookups use the keys its PC handed over, for as
-    /// long as it holds them. Call once, before the first screen.
+    /// when the app was last closed and which types its PC said to show, and has the phone's own lookups use the
+    /// keys its PC handed over, for as long as it holds them. Call once, before the first screen.
     /// </summary>
     public static async Task StartShelfPhoneAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
         await services.MigrateShelfDatabaseAsync(cancellationToken);
         await services.GetRequiredService<ShelfSync>().StartAsync(cancellationToken);
+        await services.GetRequiredService<ITypesApi>().LoadAsync(cancellationToken);
 
         var pc = services.GetRequiredService<PcLink>();
         var tmdb = services.GetRequiredService<TmdbSettings>();

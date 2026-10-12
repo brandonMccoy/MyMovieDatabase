@@ -1,6 +1,8 @@
 @page "/settings"
 @implements IDisposable
+@using MMDb.Contracts.Scans
 @inject IServiceProvider Services
+@inject ITypesApi Types
 
 <PageTitle>Settings · Shelf</PageTitle>
 
@@ -11,6 +13,21 @@
 <div class="content">
     <div class="section-head"><h1>Settings</h1></div>
     <div class="settings">
+        <section class="set" aria-labelledby="types-heading">
+            <h3 id="types-heading">Collections</h3>
+            <div class="desc">Shelf shows only the types turned on here. Turning one off hides it everywhere; nothing is deleted, and turning it on brings it back.</div>
+            @foreach (var (kind, name) in Kinds)
+            {
+                var on = Types.InUse.Uses(kind);
+                var last = Types.InUse.Only == kind;
+                <div class="setrow">
+                    <span class="lbl">@name</span>
+                    <span class="small">@(last ? "Shelf shows at least one type" : null)</span>
+                    <button type="button" role="switch" class="switch-ui use-type @(on ? "on" : null)" data-type="@kind" aria-checked="@Aria.Bool(on)"
+                            aria-label="Show @name.ToLowerInvariant()" disabled="@last" @onclick="() => Types.SetAsync(Types.InUse.With(kind, !on))"><i></i></button>
+                </div>
+            }
+        </section>
         @if (Services.GetService<IPhoneApi>() is not null)
         {
             <MMDb.UI.Phone.PhoneSettings />
@@ -66,7 +83,7 @@
                 }
             </section>
         }
-        @if (_digital is not null)
+        @if (_digital is not null && Types.InUse.Movies)
         {
             var movies = _digital.Folder;
             <section class="set" aria-labelledby="digital-heading">
@@ -91,6 +108,8 @@
 </div>
 
 @code {
+    private static readonly (ProductKind Kind, string Name)[] Kinds = [(ProductKind.Movie, "Movies"), (ProductKind.Comic, "Comics")];
+
     private IVaultApi? _vault;
     private IDigitalApi? _digital;
     private IFolderPicker? _picker;
@@ -100,6 +119,7 @@
 
     protected override void OnInitialized()
     {
+        Types.Changed += OnChanged;
         _vault = Services.GetService<IVaultApi>();
         _picker = Services.GetService<IFolderPicker>();
         if (_vault is not null)
@@ -169,6 +189,7 @@
 
     public void Dispose()
     {
+        Types.Changed -= OnChanged;
         if (_digital is not null)
         {
             _digital.Changed -= OnChanged;

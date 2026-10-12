@@ -1,8 +1,10 @@
 @page "/stats"
 @implements IDisposable
+@using MMDb.Contracts.Scans
 @inject ICollectionApi Api
 @inject IServiceProvider Services
 @inject ShelfDevice Device
+@inject ITypesApi Types
 
 <PageTitle>Stats · Shelf</PageTitle>
 
@@ -20,6 +22,10 @@ else
 }
 
 <div class="content">
+    @{
+        // Only the types in use are counted and shown.
+        var types = Types.InUse;
+    }
     @if (!Device.IsPhone)
     {
         <div class="section-head"><h1>Stats</h1><span class="sub">Whole collection</span></div>
@@ -33,14 +39,18 @@ else
     {
         <div class="empty">
             <h2>Nothing to count yet</h2>
-            <p>The numbers appear once there is a movie or a comic in your collection.</p>
+            <p>The numbers appear once there is @(types.Only switch { ProductKind.Movie => "a movie", ProductKind.Comic => "a comic", _ => "a movie or a comic" }) in your collection.</p>
             @if (Device.IsPhone)
             {
                 <a class="btn primary" href="scan"><Icon Name="scan" />Scan</a>
             }
-            else
+            else if (types.Movies)
             {
                 <a class="btn primary" href="movies/new"><Icon Name="plus" />Add movie</a>
+            }
+            else
+            {
+                <a class="btn primary" href="comics/new"><Icon Name="plus" />Add comic</a>
             }
         </div>
     }
@@ -48,6 +58,8 @@ else
     {
         var copies = _stats.DiscCount + _stats.DigitalCount;
         <div class="tiles">
+            @if (types.Movies)
+            {
             <div class="tile">
                 <div class="k">Films</div><div class="v">@Number(_stats.FilmCount)</div>
                 <div class="d">@AddedThisMonth(_stats.FilmsAddedThisMonth)</div>
@@ -63,6 +75,9 @@ else
                     <div class="d">@FileSize.Text(bytes) on this PC</div>
                 }
             </div>
+            }
+            @if (types.Comics)
+            {
             <div class="tile">
                 <div class="k">Comic issues</div><div class="v">@Number(_stats.IssueCount)</div>
                 <div class="d">@AddedThisMonth(_stats.IssuesAddedThisMonth)</div>
@@ -75,13 +90,19 @@ else
                 <div class="k">Series</div><div class="v">@Number(_stats.SeriesCount)</div>
                 <div class="d">@Plural(_stats.CompleteSeriesCount, "complete run")</div>
             </div>
+            }
             <div class="tile">
                 <div class="k">Wishlist</div><div class="v">@Number(_stats.WishlistMovieCount + _stats.WishlistComicCount)</div>
-                <div class="d">@Plural(_stats.WishlistMovieCount, "movie") · @Plural(_stats.WishlistComicCount, "comic")</div>
+                @if (types.Only is null)
+                {
+                    <div class="d">@Plural(_stats.WishlistMovieCount, "movie") · @Plural(_stats.WishlistComicCount, "comic")</div>
+                }
             </div>
         </div>
 
         <div class="charts">
+            @if (types.Movies)
+            {
             <section class="chart wide" aria-labelledby="chart-formats">
                 <h4 id="chart-formats">Copies by format</h4>
                 <div class="cap">@Plural(copies, "copy", "copies") · @Plural(_stats.DiscCount, "disc") + @Number(_stats.DigitalCount) digital</div>
@@ -115,13 +136,19 @@ else
                 <div class="cap">Discs and digital copies, last 12 months</div>
                 <ColumnChart Bars='Months(_stats.MoviesAddedByMonth, "copy", "copies")' />
             </section>
+            }
 
+            @if (types.Comics)
+            {
             <section class="chart" aria-labelledby="chart-comics-added">
                 <h4 id="chart-comics-added">Comics added per month</h4>
                 <div class="cap">Issues, trades and hardcovers, last 12 months</div>
                 <ColumnChart Bars='Months(_stats.ComicsAddedByMonth, "comic", "comics")' />
             </section>
+            }
 
+            @if (types.Movies)
+            {
             <section class="chart" aria-labelledby="chart-decades">
                 <h4 id="chart-decades">Films by decade</h4>
                 <div class="cap">By year of release@(_stats.FilmsWithoutYear > 0 ? $" · {Plural(_stats.FilmsWithoutYear, "film")} without a year" : null)</div>
@@ -160,7 +187,10 @@ else
                     <BarList Bars="Actors(_stats)" />
                 }
             </section>
+            }
 
+            @if (types.Comics)
+            {
             <section class="chart" aria-labelledby="chart-publishers">
                 <h4 id="chart-publishers">Comics by publisher</h4>
                 <div class="cap">Issues owned</div>
@@ -173,6 +203,7 @@ else
                     <BarList Bars="Publishers(_stats)" />
                 }
             </section>
+            }
         </div>
     }
 </div>
@@ -188,6 +219,7 @@ else
         _api = Services.GetService<IStatsApi>();
         _digital = Services.GetService<IDigitalApi>();
         Api.Changed += OnCollectionChanged;
+        Types.Changed += OnCollectionChanged;
         if (_digital is not null)
         {
             _bytesShown = _digital.Folder.LinkedBytes;
@@ -259,6 +291,7 @@ else
     public void Dispose()
     {
         Api.Changed -= OnCollectionChanged;
+        Types.Changed -= OnCollectionChanged;
         if (_digital is not null)
         {
             _digital.Changed -= OnFolderChanged;

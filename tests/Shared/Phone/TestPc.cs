@@ -49,6 +49,9 @@ internal sealed class TestPc : IAsyncDisposable
 
     public PhoneServer Server => _services.GetRequiredService<PhoneServer>();
 
+    /// <summary>The types of collection in use, as the PC's Settings screen sets them.</summary>
+    public ITypesApi Types => _services.GetRequiredService<ITypesApi>();
+
     /// <summary>The keys as the PC's Settings screen sets them.</summary>
     public IKeysApi Keys => _services.GetRequiredService<IKeysApi>();
 

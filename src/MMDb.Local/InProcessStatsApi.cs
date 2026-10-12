@@ -5,13 +5,17 @@ using MMDb.Local.Movies;
 
 namespace MMDb.Local;
 
-/// <summary><see cref="IStatsApi"/> over the database on this device: counts the collection directly, one DI scope per call.</summary>
-public sealed class InProcessStatsApi(IServiceScopeFactory scopes) : IStatsApi
+/// <summary>
+/// <see cref="IStatsApi"/> over the database on this device: counts the collection directly, one DI scope per call.
+/// Only the types in use are counted.
+/// </summary>
+public sealed class InProcessStatsApi(IServiceScopeFactory scopes, ITypesApi types) : IStatsApi
 {
     public async Task<StatsDto> GetAsync(CancellationToken cancellationToken = default)
     {
         await using var scope = scopes.CreateAsyncScope();
-        var stats = await scope.ServiceProvider.GetRequiredService<StatsSource>().ReadAsync(cancellationToken);
+        var inUse = types.InUse;
+        var stats = await scope.ServiceProvider.GetRequiredService<StatsSource>().ReadAsync(new(inUse.Movies, inUse.Comics), cancellationToken);
         return new()
         {
             FilmCount = stats.FilmCount,

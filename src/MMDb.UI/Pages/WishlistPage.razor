@@ -1,8 +1,10 @@
 @page "/wishlist"
 @implements IDisposable
+@using MMDb.Contracts.Scans
 @inject ICollectionApi Api
 @inject NavigationManager Navigation
 @inject ShelfDevice Device
+@inject ITypesApi Types
 
 <PageTitle>Wishlist · Shelf</PageTitle>
 
@@ -30,7 +32,7 @@ else
             <h1>Wishlist</h1>
             @if (_list is not null)
             {
-                var items = _list.MovieCount + _list.ComicCount;
+                var items = (Types.InUse.Movies ? _list.MovieCount : 0) + (Types.InUse.Comics ? _list.ComicCount : 0);
                 <span class="sub">@items.ToString("N0", CultureInfo.InvariantCulture) @(items == 1 ? "item" : "items")</span>
             }
         </div>
@@ -42,11 +44,14 @@ else
     }
     else
     {
-        @* Movies and comics are on separate tabs, as mocked. *@
-        <div class="subtabs" role="tablist">
-            <a role="tab" class="@(ShowComics ? null : "on")" aria-selected="@Aria.Bool(!ShowComics)" href="@TabHref(null)">Movies<span class="n">@_list.MovieCount</span></a>
-            <a role="tab" class="@(ShowComics ? "on" : null)" aria-selected="@Aria.Bool(ShowComics)" href="@TabHref(ComicsTab)">Comics<span class="n">@_list.ComicCount</span></a>
-        </div>
+        @* Movies and comics are on separate tabs, as mocked. With one type in use there is nothing to choose between. *@
+        @if (Types.InUse.Only is null)
+        {
+            <div class="subtabs" role="tablist">
+                <a role="tab" class="@(ShowComics ? null : "on")" aria-selected="@Aria.Bool(!ShowComics)" href="@TabHref(null)">Movies<span class="n">@_list.MovieCount</span></a>
+                <a role="tab" class="@(ShowComics ? "on" : null)" aria-selected="@Aria.Bool(ShowComics)" href="@TabHref(ComicsTab)">Comics<span class="n">@_list.ComicCount</span></a>
+            </div>
+        }
 
         @if ((ShowComics ? _list.ComicCount : _list.MovieCount) == 0)
         {
@@ -174,14 +179,20 @@ else
         await remove();
     }
 
-    /// <summary><c>comics</c> for the Comics tab; anything else is Movies.</summary>
+    /// <summary><c>comics</c> for the Comics tab; anything else is Movies. With one type in use, its list shows whatever this says.</summary>
     [SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }
 
-    private bool ShowComics => string.Equals(Tab, ComicsTab, StringComparison.OrdinalIgnoreCase);
+    private bool ShowComics => Types.InUse.Only is { } only
+        ? only == ProductKind.Comic
+        : string.Equals(Tab, ComicsTab, StringComparison.OrdinalIgnoreCase);
 
     private string AddHref => ShowComics ? "wishlist/comics/new" : "wishlist/movies/new";
 
-    protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
+    protected override void OnInitialized()
+    {
+        Api.Changed += OnCollectionChanged;
+        Types.Changed += OnCollectionChanged;
+    }
 
     // Something was wanted, bought or removed (here, on another screen or on a phone): show it.
     private void OnCollectionChanged() => InvokeAsync(async () =>
@@ -231,6 +242,7 @@ else
     public void Dispose()
     {
         Api.Changed -= OnCollectionChanged;
+        Types.Changed -= OnCollectionChanged;
         _loading?.Cancel();
         _loading?.Dispose();
     }

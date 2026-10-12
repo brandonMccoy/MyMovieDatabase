@@ -34,6 +34,20 @@ public sealed class InProcessStatsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Only_the_types_in_use_are_counted()
+    {
+        await Api.AddMovieAsync(new() { Title = "Heat", Year = 1995, Formats = [new(MovieFormatKind.Uhd4K)] }, Ct);
+        await Api.AddComicAsync(new() { Series = "Daredevil", SeriesYear = 1964, Number = "181", Publisher = "Marvel" }, Ct);
+        await _services.GetRequiredService<ITypesApi>().SetAsync(new(Movies: false, Comics: true), Ct);
+
+        var stats = await _services.GetRequiredService<IStatsApi>().GetAsync(Ct);
+
+        stats.FilmCount.ShouldBe(0);
+        stats.DiscCount.ShouldBe(0);
+        stats.IssueCount.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task The_screen_is_handed_every_number_in_the_contracts_terms()
     {
         await Api.AddMovieAsync(new() { Title = "Heat", Year = 1995, Directors = ["Michael Mann"], Cast = [new("Al Pacino", "Vincent Hanna")], Formats = [new(MovieFormatKind.Uhd4K), new(MovieFormatKind.Digital)] }, Ct);

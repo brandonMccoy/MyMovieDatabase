@@ -4,6 +4,7 @@
 @using MMDb.UI.Phone
 @inject IPcLink Link
 @inject IPhoneSync Sync
+@inject ITypesApi Types
 @inject NavigationManager Navigation
 
 @* The phone's frame: pairing first, then its copy of the collection once (the only time the PC has to be there),
@@ -59,9 +60,15 @@
         </div>
         @if (ShowsNav)
         {
-            <nav class="bnav" aria-label="Sections">
-                <NavLink href="" class="@(IsMovies ? "on" : null)" ActiveClass=""><Icon Name="film" /><span>Movies</span></NavLink>
-                <NavLink href="comics" class="@(IsComics ? "on" : null)" ActiveClass=""><Icon Name="book" /><span>Comics</span></NavLink>
+            <nav class="bnav @(Types.InUse.Only is null ? null : "four")" aria-label="Sections">
+                @if (Types.InUse.Movies)
+                {
+                    <NavLink href="" class="@(IsMovies ? "on" : null)" ActiveClass=""><Icon Name="film" /><span>Movies</span></NavLink>
+                }
+                @if (Types.InUse.Comics)
+                {
+                    <NavLink href="comics" class="@(IsComics ? "on" : null)" ActiveClass=""><Icon Name="book" /><span>Comics</span></NavLink>
+                }
                 <a href="scan" class="scan" aria-label="Scan"><span class="scanbtn"><Icon Name="scan" /></span></a>
                 <NavLink href="wishlist" class="@(IsWishlist ? "on" : null)" ActiveClass=""><Icon Name="heart" /><span>Wishlist</span></NavLink>
                 <NavLink href="stats" class="@(Path == "stats" ? "on" : null)" ActiveClass=""><Icon Name="chart" /><span>Stats</span></NavLink>
@@ -90,6 +97,7 @@
     {
         Link.Changed += OnChanged;
         Sync.Changed += OnSyncChanged;
+        Types.Changed += OnSyncChanged;
         Navigation.LocationChanged += OnLocationChanged;
         await Link.StartAsync();
         _started = true;
@@ -143,6 +151,7 @@
     {
         Link.Changed -= OnChanged;
         Sync.Changed -= OnSyncChanged;
+        Types.Changed -= OnSyncChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }

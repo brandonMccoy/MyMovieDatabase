@@ -8,6 +8,7 @@
 @inject ShelfCounts Counts
 @inject ScanInbox Queue
 @inject ShelfDevice Device
+@inject ITypesApi Types
 
 <PageTitle>@(IsNew ? "Add comic" : "Edit comic") · Shelf</PageTitle>
 
@@ -54,7 +55,11 @@ else if (_loaded && _mode == Mode.Search)
                 @if (IsNew)
                 {
                     <span>Not listed?</span> <button type="button" class="link-btn" @onclick="EnterManually">Enter manually</button>
-                    @if (_scan is not null)
+                    @if (!Types.InUse.Movies)
+                    {
+                        @* Movies aren't in use: there is nothing else it could be. *@
+                    }
+                    else if (_scan is not null)
                     {
                         <span> · Not a comic?</span> <button type="button" class="link-btn as-other" @onclick="() => LookUpAsAsync(ProductKind.Movie)">Look it up as a film</button>
                     }

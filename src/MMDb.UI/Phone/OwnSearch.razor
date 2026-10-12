@@ -1,8 +1,10 @@
 @implements IDisposable
+@using MMDb.Contracts.Scans
 @inject ICollectionApi Api
 
-@* Phone only, as mocked: "Do I own…?" answered in one list across films, comics and the wishlist, from the
-   phone's own copy. The mockup's "Not owned" rows are left out; finding nothing offers to look it up instead. *@
+@* Phone only, as mocked: "Do I own…?" answered in one list of what is owned and what is on the wishlist, from the
+   phone's own copy, for the type of the library it was typed on. The mockup's "Not owned" rows are left out;
+   finding nothing offers to look it up instead. *@
 @if (_found is { } found)
 {
     @if (found.IsEmpty)
@@ -20,7 +22,6 @@
         <div class="results" role="list">
             @if (found.Movies.Count + found.WantedMovies.Count > 0)
             {
-                <div class="rgroup">Movies</div>
                 @foreach (var film in found.Movies)
                 {
                     <a class="result" role="listitem" href="movies/@film.Id" @key="film.Id">
@@ -50,7 +51,6 @@
 
             @if (found.Runs.Count + found.Collected.Count + found.WantedComics.Count > 0)
             {
-                <div class="rgroup">Comics</div>
                 @foreach (var run in found.Runs)
                 {
                     @* Opens the issues owned that match, which is where a single issue is answered for. *@
@@ -88,8 +88,11 @@
     /// <summary>What was typed.</summary>
     [Parameter, EditorRequired] public string Query { get; set; } = "";
 
-    /// <summary>The add screen to open with the text when nothing matches: <c>movies/new</c> or <c>comics/new</c>.</summary>
-    [Parameter, EditorRequired] public string LookUpHref { get; set; } = "";
+    /// <summary>The library it was typed on: only that type is searched, its wishlist included.</summary>
+    [Parameter, EditorRequired] public ProductKind Kind { get; set; }
+
+    // The add screen opens with the text when nothing matches.
+    private string LookUpHref => Kind == ProductKind.Comic ? "comics/new" : "movies/new";
 
     protected override void OnInitialized() => Api.Changed += OnCollectionChanged;
 
@@ -111,13 +114,23 @@
         var query = Query.Trim();
         try
         {
-            var movies = await Api.ListMoviesAsync(new() { Search = query, Sort = MovieSortOrder.Title }, token);
-            var runs = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Series }, token);
-            var collected = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Collected }, token);
             var wishlist = await Api.ListWishlistAsync(query, token);
+            Found found;
+            if (Kind == ProductKind.Comic)
+            {
+                var runs = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Series }, token);
+                var collected = await Api.ListComicsAsync(new() { Search = query, Shelf = ComicShelfKind.Collected }, token);
+                found = new(query, [], [], runs.Runs, collected.Comics, wishlist.Comics);
+            }
+            else
+            {
+                var movies = await Api.ListMoviesAsync(new() { Search = query, Sort = MovieSortOrder.Title }, token);
+                found = new(query, movies.Movies, wishlist.Movies, [], [], []);
+            }
+
             if (!token.IsCancellationRequested)
             {
-                _found = new(query, movies.Movies, wishlist.Movies, runs.Runs, collected.Comics, wishlist.Comics);
+                _found = found;
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)

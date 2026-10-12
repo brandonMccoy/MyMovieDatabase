@@ -25,6 +25,7 @@ public sealed class ShelfSync(
     Outbox outbox,
     CoverShelf covers,
     ISettingStore settings,
+    ITypesApi types,
     TimeProvider clock) : IPhoneSync, IDisposable
 {
     private const string SyncedAtKey = "phone.synced-at";
@@ -293,6 +294,12 @@ public sealed class ShelfSync(
         {
             Set(PhoneSyncState.WrongVersion);
             return false;
+        }
+
+        // The types to show are chosen in the PC's Settings; the phone has no switches of its own and follows.
+        if (manifest.Types is { } inUse)
+        {
+            await types.SetAsync(inUse);
         }
 
         var mine = (await copy.ListAsync()).ToDictionary(t => t.Name, t => t.Stamps);
